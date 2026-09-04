@@ -8,26 +8,31 @@ bir test veri setinde gerçekten hata/uyarı üretmeli" — bu dosyadaki
 from __future__ import annotations
 
 import pytest
-
 from harita.feature_survey.geodetic_engine.gnss_adjustment import (
     InsufficientDataError as GnssInsufficientDataError,
+)
+from harita.feature_survey.geodetic_engine.gnss_adjustment import (
     compare_to_control_point,
 )
+from harita.feature_survey.geodetic_engine.reduction import ReducedObservation
 from harita.feature_survey.geodetic_engine.traverse import (
     InsufficientDataError as TraverseInsufficientDataError,
+)
+from harita.feature_survey.geodetic_engine.traverse import (
     compute_angular_closure,
     compute_linear_closure,
 )
-from harita.feature_survey.geodetic_engine.reduction import ReducedObservation
 from harita.feature_survey.qc.checkpoint_report import generate_checkpoint_report
 from harita.feature_survey.qc.closure_report import generate_closure_report
 from harita.feature_survey.qc.survey_quality_report import (
     InsufficientDataError as CombinedInsufficientDataError,
+)
+from harita.feature_survey.qc.survey_quality_report import (
     build_survey_quality_report,
 )
 
-
 # --- Checkpoint accuracy report ---------------------------------------------
+
 
 def test_checkpoint_report_passes_within_tolerance():
     comparisons = [
@@ -79,6 +84,7 @@ def test_checkpoint_report_requires_standard_reference():
 
 # --- Closure QC report -------------------------------------------------------
 
+
 def _legs(n: int, side_m: float = 100.0) -> list[ReducedObservation]:
     """Kapalı bir n-kenarlı düzgün poligonun (yaklaşık) kenarlarını üretir."""
     import math
@@ -101,11 +107,14 @@ def _legs(n: int, side_m: float = 100.0) -> list[ReducedObservation]:
 
 
 def test_closure_report_passes_within_tolerance():
-    angles = [100.0] * 4  # kapalı dörtgen için teorik iç açı: (4-2)*200/... aslında gon bazında (n-2)*200
+    angles = [
+        100.0
+    ] * 4  # kapalı dörtgen için teorik iç açı: (4-2)*200/... aslında gon bazında (n-2)*200
     angular = compute_angular_closure(angles)
     linear = compute_linear_closure(_legs(4))
     report = generate_closure_report(
-        angular, linear,
+        angular,
+        linear,
         angular_tolerance_gon=0.01,
         max_relative_precision=1 / 1000,
         standard_reference="Test standardı: poligon tolerans (birim test amaçlı)",
@@ -122,7 +131,8 @@ def test_closure_report_fails_when_angular_tolerance_exceeded():
     angular = compute_angular_closure(angles)
     linear = compute_linear_closure(_legs(4))
     report = generate_closure_report(
-        angular, linear,
+        angular,
+        linear,
         angular_tolerance_gon=0.01,
         max_relative_precision=1 / 1000,
         standard_reference="Test standardı",
@@ -148,7 +158,8 @@ def test_closure_report_fails_when_linear_tolerance_exceeded():
     angular = compute_angular_closure([100.0] * 4)
     linear = compute_linear_closure(legs)
     report = generate_closure_report(
-        angular, linear,
+        angular,
+        linear,
         angular_tolerance_gon=0.01,
         max_relative_precision=1 / 5000,
         standard_reference="Test standardı",
@@ -165,6 +176,7 @@ def test_closure_report_requires_documented_standard():
 
 
 # --- Combined survey quality report ------------------------------------------
+
 
 def test_combined_report_requires_at_least_one_subreport():
     with pytest.raises(CombinedInsufficientDataError):

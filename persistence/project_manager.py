@@ -137,7 +137,7 @@ class ProjectManager:
             self._reg.commit()
             self._reg.close()
 
-    def __enter__(self) -> "ProjectManager":
+    def __enter__(self) -> ProjectManager:
         return self
 
     def __exit__(self, *exc_info: object) -> None:
@@ -164,7 +164,9 @@ class ProjectManager:
             self._open_handles[project_id] = handle
             return handle
 
-    def open_project(self, project_id: str | None = None, *, path: str | Path | None = None) -> ProjectHandle:
+    def open_project(
+        self, project_id: str | None = None, *, path: str | Path | None = None
+    ) -> ProjectHandle:
         """`project_id` (registry üzerinden) veya doğrudan `path` ile açar."""
         if project_id is not None and project_id in self._open_handles:
             return self._open_handles[project_id]
@@ -212,17 +214,14 @@ class ProjectManager:
                 (limit,),
             ).fetchall()
         return [
-            {"project_id": r[0], "name": r[1], "path": r[2], "last_opened_at": r[3]}
-            for r in rows
+            {"project_id": r[0], "name": r[1], "path": r[2], "last_opened_at": r[3]} for r in rows
         ]
 
     def forget_project(self, project_id: str) -> bool:
         """Registry kaydını siler (diskteki `.hproj` dosyasına dokunmaz)."""
         self.close_project(project_id)
         with self._lock:
-            cur = self._reg.execute(
-                "DELETE FROM projects WHERE project_id = ?", (project_id,)
-            )
+            cur = self._reg.execute("DELETE FROM projects WHERE project_id = ?", (project_id,))
             self._reg.commit()
             return cur.rowcount > 0
 

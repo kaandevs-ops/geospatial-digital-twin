@@ -21,23 +21,23 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
-
 # ======================================================================== #
 # Temel tipler
 # ======================================================================== #
+
 
 @dataclass(frozen=True, slots=True)
 class Point2D:
     x: float
     y: float
 
-    def distance_to(self, other: "Point2D") -> float:
+    def distance_to(self, other: Point2D) -> float:
         return math.hypot(self.x - other.x, self.y - other.y)
 
-    def __add__(self, other: "Point2D") -> "Point2D":
+    def __add__(self, other: Point2D) -> Point2D:
         return Point2D(self.x + other.x, self.y + other.y)
 
-    def __sub__(self, other: "Point2D") -> "Point2D":
+    def __sub__(self, other: Point2D) -> Point2D:
         return Point2D(self.x - other.x, self.y - other.y)
 
 
@@ -85,8 +85,7 @@ class Polygon:
         if abs(a) < 1e-12:
             # dejenere durum: aritmetik ortalama
             n = len(self.points)
-            return Point2D(sum(p.x for p in self.points) / n,
-                            sum(p.y for p in self.points) / n)
+            return Point2D(sum(p.x for p in self.points) / n, sum(p.y for p in self.points) / n)
         cx = cy = 0.0
         for p1, p2 in zip(ring, ring[1:]):
             cross = p1.x * p2.y - p2.x * p1.y
@@ -103,7 +102,7 @@ class Polygon:
         ys = [p.y for p in self.points]
         return min(xs), min(ys), max(xs), max(ys)
 
-    def contains_point(self, point: "Point2D") -> bool:
+    def contains_point(self, point: Point2D) -> bool:
         """Ray-casting (even-odd kuralı) ile nokta-poligon içindelik testi.
 
         ROADMAP_V7.md Faz C3 için eklendi: OSM'den gelen alan feature'ları
@@ -130,6 +129,7 @@ class Polygon:
 # ======================================================================== #
 # Geometry Engine
 # ======================================================================== #
+
 
 class GeometryEngine:
     """Polygon / Line / Point işlemleri için stateless static metotlar."""
@@ -158,7 +158,7 @@ class GeometryEngine:
             if d > max_dist:
                 max_dist, index = d, i
         if max_dist > epsilon:
-            left = GeometryEngine._rdp(points[:index + 1], epsilon)
+            left = GeometryEngine._rdp(points[: index + 1], epsilon)
             right = GeometryEngine._rdp(points[index:], epsilon)
             return left[:-1] + right
         return [start, end]
@@ -167,8 +167,9 @@ class GeometryEngine:
     def _point_segment_distance(p: Point2D, a: Point2D, b: Point2D) -> float:
         if a == b:
             return p.distance_to(a)
-        t = ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / \
-            ((b.x - a.x) ** 2 + (b.y - a.y) ** 2)
+        t = ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / (
+            (b.x - a.x) ** 2 + (b.y - a.y) ** 2
+        )
         t = max(0.0, min(1.0, t))
         proj = Point2D(a.x + t * (b.x - a.x), a.y + t * (b.y - a.y))
         return p.distance_to(proj)
@@ -220,8 +221,10 @@ class GeometryEngine:
         while True:
             candidates = sorted(remaining, key=lambda p: current.distance_to(p))[:k]
             candidates.sort(
-                key=lambda p: -GeometryEngine._angle_diff(
-                    prev_angle, math.atan2(p.y - current.y, p.x - current.x)
+                key=lambda p: (
+                    -GeometryEngine._angle_diff(
+                        prev_angle, math.atan2(p.y - current.y, p.x - current.x)
+                    )
                 )
             )
             next_point = None
@@ -325,8 +328,9 @@ class GeometryEngine:
         if not GeometryEngine._bbox_overlap(a, b):
             return False
         # Herhangi bir köşe diğerinin içinde mi (yaklaşık ama pratik test)
-        return any(GeometryEngine.point_in_polygon(p, b) for p in a.points) or \
-               any(GeometryEngine.point_in_polygon(p, a) for p in b.points)
+        return any(GeometryEngine.point_in_polygon(p, b) for p in a.points) or any(
+            GeometryEngine.point_in_polygon(p, a) for p in b.points
+        )
 
     @staticmethod
     def point_in_polygon(point: Point2D, poly: Polygon) -> bool:
@@ -334,8 +338,9 @@ class GeometryEngine:
         ring = poly.closed_ring()
         inside = False
         for p1, p2 in zip(ring, ring[1:]):
-            if ((p1.y > point.y) != (p2.y > point.y)) and \
-               (point.x < (p2.x - p1.x) * (point.y - p1.y) / (p2.y - p1.y + 1e-15) + p1.x):
+            if ((p1.y > point.y) != (p2.y > point.y)) and (
+                point.x < (p2.x - p1.x) * (point.y - p1.y) / (p2.y - p1.y + 1e-15) + p1.x
+            ):
                 inside = not inside
         return inside
 
@@ -431,6 +436,7 @@ class PointIndex:
     Roadmap: "Point > indexing". Basit grid-based spatial index
     (Phase 10'daki QuadTree/RTree'nin hafif ön sürümü).
     """
+
     cell_size: float
     _grid: dict[tuple[int, int], list[Point2D]] = field(default_factory=dict)
 

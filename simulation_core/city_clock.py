@@ -22,11 +22,11 @@ Tasarım ilkeleri (ROADMAP_V9.md "Kritik Tasarım İlkeleri" ile tutarlı):
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Optional
 
-from ..extensibility.event_system import Event, EventSystem
+from ..extensibility.event_system import EventSystem
 
 __all__ = [
     "ClockEventType",
@@ -78,7 +78,7 @@ class CityClock:
 
     def __init__(
         self,
-        event_bus: Optional[EventSystem] = None,
+        event_bus: EventSystem | None = None,
         base_dt_s: float = 0.1,
         speed_multiplier: float = 1.0,
         max_ticks_per_advance: int = 10_000,
@@ -128,9 +128,7 @@ class CityClock:
         if multiplier <= 0:
             raise ValueError("speed_multiplier pozitif olmalı")
         self.speed_multiplier = multiplier
-        self.event_bus.emit(
-            ClockEventType.SPEED_CHANGED.value, self._state(), source="city_clock"
-        )
+        self.event_bus.emit(ClockEventType.SPEED_CHANGED.value, self._state(), source="city_clock")
 
     # -- Abonelik -------------------------------------------------------- #
 
@@ -167,7 +165,10 @@ class CityClock:
         # son tick'i sessizce kaybettirebilir.
         epsilon = self.base_dt_s * 1e-9
 
-        while self._accumulator_s >= self.base_dt_s - epsilon and ticks_done < self.max_ticks_per_advance:
+        while (
+            self._accumulator_s >= self.base_dt_s - epsilon
+            and ticks_done < self.max_ticks_per_advance
+        ):
             self.sim_time_s += self.base_dt_s
             self.tick_index += 1
             self._accumulator_s -= self.base_dt_s

@@ -25,10 +25,11 @@ etkisi ... gölgeleme (sıcaklık) ... kaba skorla ifadesi") burada, ayrı bir
 modül açmak yerine bilinçli olarak mikroklima indeksine entegre edilmiştir
 (iki ayrı gösterge yerine tek tutarlı bir sonuç - tekrar hesaplama yok).
 """
+
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable, Optional
 
 from .open_meteo_client import HourlyClimateSample
 
@@ -72,8 +73,8 @@ _MAX_INDEX_C = 6.0
 @dataclass(slots=True)
 class MicroclimateReport:
     heat_island_index_c: float
-    baseline_temperature_c: Optional[float]
-    estimated_local_temperature_c: Optional[float]
+    baseline_temperature_c: float | None
+    estimated_local_temperature_c: float | None
     height_to_width_ratio: float
     canopy_cooling_effect_c: float
     disclaimer: str = DISCLAIMER
@@ -84,7 +85,8 @@ class MicroclimateReport:
             "baseline_temperature_c": self.baseline_temperature_c,
             "estimated_local_temperature_c": (
                 round(self.estimated_local_temperature_c, 2)
-                if self.estimated_local_temperature_c is not None else None
+                if self.estimated_local_temperature_c is not None
+                else None
             ),
             "height_to_width_ratio": round(self.height_to_width_ratio, 2),
             "canopy_cooling_effect_c": round(self.canopy_cooling_effect_c, 2),
@@ -94,7 +96,7 @@ class MicroclimateReport:
 
 def estimate_heat_island_index(
     fabric: UrbanFabricSample,
-    baseline: Optional[HourlyClimateSample] = None,
+    baseline: HourlyClimateSample | None = None,
 ) -> MicroclimateReport:
     """`fabric` (yoğunluk/H-W/canopy) + opsiyonel `baseline`
     (`open_meteo_client`'tan gerçek saatlik sıcaklık, değiştirilmedi) ->

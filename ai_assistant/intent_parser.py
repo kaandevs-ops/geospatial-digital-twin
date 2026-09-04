@@ -27,7 +27,7 @@ yap.") birebir uyumludur.
 from __future__ import annotations
 
 import re
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from .intent import CommandIntent, IntentAction, ParseResult
 
@@ -75,9 +75,20 @@ _FACADE_KEYWORDS: dict[str, str] = {
 }
 
 _NUMBER_WORDS: dict[str, int] = {
-    "bir": 1, "iki": 2, "üç": 3, "uc": 3, "dört": 4, "dort": 4,
-    "beş": 5, "bes": 5, "altı": 6, "alti": 6, "yedi": 7, "sekiz": 8,
-    "dokuz": 9, "on": 10,
+    "bir": 1,
+    "iki": 2,
+    "üç": 3,
+    "uc": 3,
+    "dört": 4,
+    "dort": 4,
+    "beş": 5,
+    "bes": 5,
+    "altı": 6,
+    "alti": 6,
+    "yedi": 7,
+    "sekiz": 8,
+    "dokuz": 9,
+    "on": 10,
 }
 
 _FLOOR_ADD_RE = re.compile(r"\bkat\w*\b.*\bekle\w*\b|\bekle\w*\b.*\bkat\w*\b", re.IGNORECASE)
@@ -86,10 +97,14 @@ _FLOOR_REMOVE_RE = re.compile(
     re.IGNORECASE,
 )
 _ROOF_CHANGE_RE = re.compile(r"\bçat\w*\b", re.IGNORECASE)
-_FACADE_CHANGE_RE = re.compile(r"\bcephe\w*\b|\bmalzeme\w*\b|\bdış\s*yüzey\w*\b|\bdis\s*yuzey\w*\b", re.IGNORECASE)
+_FACADE_CHANGE_RE = re.compile(
+    r"\bcephe\w*\b|\bmalzeme\w*\b|\bdış\s*yüzey\w*\b|\bdis\s*yuzey\w*\b", re.IGNORECASE
+)
 _DOOR_ADD_RE = re.compile(r"\bkap[ıi]\w*\b.*\bekle\w*\b|\bekle\w*\b.*\bkap[ıi]\w*\b", re.IGNORECASE)
 _DOOR_REMOVE_RE = re.compile(r"\bkap[ıi]\w*\b.*\b(sil|kaldır|kaldir)\w*\b", re.IGNORECASE)
-_WINDOW_ADD_RE = re.compile(r"\bpencere\w*\b.*\bekle\w*\b|\bekle\w*\b.*\bpencere\w*\b", re.IGNORECASE)
+_WINDOW_ADD_RE = re.compile(
+    r"\bpencere\w*\b.*\bekle\w*\b|\bekle\w*\b.*\bpencere\w*\b", re.IGNORECASE
+)
 _WINDOW_REMOVE_RE = re.compile(r"\bpencere\w*\b.*\b(sil|kaldır|kaldir)\w*\b", re.IGNORECASE)
 _ANALYZE_RE = re.compile(r"\banaliz\b|\bincele\b|\bdeğerlendir\b|\bdegerlendir\b", re.IGNORECASE)
 
@@ -130,8 +145,18 @@ _EN_FACADE_KEYWORDS: dict[str, str] = {
 }
 
 _EN_NUMBER_WORDS: dict[str, int] = {
-    "one": 1, "a": 1, "an": 1, "two": 2, "three": 3, "four": 4,
-    "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+    "one": 1,
+    "a": 1,
+    "an": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
 }
 
 _EN_FLOOR_ADD_RE = re.compile(r"\bfloor\w*\b.*\badd\w*\b|\badd\w*\b.*\bfloor\w*\b", re.IGNORECASE)
@@ -140,12 +165,16 @@ _EN_FLOOR_REMOVE_RE = re.compile(
     re.IGNORECASE,
 )
 _EN_ROOF_CHANGE_RE = re.compile(r"\broof\w*\b", re.IGNORECASE)
-_EN_FACADE_CHANGE_RE = re.compile(r"\bfacade\w*\b|\bmaterial\w*\b|\bexterior\w*\b|\bcladding\w*\b", re.IGNORECASE)
+_EN_FACADE_CHANGE_RE = re.compile(
+    r"\bfacade\w*\b|\bmaterial\w*\b|\bexterior\w*\b|\bcladding\w*\b", re.IGNORECASE
+)
 _EN_DOOR_ADD_RE = re.compile(r"\bdoor\w*\b.*\badd\w*\b|\badd\w*\b.*\bdoor\w*\b", re.IGNORECASE)
 _EN_DOOR_REMOVE_RE = re.compile(
     r"\bdoor\w*\b.*\b(remove|delete)\w*\b|\b(remove|delete)\w*\b.*\bdoor\w*\b", re.IGNORECASE
 )
-_EN_WINDOW_ADD_RE = re.compile(r"\bwindow\w*\b.*\badd\w*\b|\badd\w*\b.*\bwindow\w*\b", re.IGNORECASE)
+_EN_WINDOW_ADD_RE = re.compile(
+    r"\bwindow\w*\b.*\badd\w*\b|\badd\w*\b.*\bwindow\w*\b", re.IGNORECASE
+)
 _EN_WINDOW_REMOVE_RE = re.compile(
     r"\bwindow\w*\b.*\b(remove|delete)\w*\b|\b(remove|delete)\w*\b.*\bwindow\w*\b", re.IGNORECASE
 )
@@ -173,7 +202,7 @@ def _find_count(fragment: str, default: int = 1) -> int:
     return default
 
 
-def _find_keyword(fragment: str, table: dict[str, str]) -> Optional[str]:
+def _find_keyword(fragment: str, table: dict[str, str]) -> str | None:
     lowered = fragment.lower()
     # en uzun anahtari once dene (orn. "capraz besik" > "besik")
     for key in sorted(table, key=len, reverse=True):
@@ -186,7 +215,7 @@ class IntentParser:
     """Kural tabanli (+opsiyonel LLM fallback) dogal dil -> CommandIntent
     parser'i."""
 
-    def __init__(self, llm_fn: Optional[Callable[[str], list[dict]]] = None) -> None:
+    def __init__(self, llm_fn: Callable[[str], list[dict]] | None = None) -> None:
         self._llm_fn = llm_fn
 
     def parse(self, text: str) -> ParseResult:
@@ -210,7 +239,7 @@ class IntentParser:
 
     # -- Kural tabanli eslestirme -------------------------------------- #
 
-    def _parse_fragment(self, fragment: str) -> Optional[CommandIntent]:
+    def _parse_fragment(self, fragment: str) -> CommandIntent | None:
         if _ROOF_CHANGE_RE.search(fragment):
             roof_type = _find_keyword(fragment, _ROOF_KEYWORDS)
             if roof_type:
@@ -230,7 +259,9 @@ class IntentParser:
         # cephe anahtar kelimesi olmasa da malzeme kelimesi tek basina gecebilir
         if not _ROOF_CHANGE_RE.search(fragment):
             material = _find_keyword(fragment, _FACADE_KEYWORDS)
-            if material and re.search(r"\byap\b|\bdeğiştir\b|\bdegistir\b", fragment, re.IGNORECASE):
+            if material and re.search(
+                r"\byap\b|\bdeğiştir\b|\bdegistir\b", fragment, re.IGNORECASE
+            ):
                 return CommandIntent(
                     action=IntentAction.CHANGE_FACADE,
                     parameters={"material": material},
@@ -251,18 +282,26 @@ class IntentParser:
         if _DOOR_ADD_RE.search(fragment):
             return CommandIntent(action=IntentAction.ADD_DOOR, parameters={}, raw_fragment=fragment)
         if _DOOR_REMOVE_RE.search(fragment):
-            return CommandIntent(action=IntentAction.REMOVE_DOOR, parameters={}, raw_fragment=fragment)
+            return CommandIntent(
+                action=IntentAction.REMOVE_DOOR, parameters={}, raw_fragment=fragment
+            )
         if _WINDOW_ADD_RE.search(fragment):
-            return CommandIntent(action=IntentAction.ADD_WINDOW, parameters={}, raw_fragment=fragment)
+            return CommandIntent(
+                action=IntentAction.ADD_WINDOW, parameters={}, raw_fragment=fragment
+            )
         if _WINDOW_REMOVE_RE.search(fragment):
-            return CommandIntent(action=IntentAction.REMOVE_WINDOW, parameters={}, raw_fragment=fragment)
+            return CommandIntent(
+                action=IntentAction.REMOVE_WINDOW, parameters={}, raw_fragment=fragment
+            )
         if _ANALYZE_RE.search(fragment):
-            return CommandIntent(action=IntentAction.ANALYZE_BUILDING, parameters={}, raw_fragment=fragment)
+            return CommandIntent(
+                action=IntentAction.ANALYZE_BUILDING, parameters={}, raw_fragment=fragment
+            )
         return self._parse_fragment_en(fragment)
 
     # -- ROADMAP_V4 - Faz E16: Ingilizce kural tabanli eslestirme -------- #
 
-    def _parse_fragment_en(self, fragment: str) -> Optional[CommandIntent]:
+    def _parse_fragment_en(self, fragment: str) -> CommandIntent | None:
         if _EN_ROOF_CHANGE_RE.search(fragment):
             roof_type = _find_keyword(fragment, _EN_ROOF_KEYWORDS)
             if roof_type:
@@ -302,13 +341,21 @@ class IntentParser:
         if _EN_DOOR_ADD_RE.search(fragment):
             return CommandIntent(action=IntentAction.ADD_DOOR, parameters={}, raw_fragment=fragment)
         if _EN_DOOR_REMOVE_RE.search(fragment):
-            return CommandIntent(action=IntentAction.REMOVE_DOOR, parameters={}, raw_fragment=fragment)
+            return CommandIntent(
+                action=IntentAction.REMOVE_DOOR, parameters={}, raw_fragment=fragment
+            )
         if _EN_WINDOW_ADD_RE.search(fragment):
-            return CommandIntent(action=IntentAction.ADD_WINDOW, parameters={}, raw_fragment=fragment)
+            return CommandIntent(
+                action=IntentAction.ADD_WINDOW, parameters={}, raw_fragment=fragment
+            )
         if _EN_WINDOW_REMOVE_RE.search(fragment):
-            return CommandIntent(action=IntentAction.REMOVE_WINDOW, parameters={}, raw_fragment=fragment)
+            return CommandIntent(
+                action=IntentAction.REMOVE_WINDOW, parameters={}, raw_fragment=fragment
+            )
         if _EN_ANALYZE_RE.search(fragment):
-            return CommandIntent(action=IntentAction.ANALYZE_BUILDING, parameters={}, raw_fragment=fragment)
+            return CommandIntent(
+                action=IntentAction.ANALYZE_BUILDING, parameters={}, raw_fragment=fragment
+            )
         return None
 
     # -- LLM fallback ---------------------------------------------------- #

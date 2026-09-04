@@ -34,13 +34,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
-from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.building_reconstruction import (
     BuildingType,
     Footprint,
     ProceduralBuildingGenerator,
 )
+from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.mesh_engine import MeshRepair
 
 N_FOOTPRINTS = 500
@@ -50,6 +49,7 @@ N_FOOTPRINTS = 500
 # Self-intersection (basit çokgen mi?) kontrolü — O(n^2), footprint
 # köşe sayısı küçük olduğu için (<=12) yeterince hızlı.
 # ---------------------------------------------------------------------------
+
 
 def _segments_intersect(p1: Point2D, p2: Point2D, p3: Point2D, p4: Point2D) -> bool:
     def cross(o: Point2D, a: Point2D, b: Point2D) -> float:
@@ -89,32 +89,54 @@ def polygon_is_simple(poly: Polygon) -> bool:
 # Sentetik-ama-gerçekçi footprint üreteci
 # ---------------------------------------------------------------------------
 
+
 def _rect(w: float, h: float) -> Polygon:
     return Polygon([Point2D(0, 0), Point2D(w, 0), Point2D(w, h), Point2D(0, h)])
 
 
 def _l_shape(w: float, h: float, cut_w: float, cut_h: float) -> Polygon:
-    return Polygon([
-        Point2D(0, 0), Point2D(w, 0), Point2D(w, h - cut_h),
-        Point2D(w - cut_w, h - cut_h), Point2D(w - cut_w, h), Point2D(0, h),
-    ])
+    return Polygon(
+        [
+            Point2D(0, 0),
+            Point2D(w, 0),
+            Point2D(w, h - cut_h),
+            Point2D(w - cut_w, h - cut_h),
+            Point2D(w - cut_w, h),
+            Point2D(0, h),
+        ]
+    )
 
 
 def _t_shape(w: float, h: float, stem_w: float, stem_h: float) -> Polygon:
     sx = (w - stem_w) / 2.0
-    return Polygon([
-        Point2D(0, 0), Point2D(w, 0), Point2D(w, stem_h),
-        Point2D(sx + stem_w, stem_h), Point2D(sx + stem_w, h),
-        Point2D(sx, h), Point2D(sx, stem_h), Point2D(0, stem_h),
-    ])
+    return Polygon(
+        [
+            Point2D(0, 0),
+            Point2D(w, 0),
+            Point2D(w, stem_h),
+            Point2D(sx + stem_w, stem_h),
+            Point2D(sx + stem_w, h),
+            Point2D(sx, h),
+            Point2D(sx, stem_h),
+            Point2D(0, stem_h),
+        ]
+    )
 
 
 def _u_shape(w: float, h: float, notch_w: float, notch_h: float) -> Polygon:
     nx = (w - notch_w) / 2.0
-    return Polygon([
-        Point2D(0, 0), Point2D(w, 0), Point2D(w, h), Point2D(nx + notch_w, h),
-        Point2D(nx + notch_w, notch_h), Point2D(nx, notch_h), Point2D(nx, h), Point2D(0, h),
-    ])
+    return Polygon(
+        [
+            Point2D(0, 0),
+            Point2D(w, 0),
+            Point2D(w, h),
+            Point2D(nx + notch_w, h),
+            Point2D(nx + notch_w, notch_h),
+            Point2D(nx, notch_h),
+            Point2D(nx, h),
+            Point2D(0, h),
+        ]
+    )
 
 
 def _complex_convex_ok_polygon(rng: random.Random, n_vertices: int, radius: float) -> Polygon:
@@ -129,9 +151,7 @@ def _complex_convex_ok_polygon(rng: random.Random, n_vertices: int, radius: floa
     "star-shaped" poligon) garanti eder.
     """
     sector = 2 * math.pi / n_vertices
-    angles = sorted(
-        i * sector + rng.uniform(0, sector * 0.6) for i in range(n_vertices)
-    )
+    angles = sorted(i * sector + rng.uniform(0, sector * 0.6) for i in range(n_vertices))
     points = []
     for a in angles:
         r = radius * rng.uniform(0.55, 1.0)
@@ -178,6 +198,7 @@ def generate_footprints(count: int, seed: int = 20260725) -> list[Footprint]:
 # Testler
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(scope="module")
 def synthetic_footprints() -> list[Footprint]:
     return generate_footprints(N_FOOTPRINTS)
@@ -194,9 +215,7 @@ class TestBulkFootprintGeneration:
         bad = [fp for fp in synthetic_footprints if not polygon_is_simple(fp.polygon)]
         assert bad == [], f"{len(bad)} footprint self-intersecting çıktı"
 
-    def test_bulk_generation_100_percent_valid(
-        self, synthetic_footprints: list[Footprint]
-    ) -> None:
+    def test_bulk_generation_100_percent_valid(self, synthetic_footprints: list[Footprint]) -> None:
         """Kabul kriteri: 500 footprint'in TAMAMI, üretilen binaların
         %100'ü geometrik olarak geçerli (self-intersection yok, manifold
         mesh) koşulunu sağlamalı."""
@@ -205,7 +224,9 @@ class TestBulkFootprintGeneration:
         for idx, fp in enumerate(synthetic_footprints):
             try:
                 building = ProceduralBuildingGenerator.generate(
-                    fp, building_type=fp.building_type, seed=idx,
+                    fp,
+                    building_type=fp.building_type,
+                    seed=idx,
                 )
             except Exception as exc:  # noqa: BLE001
                 failures.append((idx, f"generate() exception: {exc!r}"))
@@ -230,9 +251,7 @@ class TestBulkFootprintGeneration:
             f"(başarı oranı %{success_rate:.2f}): ilk 5 hata: {failures[:5]}"
         )
 
-    def test_all_12_building_types_represented(
-        self, synthetic_footprints: list[Footprint]
-    ) -> None:
+    def test_all_12_building_types_represented(self, synthetic_footprints: list[Footprint]) -> None:
         seen = {fp.building_type for fp in synthetic_footprints}
         assert seen == {bt.value for bt in BuildingType}
 

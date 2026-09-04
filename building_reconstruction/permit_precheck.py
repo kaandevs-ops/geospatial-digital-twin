@@ -32,12 +32,11 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
-from .facade_generator import FacadeGenerator, THRESHOLD_SOURCES
+from ..core_engine.geometry_engine import Point2D, Polygon
+from .facade_generator import THRESHOLD_SOURCES, FacadeGenerator
 from .regulations import RegulationProfile, default_profile
 from .structural_validation import IssueSeverity, validate_building
-from ..core_engine.geometry_engine import Point2D, Polygon
 
 
 class PermitVerdict(str, Enum):
@@ -54,8 +53,8 @@ class PermitCheckItem:
     code: str
     title: str
     passed: bool
-    value: Optional[float]
-    limit: Optional[float]
+    value: float | None
+    limit: float | None
     unit: str
     source: str
     message: str
@@ -111,11 +110,11 @@ def _min_distance_polygon_to_polygon(inner: Polygon, outer: Polygon) -> float:
 def precheck_building(
     building,
     *,
-    plot_polygon: Optional[Polygon] = None,
+    plot_polygon: Polygon | None = None,
     min_setback_m: float = 3.0,
-    max_floor_count: Optional[int] = None,
-    max_height_m: Optional[float] = None,
-    profile: Optional[RegulationProfile] = None,
+    max_floor_count: int | None = None,
+    max_height_m: float | None = None,
+    profile: RegulationProfile | None = None,
 ) -> PermitPrecheckReport:
     """Bir `Building` için ruhsat ön-kontrol raporu üretir.
 
@@ -146,130 +145,160 @@ def precheck_building(
         build_mesh=False,
     )
     facade_report = FacadeGenerator.check_compliance(
-        facade, building.footprint.polygon, floor_height, floor_count, building_type,
+        facade,
+        building.footprint.polygon,
+        floor_height,
+        floor_count,
+        building_type,
     )
-    items.append(PermitCheckItem(
-        code="window_wall_ratio",
-        title="Pencere/duvar oranı (WWR)",
-        passed=facade_report.meets_window_ratio,
-        value=round(facade_report.window_wall_ratio, 4),
-        limit=round(facade_report.min_required_ratio, 4),
-        unit="oran",
-        source=THRESHOLD_SOURCES.get("PAİY-8", "PAİY Madde 8"),
-        message=(
-            f"Cephedeki pencere oranı %{facade_report.window_wall_ratio*100:.1f}, "
-            f"asgari %{facade_report.min_required_ratio*100:.1f} gerekli."
-            if not facade_report.meets_window_ratio else
-            f"Pencere oranı (%{facade_report.window_wall_ratio*100:.1f}) asgari şartı karşılıyor."
-        ),
-        severity=IssueSeverity.CRITICAL if not facade_report.meets_window_ratio else IssueSeverity.INFO,
-    ))
+    items.append(
+        PermitCheckItem(
+            code="window_wall_ratio",
+            title="Pencere/duvar oranı (WWR)",
+            passed=facade_report.meets_window_ratio,
+            value=round(facade_report.window_wall_ratio, 4),
+            limit=round(facade_report.min_required_ratio, 4),
+            unit="oran",
+            source=THRESHOLD_SOURCES.get("PAİY-8", "PAİY Madde 8"),
+            message=(
+                f"Cephedeki pencere oranı %{facade_report.window_wall_ratio * 100:.1f}, "
+                f"asgari %{facade_report.min_required_ratio * 100:.1f} gerekli."
+                if not facade_report.meets_window_ratio
+                else f"Pencere oranı (%{facade_report.window_wall_ratio * 100:.1f}) asgari şartı karşılıyor."
+            ),
+            severity=IssueSeverity.CRITICAL
+            if not facade_report.meets_window_ratio
+            else IssueSeverity.INFO,
+        )
+    )
 
-    escape_ok = not (facade_report.requires_fire_escape and "ikinci kaçış yolu" in " ".join(facade_report.issues).lower())
-    items.append(PermitCheckItem(
-        code="fire_escape_route",
-        title="Kaçış yolu (yangın merdiveni) yeterliliği",
-        passed=escape_ok,
-        value=float(floor_count),
-        limit=4.0,
-        unit="kat",
-        source=THRESHOLD_SOURCES.get("BYKHY", "BYKHY"),
-        message=(
-            "4 kat ve üzeri yapılarda ikinci kaçış yolu zorunludur — bu bina için "
-            "ayrıca doğrulanmalı." if facade_report.requires_fire_escape else
-            "4 kat altı — ikinci kaçış yolu zorunluluğu bu eşiğe göre devreye girmiyor."
-        ),
-        severity=IssueSeverity.WARNING if facade_report.requires_fire_escape else IssueSeverity.INFO,
-    ))
+    escape_ok = not (
+        facade_report.requires_fire_escape
+        and "ikinci kaçış yolu" in " ".join(facade_report.issues).lower()
+    )
+    items.append(
+        PermitCheckItem(
+            code="fire_escape_route",
+            title="Kaçış yolu (yangın merdiveni) yeterliliği",
+            passed=escape_ok,
+            value=float(floor_count),
+            limit=4.0,
+            unit="kat",
+            source=THRESHOLD_SOURCES.get("BYKHY", "BYKHY"),
+            message=(
+                "4 kat ve üzeri yapılarda ikinci kaçış yolu zorunludur — bu bina için "
+                "ayrıca doğrulanmalı."
+                if facade_report.requires_fire_escape
+                else "4 kat altı — ikinci kaçış yolu zorunluluğu bu eşiğe göre devreye girmiyor."
+            ),
+            severity=IssueSeverity.WARNING
+            if facade_report.requires_fire_escape
+            else IssueSeverity.INFO,
+        )
+    )
 
     # -- 2) Çekme mesafesi (setback) --------------------------------------- #
     if plot_polygon is not None:
         distance = _min_distance_polygon_to_polygon(building.footprint.polygon, plot_polygon)
         setback_ok = distance >= min_setback_m
-        items.append(PermitCheckItem(
-            code="setback_distance",
-            title="Parsel sınırına çekme mesafesi",
-            passed=setback_ok,
-            value=round(distance, 2),
-            limit=round(min_setback_m, 2),
-            unit="m",
-            source="Planlı Alanlar İmar Yönetmeliği, çekme mesafesi hükümleri (plana göre değişir)",
-            message=(
-                f"Bina dış hattı, parsel sınırına en yakın noktada {distance:.2f} m "
-                f"mesafede; asgari {min_setback_m:.2f} m gerekli."
-                if not setback_ok else
-                f"Çekme mesafesi ({distance:.2f} m) asgari şartı ({min_setback_m:.2f} m) karşılıyor."
-            ),
-            severity=IssueSeverity.CRITICAL if not setback_ok else IssueSeverity.INFO,
-        ))
+        items.append(
+            PermitCheckItem(
+                code="setback_distance",
+                title="Parsel sınırına çekme mesafesi",
+                passed=setback_ok,
+                value=round(distance, 2),
+                limit=round(min_setback_m, 2),
+                unit="m",
+                source="Planlı Alanlar İmar Yönetmeliği, çekme mesafesi hükümleri (plana göre değişir)",
+                message=(
+                    f"Bina dış hattı, parsel sınırına en yakın noktada {distance:.2f} m "
+                    f"mesafede; asgari {min_setback_m:.2f} m gerekli."
+                    if not setback_ok
+                    else f"Çekme mesafesi ({distance:.2f} m) asgari şartı ({min_setback_m:.2f} m) karşılıyor."
+                ),
+                severity=IssueSeverity.CRITICAL if not setback_ok else IssueSeverity.INFO,
+            )
+        )
     else:
-        items.append(PermitCheckItem(
-            code="setback_distance",
-            title="Parsel sınırına çekme mesafesi",
-            passed=True,
-            value=None,
-            limit=min_setback_m,
-            unit="m",
-            source="Planlı Alanlar İmar Yönetmeliği, çekme mesafesi hükümleri (plana göre değişir)",
-            message="Parsel sınırı verilmedi — çekme mesafesi kontrolü atlandı (uygulanamaz).",
-            severity=IssueSeverity.INFO,
-        ))
+        items.append(
+            PermitCheckItem(
+                code="setback_distance",
+                title="Parsel sınırına çekme mesafesi",
+                passed=True,
+                value=None,
+                limit=min_setback_m,
+                unit="m",
+                source="Planlı Alanlar İmar Yönetmeliği, çekme mesafesi hükümleri (plana göre değişir)",
+                message="Parsel sınırı verilmedi — çekme mesafesi kontrolü atlandı (uygulanamaz).",
+                severity=IssueSeverity.INFO,
+            )
+        )
 
     # -- 3) Kat sayısı / yükseklik sınırı (imar hakkı) --------------------- #
     if max_floor_count is not None:
         floors_ok = floor_count <= max_floor_count
-        items.append(PermitCheckItem(
-            code="max_floor_count",
-            title="Azami kat sayısı (imar hakkı)",
-            passed=floors_ok,
-            value=float(floor_count),
-            limit=float(max_floor_count),
-            unit="kat",
-            source="İmar planı plan notu (kullanıcı/plan verisi)",
-            message=(
-                f"Bina {floor_count} kat, planın izin verdiği azami {max_floor_count} katı aşıyor."
-                if not floors_ok else
-                f"Bina {floor_count} kat — azami {max_floor_count} kat sınırı içinde."
-            ),
-            severity=IssueSeverity.CRITICAL if not floors_ok else IssueSeverity.INFO,
-        ))
+        items.append(
+            PermitCheckItem(
+                code="max_floor_count",
+                title="Azami kat sayısı (imar hakkı)",
+                passed=floors_ok,
+                value=float(floor_count),
+                limit=float(max_floor_count),
+                unit="kat",
+                source="İmar planı plan notu (kullanıcı/plan verisi)",
+                message=(
+                    f"Bina {floor_count} kat, planın izin verdiği azami {max_floor_count} katı aşıyor."
+                    if not floors_ok
+                    else f"Bina {floor_count} kat — azami {max_floor_count} kat sınırı içinde."
+                ),
+                severity=IssueSeverity.CRITICAL if not floors_ok else IssueSeverity.INFO,
+            )
+        )
     if max_height_m is not None:
         height_ok = building.total_height_m <= max_height_m
-        items.append(PermitCheckItem(
-            code="max_height",
-            title="Azami bina yüksekliği (imar hakkı)",
-            passed=height_ok,
-            value=round(building.total_height_m, 2),
-            limit=round(max_height_m, 2),
-            unit="m",
-            source="İmar planı plan notu (kullanıcı/plan verisi)",
-            message=(
-                f"Bina yüksekliği {building.total_height_m:.2f} m, azami {max_height_m:.2f} m'yi aşıyor."
-                if not height_ok else
-                f"Bina yüksekliği ({building.total_height_m:.2f} m) azami sınır içinde."
-            ),
-            severity=IssueSeverity.CRITICAL if not height_ok else IssueSeverity.INFO,
-        ))
+        items.append(
+            PermitCheckItem(
+                code="max_height",
+                title="Azami bina yüksekliği (imar hakkı)",
+                passed=height_ok,
+                value=round(building.total_height_m, 2),
+                limit=round(max_height_m, 2),
+                unit="m",
+                source="İmar planı plan notu (kullanıcı/plan verisi)",
+                message=(
+                    f"Bina yüksekliği {building.total_height_m:.2f} m, azami {max_height_m:.2f} m'yi aşıyor."
+                    if not height_ok
+                    else f"Bina yüksekliği ({building.total_height_m:.2f} m) azami sınır içinde."
+                ),
+                severity=IssueSeverity.CRITICAL if not height_ok else IssueSeverity.INFO,
+            )
+        )
 
     # -- 4) Yapısal makuliyet (structural_validation'ın özeti) ------------- #
     structural_report = validate_building(building)
-    critical_structural = [i for i in structural_report.issues if i.severity == IssueSeverity.CRITICAL]
-    items.append(PermitCheckItem(
-        code="structural_plausibility",
-        title="Yapısal makuliyet (ön-kontrol)",
-        passed=structural_report.is_plausible,
-        value=round(structural_report.slenderness_ratio, 2),
-        limit=8.0,
-        unit="narinlik oranı",
-        source="Geometrik sağlık-kontrolü (resmi statik/deprem hesabı yerine geçmez)",
-        message=(
-            f"{len(critical_structural)} kritik yapısal uyarı bulundu: "
-            + "; ".join(i.message for i in critical_structural[:2])
-            if not structural_report.is_plausible else
-            "Yapısal geometri ön-kontrolde makul görünüyor (kesin mühendislik raporu yerine geçmez)."
-        ),
-        severity=IssueSeverity.CRITICAL if not structural_report.is_plausible else IssueSeverity.INFO,
-    ))
+    critical_structural = [
+        i for i in structural_report.issues if i.severity == IssueSeverity.CRITICAL
+    ]
+    items.append(
+        PermitCheckItem(
+            code="structural_plausibility",
+            title="Yapısal makuliyet (ön-kontrol)",
+            passed=structural_report.is_plausible,
+            value=round(structural_report.slenderness_ratio, 2),
+            limit=8.0,
+            unit="narinlik oranı",
+            source="Geometrik sağlık-kontrolü (resmi statik/deprem hesabı yerine geçmez)",
+            message=(
+                f"{len(critical_structural)} kritik yapısal uyarı bulundu: "
+                + "; ".join(i.message for i in critical_structural[:2])
+                if not structural_report.is_plausible
+                else "Yapısal geometri ön-kontrolde makul görünüyor (kesin mühendislik raporu yerine geçmez)."
+            ),
+            severity=IssueSeverity.CRITICAL
+            if not structural_report.is_plausible
+            else IssueSeverity.INFO,
+        )
+    )
 
     # -- Genel karar -------------------------------------------------------- #
     critical_fails = [i for i in items if not i.passed and i.severity == IssueSeverity.CRITICAL]

@@ -20,26 +20,40 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from harita.core_engine.geometry_engine import Point2D, Polygon
+from harita.export.ifc_export import (
+    IFCBuildingModel,
+    IFCExporter,
+    IFCRoom,
+    IFCValidationError,
+    IFCWall,
+)
+from harita.export.tiles_3d import (
+    BoundingBox3DTiles,
+    Tiles3DExporter,
+    TilesetValidationError,
+    read_b3dm_header,
+)
 from harita.mesh_engine import Mesh3D, Vertex3D
 from harita.render_engine.scene_bridge import Scene
-from harita.export.geometry_3d import GLTFExporter
-from harita.export.tiles_3d import (
-    BoundingBox3DTiles, Tiles3DExporter, TilesetValidationError, read_b3dm_header,
-)
-from harita.export.ifc_export import (
-    IFCBuildingModel, IFCExporter, IFCRoom, IFCValidationError, IFCWall,
-)
 
 
 def _cube_mesh(name: str = "cube") -> Mesh3D:
     m = Mesh3D(name=name)
     m.vertices = [
-        Vertex3D(0, 0, 0), Vertex3D(1, 0, 0), Vertex3D(1, 1, 0), Vertex3D(0, 1, 0),
-        Vertex3D(0, 0, 1), Vertex3D(1, 0, 1), Vertex3D(1, 1, 1), Vertex3D(0, 1, 1),
+        Vertex3D(0, 0, 0),
+        Vertex3D(1, 0, 0),
+        Vertex3D(1, 1, 0),
+        Vertex3D(0, 1, 0),
+        Vertex3D(0, 0, 1),
+        Vertex3D(1, 0, 1),
+        Vertex3D(1, 1, 1),
+        Vertex3D(0, 1, 1),
     ]
     m.triangles = [
-        (0, 1, 2), (0, 2, 3),  # taban
-        (4, 5, 6), (4, 6, 7),  # tavan
+        (0, 1, 2),
+        (0, 2, 3),  # taban
+        (4, 5, 6),
+        (4, 6, 7),  # tavan
     ]
     return m
 
@@ -47,6 +61,7 @@ def _cube_mesh(name: str = "cube") -> Mesh3D:
 # ============================================================================ #
 # BoundingBox3DTiles
 # ============================================================================ #
+
 
 def test_bounding_box_from_aabb_has_correct_center_and_half_extent():
     box = BoundingBox3DTiles.from_aabb((0.0, 0.0, 0.0), (10.0, 4.0, 6.0))
@@ -72,6 +87,7 @@ def test_bounding_box_union_covers_both_boxes():
 # Tiles3DExporter
 # ============================================================================ #
 
+
 def test_tileset_export_produces_valid_schema_and_files(tmp_path):
     scene = Scene()
     scene.add_mesh(_cube_mesh(), translation=(0.0, 0.0, 0.0))
@@ -87,6 +103,7 @@ def test_tileset_export_produces_valid_schema_and_files(tmp_path):
     assert result.triangle_count == 12  # 3 x 4 triangle
 
     import json
+
     tileset = json.loads((out_dir / "tileset.json").read_text(encoding="utf-8"))
     Tiles3DExporter.validate_tileset(tileset)  # hatasız geçmeli
 
@@ -105,6 +122,7 @@ def test_tileset_root_bounding_volume_covers_all_children(tmp_path):
     Tiles3DExporter.export(scene, str(out_dir))
 
     import json
+
     tileset = json.loads((out_dir / "tileset.json").read_text(encoding="utf-8"))
     root_box = tileset["root"]["boundingVolume"]["box"]
     cx, cy, cz = root_box[0], root_box[1], root_box[2]
@@ -142,7 +160,7 @@ def test_b3dm_embedded_glb_round_trips_through_gltf_importer(tmp_path):
     b3dm_path = next(out_dir.glob("*.b3dm"))
     data = b3dm_path.read_bytes()
     header = read_b3dm_header(str(b3dm_path))
-    glb_bytes = data[header["glb_offset"]:]
+    glb_bytes = data[header["glb_offset"] :]
 
     extracted_glb_path = tmp_path / "extracted.glb"
     extracted_glb_path.write_bytes(glb_bytes)
@@ -172,7 +190,8 @@ def test_validate_tileset_rejects_malformed_schema():
 
 def test_validate_tileset_rejects_missing_bounding_box():
     bad = {
-        "asset": {"version": "1.0"}, "geometricError": 1.0,
+        "asset": {"version": "1.0"},
+        "geometricError": 1.0,
         "root": {"geometricError": 1.0, "refine": "REPLACE"},
     }
     try:
@@ -196,18 +215,27 @@ def test_read_b3dm_header_rejects_bad_magic(tmp_path):
 # IFCExporter
 # ============================================================================ #
 
+
 def _sample_model() -> IFCBuildingModel:
     room = IFCRoom(
         name="Salon",
-        polygon=Polygon(points=[
-            Point2D(0.0, 0.0), Point2D(6.0, 0.0), Point2D(6.0, 4.0), Point2D(0.0, 4.0),
-        ]),
-        floor_z=0.0, height=3.0,
+        polygon=Polygon(
+            points=[
+                Point2D(0.0, 0.0),
+                Point2D(6.0, 0.0),
+                Point2D(6.0, 4.0),
+                Point2D(0.0, 4.0),
+            ]
+        ),
+        floor_z=0.0,
+        height=3.0,
     )
-    wall_a = IFCWall(name="Duvar-Kuzey", start=Point2D(0.0, 0.0), end=Point2D(6.0, 0.0),
-                      floor_z=0.0, height=3.0)
-    wall_b = IFCWall(name="Duvar-Doğu", start=Point2D(6.0, 0.0), end=Point2D(6.0, 4.0),
-                      floor_z=0.0, height=3.0)
+    wall_a = IFCWall(
+        name="Duvar-Kuzey", start=Point2D(0.0, 0.0), end=Point2D(6.0, 0.0), floor_z=0.0, height=3.0
+    )
+    wall_b = IFCWall(
+        name="Duvar-Doğu", start=Point2D(6.0, 0.0), end=Point2D(6.0, 4.0), floor_z=0.0, height=3.0
+    )
     return IFCBuildingModel(name="Örnek Bina", rooms=[room], walls=[wall_a, wall_b])
 
 
@@ -234,9 +262,15 @@ def test_ifc_export_contains_expected_entity_hierarchy(tmp_path):
     content = out_path.read_text(encoding="utf-8")
 
     for entity in (
-        "IFCPROJECT", "IFCSITE", "IFCBUILDING", "IFCBUILDINGSTOREY",
-        "IFCSPACE", "IFCWALLSTANDARDCASE", "IFCRELAGGREGATES",
-        "IFCRELCONTAINEDINSPATIALSTRUCTURE", "IFCEXTRUDEDAREASOLID",
+        "IFCPROJECT",
+        "IFCSITE",
+        "IFCBUILDING",
+        "IFCBUILDINGSTOREY",
+        "IFCSPACE",
+        "IFCWALLSTANDARDCASE",
+        "IFCRELAGGREGATES",
+        "IFCRELCONTAINEDINSPATIALSTRUCTURE",
+        "IFCEXTRUDEDAREASOLID",
     ):
         assert entity in content, f"{entity} çıktıda bulunamadı"
 
@@ -245,7 +279,6 @@ def test_ifc_export_contains_expected_entity_hierarchy(tmp_path):
 
 
 def test_ifc_export_guids_are_unique_and_correct_length():
-    import re
 
     model = _sample_model()
     from harita.export.ifc_export import _ifc_guid

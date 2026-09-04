@@ -12,7 +12,6 @@ düzensiz (çentikli) poligonlarda tekrarlayarak kat hizalamasının footprint
 from __future__ import annotations
 
 import pytest
-
 from harita.building_reconstruction.footprint_parser import Footprint
 from harita.building_reconstruction.procedural_generator import (
     BuildingType,
@@ -26,8 +25,12 @@ from harita.mesh_engine.quality_metrics import FloorAlignmentAnalyzer, MeshQuali
 def _l_shape_footprint(floor_count: int, total_height: float) -> Footprint:
     # L şekli: 20x20'lik kare, sağ-üst 10x10'luk köşesi kesilmiş.
     ring = [
-        Point2D(0, 0), Point2D(20, 0), Point2D(20, 10),
-        Point2D(10, 10), Point2D(10, 20), Point2D(0, 20),
+        Point2D(0, 0),
+        Point2D(20, 0),
+        Point2D(20, 10),
+        Point2D(10, 10),
+        Point2D(10, 20),
+        Point2D(0, 20),
     ]
     return Footprint(polygon=Polygon(ring), floor_count=floor_count, height_m=total_height)
 
@@ -35,8 +38,14 @@ def _l_shape_footprint(floor_count: int, total_height: float) -> Footprint:
 def _u_shape_footprint(floor_count: int, total_height: float) -> Footprint:
     # U şekli: 30x20'lik dikdörtgenin ortasından 10x12'lik bir çentik çıkarılmış.
     ring = [
-        Point2D(0, 0), Point2D(30, 0), Point2D(30, 20), Point2D(20, 20),
-        Point2D(20, 8), Point2D(10, 8), Point2D(10, 20), Point2D(0, 20),
+        Point2D(0, 0),
+        Point2D(30, 0),
+        Point2D(30, 20),
+        Point2D(20, 20),
+        Point2D(20, 8),
+        Point2D(10, 8),
+        Point2D(10, 20),
+        Point2D(0, 20),
     ]
     return Footprint(polygon=Polygon(ring), floor_count=floor_count, height_m=total_height)
 
@@ -44,8 +53,13 @@ def _u_shape_footprint(floor_count: int, total_height: float) -> Footprint:
 def _irregular_footprint(floor_count: int, total_height: float) -> Footprint:
     # Düzensiz (dışbükey olmayan, çentikli) 7 köşeli poligon.
     ring = [
-        Point2D(0, 0), Point2D(14, 0), Point2D(14, 6), Point2D(9, 6),
-        Point2D(9, 16), Point2D(4, 22), Point2D(0, 14),
+        Point2D(0, 0),
+        Point2D(14, 0),
+        Point2D(14, 6),
+        Point2D(9, 6),
+        Point2D(9, 16),
+        Point2D(4, 22),
+        Point2D(0, 14),
     ]
     return Footprint(polygon=Polygon(ring), floor_count=floor_count, height_m=total_height)
 
@@ -106,20 +120,33 @@ class TestNonRectangularFloorAlignment:
 # FAZ 0 madde 7.4 — sert kenar (hard-edge) sınıflandırması
 # ======================================================================== #
 
+
 def _unit_box_mesh() -> Mesh3D:
     """Basit bir kutu (küp) mesh'i — tüm kenarları 90°'lik kasıtlı sert
     köşelerdir, curvature/kalite sorunu değildir."""
     v = [
-        Vertex3D(0, 0, 0), Vertex3D(1, 0, 0), Vertex3D(1, 1, 0), Vertex3D(0, 1, 0),
-        Vertex3D(0, 0, 1), Vertex3D(1, 0, 1), Vertex3D(1, 1, 1), Vertex3D(0, 1, 1),
+        Vertex3D(0, 0, 0),
+        Vertex3D(1, 0, 0),
+        Vertex3D(1, 1, 0),
+        Vertex3D(0, 1, 0),
+        Vertex3D(0, 0, 1),
+        Vertex3D(1, 0, 1),
+        Vertex3D(1, 1, 1),
+        Vertex3D(0, 1, 1),
     ]
     tris = [
-        (0, 1, 2), (0, 2, 3),  # alt
-        (4, 6, 5), (4, 7, 6),  # üst
-        (0, 4, 5), (0, 5, 1),  # -Y
-        (1, 5, 6), (1, 6, 2),  # +X
-        (2, 6, 7), (2, 7, 3),  # +Y
-        (3, 7, 4), (3, 4, 0),  # -X
+        (0, 1, 2),
+        (0, 2, 3),  # alt
+        (4, 6, 5),
+        (4, 7, 6),  # üst
+        (0, 4, 5),
+        (0, 5, 1),  # -Y
+        (1, 5, 6),
+        (1, 6, 2),  # +X
+        (2, 6, 7),
+        (2, 7, 3),  # +Y
+        (3, 7, 4),
+        (3, 4, 0),  # -X
     ]
     return Mesh3D(name="unit_box", vertices=v, triangles=tris)
 

@@ -22,8 +22,9 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import List, Optional, Sequence, TextIO
+from typing import TextIO
 
 from .plugin_system import PluginManager
 from .project_format import ProjectFile, migrate_project_file
@@ -44,13 +45,15 @@ class CLI:
     ``cli = CLI(); result = cli.run(["project", "info", "scene.harita"])``
     """
 
-    def __init__(self, plugin_manager: Optional[PluginManager] = None) -> None:
+    def __init__(self, plugin_manager: PluginManager | None = None) -> None:
         self.plugin_manager = plugin_manager or PluginManager()
         self._parser = self._build_parser()
 
     # ------------------------------------------------------------------ #
     def _build_parser(self) -> argparse.ArgumentParser:
-        parser = argparse.ArgumentParser(prog="harita", description="Harita Modelleme Platformu CLI")
+        parser = argparse.ArgumentParser(
+            prog="harita", description="Harita Modelleme Platformu CLI"
+        )
         sub = parser.add_subparsers(dest="command", required=True)
 
         project = sub.add_parser("project", help="Proje dosyası (.harita) işlemleri")
@@ -81,7 +84,7 @@ class CLI:
         return parser
 
     # ------------------------------------------------------------------ #
-    def run(self, argv: Sequence[str], stream: Optional[TextIO] = None) -> CLIResult:
+    def run(self, argv: Sequence[str], stream: TextIO | None = None) -> CLIResult:
         stream = stream if stream is not None else sys.stdout
         try:
             args = self._parser.parse_args(list(argv))

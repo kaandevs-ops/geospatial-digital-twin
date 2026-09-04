@@ -5,18 +5,17 @@
 6.2.3 (ısı kaynağı = FireSpreadModel) -> 6.3 (zorunlu sprite fallback)
 kapsar.
 """
+
 from __future__ import annotations
 
 import math
 
 import pytest
-
 from harita.core_engine.geometry_engine import Point2D
 from harita.hazard_data.fire_spread import FireSpreadModel
 from harita.physics.fluid_sim import (
     CFD_EXPERIMENTAL_HONESTY_NOTE,
     FluidGridConfig,
-    SmokeVoxel,
     StableFluidsSimulation,
     cfd_or_sprite_frame,
     is_cfd_eligible,
@@ -105,8 +104,10 @@ class TestStableFluidsSimulationBasics:
         for _ in range(6):
             sim.step(dt=0.1)
         neighbour_total = (
-            sim.density_at(2, 3, 3) + sim.density_at(4, 3, 3)
-            + sim.density_at(3, 2, 3) + sim.density_at(3, 4, 3)
+            sim.density_at(2, 3, 3)
+            + sim.density_at(4, 3, 3)
+            + sim.density_at(3, 2, 3)
+            + sim.density_at(3, 4, 3)
         )
         assert neighbour_total > 0.0
 
@@ -121,7 +122,9 @@ class TestFireHeatSourceInjection:
         sim = _small_sim()
         model = self._fire_model()
         injected = sim.inject_fire_heat_source(
-            model, cell_to_grid_xy=lambda cell: cell, source_z=0,
+            model,
+            cell_to_grid_xy=lambda cell: cell,
+            source_z=0,
         )
         non_clear = sum(1 for c in model.intensity if model.state_of(c).value != "clear")
         assert injected == non_clear
@@ -138,7 +141,9 @@ class TestFireHeatSourceInjection:
         sim = _small_sim(nx=2, ny=2, nz=2)
         model = self._fire_model()  # 6x6 ızgara, sim yalnızca 2x2
         injected = sim.inject_fire_heat_source(
-            model, cell_to_grid_xy=lambda cell: cell, source_z=0,
+            model,
+            cell_to_grid_xy=lambda cell: cell,
+            source_z=0,
         )
         # 2x2x2 ızgarada yalnızca x<2 ve y<2 olan (en fazla 4) hücre var
         # olabilir - 6x6 modeldeki geri kalan tüm hücreler sessizce atlanır.
@@ -148,22 +153,30 @@ class TestFireHeatSourceInjection:
 class TestCfdEligibility:
     def test_not_eligible_when_not_focused(self):
         assert not is_cfd_eligible(
-            is_camera_focused=False, active_cfd_building_count=0, distance_to_camera_m=5.0,
+            is_camera_focused=False,
+            active_cfd_building_count=0,
+            distance_to_camera_m=5.0,
         )
 
     def test_not_eligible_when_too_far(self):
         assert not is_cfd_eligible(
-            is_camera_focused=True, active_cfd_building_count=0, distance_to_camera_m=100.0,
+            is_camera_focused=True,
+            active_cfd_building_count=0,
+            distance_to_camera_m=100.0,
         )
 
     def test_not_eligible_when_concurrency_limit_reached(self):
         assert not is_cfd_eligible(
-            is_camera_focused=True, active_cfd_building_count=1, distance_to_camera_m=5.0,
+            is_camera_focused=True,
+            active_cfd_building_count=1,
+            distance_to_camera_m=5.0,
         )
 
     def test_eligible_when_all_conditions_met(self):
         assert is_cfd_eligible(
-            is_camera_focused=True, active_cfd_building_count=0, distance_to_camera_m=5.0,
+            is_camera_focused=True,
+            active_cfd_building_count=0,
+            distance_to_camera_m=5.0,
         )
 
 
@@ -201,7 +214,8 @@ class TestCfdOrSpriteFallback:
     def test_falls_back_to_sprites_when_not_eligible(self):
         model = self._fire_model()
         result = cfd_or_sprite_frame(
-            model, "b1",
+            model,
+            "b1",
             sim=None,
             is_camera_focused=False,
             active_cfd_building_count=0,
@@ -214,7 +228,8 @@ class TestCfdOrSpriteFallback:
     def test_falls_back_when_sim_not_provided_even_if_eligible(self):
         model = self._fire_model()
         result = cfd_or_sprite_frame(
-            model, "b1",
+            model,
+            "b1",
             sim=None,
             is_camera_focused=True,
             active_cfd_building_count=0,
@@ -228,7 +243,8 @@ class TestCfdOrSpriteFallback:
         sim = _small_sim()
         sim.diverged = True
         result = cfd_or_sprite_frame(
-            model, "b1",
+            model,
+            "b1",
             sim=sim,
             is_camera_focused=True,
             active_cfd_building_count=0,
@@ -243,7 +259,8 @@ class TestCfdOrSpriteFallback:
         sim.inject_fire_heat_source(model, cell_to_grid_xy=lambda c: c, source_z=0)
         sim.step(dt=0.1)
         result = cfd_or_sprite_frame(
-            model, "b1",
+            model,
+            "b1",
             sim=sim,
             is_camera_focused=True,
             active_cfd_building_count=0,

@@ -3,11 +3,6 @@ from __future__ import annotations
 import unittest
 
 from harita.commerce_props import CommercePropType
-from harita.commerce_props.footfall_model import (
-    FOOTFALL_HOURLY_WEIGHTS,
-    FootfallProfile,
-    demand_multiplier_by_hour_from_od,
-)
 from harita.commerce_props.city_event_simulation import (
     CityEventCategory,
     CityEventProfile,
@@ -20,6 +15,11 @@ from harita.commerce_props.economic_resilience import (
     closure_days_for_risk_level,
     complete_commercial_recovery,
     start_commercial_disruption,
+)
+from harita.commerce_props.footfall_model import (
+    FOOTFALL_HOURLY_WEIGHTS,
+    FootfallProfile,
+    demand_multiplier_by_hour_from_od,
 )
 from harita.extensibility.city_events import CityEventType
 from harita.extensibility.event_system import EventSystem
@@ -35,16 +35,22 @@ class FootfallModelTests(unittest.TestCase):
             self.assertEqual(len(FOOTFALL_HOURLY_WEIGHTS[prop_type]), 24)
 
     def test_daily_curve_conserves_average(self):
-        profile = FootfallProfile("shop1", CommercePropType.SUPERMARKET, baseline_daily_visits=2400.0)
+        profile = FootfallProfile(
+            "shop1", CommercePropType.SUPERMARKET, baseline_daily_visits=2400.0
+        )
         curve = profile.daily_curve()
         self.assertAlmostEqual(sum(curve) / 24.0, 100.0, places=6)
 
     def test_mall_evening_peak_higher_than_early_morning(self):
-        profile = FootfallProfile("mall1", CommercePropType.SHOPPING_MALL, baseline_daily_visits=4800.0)
+        profile = FootfallProfile(
+            "mall1", CommercePropType.SHOPPING_MALL, baseline_daily_visits=4800.0
+        )
         self.assertGreater(profile.hourly_visits(18), profile.hourly_visits(3))
 
     def test_market_morning_peak_higher_than_evening(self):
-        profile = FootfallProfile("mkt1", CommercePropType.MARKET_STALL, baseline_daily_visits=1200.0)
+        profile = FootfallProfile(
+            "mkt1", CommercePropType.MARKET_STALL, baseline_daily_visits=1200.0
+        )
         self.assertGreater(profile.hourly_visits(9), profile.hourly_visits(21))
 
     def test_invalid_hour_raises(self):
@@ -53,7 +59,9 @@ class FootfallModelTests(unittest.TestCase):
             profile.hourly_visits(24)
 
     def test_peak_hour_matches_curve_max(self):
-        profile = FootfallProfile("s1", CommercePropType.OUTDOOR_SEATING, baseline_daily_visits=500.0)
+        profile = FootfallProfile(
+            "s1", CommercePropType.OUTDOOR_SEATING, baseline_daily_visits=500.0
+        )
         hour, visits = profile.peak_hour()
         curve = profile.daily_curve()
         self.assertEqual(visits, max(curve))
@@ -68,7 +76,9 @@ class FootfallModelTests(unittest.TestCase):
         entries = [
             ODDemandEntry("ind1", "hh1", 17.0, ActivityType.HOME, ActivityType.LOCAL_ERRAND),
             ODDemandEntry("ind2", "hh1", 17.0, ActivityType.HOME, ActivityType.SOCIAL_EVENING),
-            ODDemandEntry("ind3", "hh2", 3.0, ActivityType.HOME, ActivityType.WORK),  # ilgisiz, sayılmaz
+            ODDemandEntry(
+                "ind3", "hh2", 3.0, ActivityType.HOME, ActivityType.WORK
+            ),  # ilgisiz, sayılmaz
         ]
         multipliers = demand_multiplier_by_hour_from_od(entries)
         self.assertGreater(multipliers[17], multipliers[3])
@@ -84,8 +94,13 @@ class FootfallModelTests(unittest.TestCase):
 class CityEventSimulationTests(unittest.TestCase):
     def test_attendance_curve_ramps_up_and_down(self):
         profile = CityEventProfile(
-            event_id="ev1", category=CityEventCategory.CONCERT, location_ref="stadium1",
-            expected_attendance=10000, start_hour=19.0, duration_h=3.0, ramp_fraction=0.2,
+            event_id="ev1",
+            category=CityEventCategory.CONCERT,
+            location_ref="stadium1",
+            expected_attendance=10000,
+            start_hour=19.0,
+            duration_h=3.0,
+            ramp_fraction=0.2,
         )
         curve = attendance_curve(profile, samples=11)
         self.assertEqual(curve[0].attendance, 0)
@@ -102,7 +117,9 @@ class CityEventSimulationTests(unittest.TestCase):
         received = []
         bus.subscribe(str(CityEventType.CROWD_SURGE.value), lambda e: received.append(e))
         simulator = CityEventSimulator(bus)
-        profile = CityEventProfile("ev1", CityEventCategory.SPORTS_MATCH, "stadium1", 30000, 20.0, 2.0)
+        profile = CityEventProfile(
+            "ev1", CityEventCategory.SPORTS_MATCH, "stadium1", 30000, 20.0, 2.0
+        )
         simulator.trigger(profile)
         self.assertEqual(len(received), 1)
         self.assertEqual(received[0].payload["expected_attendance"], 30000)
@@ -130,14 +147,18 @@ class EconomicResilienceTests(unittest.TestCase):
         )
 
     def test_operational_fraction_starts_low_ends_high(self):
-        area = CommercialAreaResilience("mall_a", RiskLevel.MODERATE, closure_days=7.0, disrupted_at=0.0)
+        area = CommercialAreaResilience(
+            "mall_a", RiskLevel.MODERATE, closure_days=7.0, disrupted_at=0.0
+        )
         start_fraction = area.operational_fraction_at(0.0)
         end_fraction = area.operational_fraction_at(30.0 * 86400.0)
         self.assertLess(start_fraction, 0.5)
         self.assertGreater(end_fraction, 0.9)
 
     def test_before_disruption_fully_operational(self):
-        area = CommercialAreaResilience("mall_a", RiskLevel.HIGH, closure_days=30.0, disrupted_at=1000.0)
+        area = CommercialAreaResilience(
+            "mall_a", RiskLevel.HIGH, closure_days=30.0, disrupted_at=1000.0
+        )
         self.assertEqual(area.operational_fraction_at(500.0), 1.0)
 
     def test_is_recovered_at_threshold(self):
@@ -146,7 +167,9 @@ class EconomicResilienceTests(unittest.TestCase):
         self.assertFalse(area.is_recovered_at(0.0))
 
     def test_build_resilience_curve_monotonic_increasing(self):
-        area = CommercialAreaResilience("mall_a", RiskLevel.MODERATE, closure_days=7.0, disrupted_at=0.0)
+        area = CommercialAreaResilience(
+            "mall_a", RiskLevel.MODERATE, closure_days=7.0, disrupted_at=0.0
+        )
         report = build_resilience_curve(area, sample_count=10)
         fractions = [f for _, f in report.samples]
         self.assertEqual(fractions, sorted(fractions))

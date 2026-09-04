@@ -41,7 +41,7 @@ class AngleUnit(str, Enum):
     """GSI word 22/25 information alanındaki birim koduna karşılık gelir
     (Leica GSI format spesifikasyonu, information hanesi 5-6)."""
 
-    DEGREES_DMS = "0"     # DDDMMSS (derece-dakika-saniye, sıkıştırılmış)
+    DEGREES_DMS = "0"  # DDDMMSS (derece-dakika-saniye, sıkıştırılmış)
     GON = "1"
     DEGREES_DECIMAL = "2"
     MIL = "3"
@@ -50,15 +50,15 @@ class AngleUnit(str, Enum):
 # GSI word-index (WW) -> anlam. Kaynak: Leica GSI8/16 format tablosu.
 _GSI_WORD_MEANINGS: dict[str, str] = {
     "11": "point_id",
-    "21": "slope_distance_mm",       # eğik mesafe (mm, GSI birim varsayılan)
-    "22": "horizontal_angle",        # yatay açı
-    "25": "zenith_angle",            # düşey (zenit) açısı
+    "21": "slope_distance_mm",  # eğik mesafe (mm, GSI birim varsayılan)
+    "22": "horizontal_angle",  # yatay açı
+    "25": "zenith_angle",  # düşey (zenit) açısı
     "31": "coordinate_easting_mm",
     "32": "coordinate_northing_mm",
     "33": "coordinate_elevation_mm",
     "41": "point_code",
-    "87": "target_height_mm",        # prizma/hedef yüksekliği
-    "88": "instrument_height_mm",    # alet yüksekliği (bazı cihazlarda 88=HI)
+    "87": "target_height_mm",  # prizma/hedef yüksekliği
+    "88": "instrument_height_mm",  # alet yüksekliği (bazı cihazlarda 88=HI)
 }
 
 
@@ -71,9 +71,9 @@ class TotalStationObservation:
     """
 
     point_id: str
-    slope_distance_m: float | None = None     # eğik mesafe (metre)
+    slope_distance_m: float | None = None  # eğik mesafe (metre)
     horizontal_angle_gon: float | None = None  # yatay açı (gon, 0-400)
-    zenith_angle_gon: float | None = None      # zenit açısı (gon, 0-400)
+    zenith_angle_gon: float | None = None  # zenit açısı (gon, 0-400)
     instrument_height_m: float | None = None
     target_height_m: float | None = None
     point_code: str | None = None
@@ -159,12 +159,16 @@ def parse_gsi_line(line: str, word_length: int = 16) -> TotalStationObservation:
     if "point_id" not in words:
         raise MalformedRecordError(f"GSI satırında nokta no (word 11) bulunamadı: {line!r}")
 
-    obs = TotalStationObservation(point_id=words["point_id"].lstrip("0") or "0", raw_words=dict(words))
+    obs = TotalStationObservation(
+        point_id=words["point_id"].lstrip("0") or "0", raw_words=dict(words)
+    )
 
     if "slope_distance_mm" in words:
         obs.slope_distance_m = int(words["slope_distance_mm"]) / 1000.0
     if "horizontal_angle" in words:
-        obs.horizontal_angle_gon = _gon_from_raw(words["horizontal_angle"], infos["horizontal_angle"])
+        obs.horizontal_angle_gon = _gon_from_raw(
+            words["horizontal_angle"], infos["horizontal_angle"]
+        )
     if "zenith_angle" in words:
         obs.zenith_angle_gon = _gon_from_raw(words["zenith_angle"], infos["zenith_angle"])
     if "instrument_height_mm" in words:

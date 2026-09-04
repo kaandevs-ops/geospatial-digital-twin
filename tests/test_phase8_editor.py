@@ -5,34 +5,45 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-import pytest
-
-from harita.core_engine.coordinate_systems import GeoPoint
-from harita.core_engine.geometry_engine import Point2D, Polygon
-from harita.mesh_engine import Mesh3D, MeshBuilder, Vertex3D
-from harita.terrain_engine import HeightmapGrid
 
 from harita.building_reconstruction.footprint_parser import Footprint
 from harita.building_reconstruction.procedural_generator import (
-    Building, BuildingType, Floor,
+    Building,
+    BuildingType,
+    Floor,
 )
 from harita.building_reconstruction.roof_generator import RoofType
-
+from harita.core_engine.coordinate_systems import GeoPoint
+from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.editor import (
-    Brush, BuildingEditor, CommandGroup, ObjectEditor, Prefab, PrefabLibrary,
-    Road, RoadEditor, SceneNode, TerrainEditor, TerrainPaintLayer,
-    UndoRedoStack, Vec3, catmull_rom_spline,
+    Brush,
+    BuildingEditor,
+    CommandGroup,
+    ObjectEditor,
+    Prefab,
+    PrefabLibrary,
+    Road,
+    RoadEditor,
+    SceneNode,
+    TerrainEditor,
+    TerrainPaintLayer,
+    UndoRedoStack,
+    Vec3,
+    catmull_rom_spline,
 )
-
+from harita.mesh_engine import MeshBuilder
+from harita.terrain_engine import HeightmapGrid
 
 # ============================================================================ #
 # commands.py
 # ============================================================================ #
 
+
 class TestUndoRedoStack:
     def test_execute_applies_command(self):
         state = {"x": 0}
         from harita.editor.commands import FunctionCommand
+
         cmd = FunctionCommand(lambda: state.__setitem__("x", 1), lambda: state.__setitem__("x", 0))
         stack = UndoRedoStack()
         stack.execute(cmd)
@@ -41,6 +52,7 @@ class TestUndoRedoStack:
     def test_undo_redo_roundtrip(self):
         state = {"x": 0}
         from harita.editor.commands import FunctionCommand
+
         cmd = FunctionCommand(lambda: state.__setitem__("x", 1), lambda: state.__setitem__("x", 0))
         stack = UndoRedoStack()
         stack.execute(cmd)
@@ -52,6 +64,7 @@ class TestUndoRedoStack:
     def test_new_execute_clears_redo(self):
         state = {"x": 0}
         from harita.editor.commands import FunctionCommand
+
         cmd1 = FunctionCommand(lambda: state.__setitem__("x", 1), lambda: state.__setitem__("x", 0))
         cmd2 = FunctionCommand(lambda: state.__setitem__("x", 2), lambda: state.__setitem__("x", 1))
         stack = UndoRedoStack()
@@ -69,6 +82,7 @@ class TestUndoRedoStack:
 
     def test_max_history_limits_stack(self):
         from harita.editor.commands import FunctionCommand
+
         stack = UndoRedoStack(max_history=3)
         for i in range(10):
             stack.execute(FunctionCommand(lambda: None, lambda: None, label=f"c{i}"))
@@ -77,9 +91,14 @@ class TestUndoRedoStack:
     def test_command_group_undoes_all(self):
         state = {"a": 0, "b": 0}
         from harita.editor.commands import FunctionCommand
+
         group = CommandGroup(label="grp")
-        group.add(FunctionCommand(lambda: state.__setitem__("a", 1), lambda: state.__setitem__("a", 0)))
-        group.add(FunctionCommand(lambda: state.__setitem__("b", 1), lambda: state.__setitem__("b", 0)))
+        group.add(
+            FunctionCommand(lambda: state.__setitem__("a", 1), lambda: state.__setitem__("a", 0))
+        )
+        group.add(
+            FunctionCommand(lambda: state.__setitem__("b", 1), lambda: state.__setitem__("b", 0))
+        )
         stack = UndoRedoStack()
         stack.execute(group)
         assert state == {"a": 1, "b": 1}
@@ -88,6 +107,7 @@ class TestUndoRedoStack:
 
     def test_history_labels(self):
         from harita.editor.commands import FunctionCommand
+
         stack = UndoRedoStack()
         stack.execute(FunctionCommand(lambda: None, lambda: None, label="first"))
         stack.execute(FunctionCommand(lambda: None, lambda: None, label="second"))
@@ -96,6 +116,7 @@ class TestUndoRedoStack:
     def test_double_do_is_idempotent(self):
         calls = {"n": 0}
         from harita.editor.commands import FunctionCommand
+
         cmd = FunctionCommand(lambda: calls.__setitem__("n", calls["n"] + 1), lambda: None)
         cmd.do()
         cmd.do()
@@ -105,6 +126,7 @@ class TestUndoRedoStack:
 # ============================================================================ #
 # object_editor.py
 # ============================================================================ #
+
 
 def _make_node(name="obj", z=0.0):
     mesh = MeshBuilder.build_flat_quad(2.0, 2.0, z=z, name=name)
@@ -236,9 +258,12 @@ class TestObjectEditor:
 # terrain_editor.py
 # ============================================================================ #
 
+
 def _flat_grid(size=9, elevation=0.0):
     return HeightmapGrid(
-        width=size, height=size, resolution_m=1.0,
+        width=size,
+        height=size,
+        resolution_m=1.0,
         elevations=[[elevation for _ in range(size)] for _ in range(size)],
         origin=GeoPoint(lat=0.0, lon=0.0),
     )
@@ -307,6 +332,7 @@ class TestTerrainEditor:
 # road_editor.py
 # ============================================================================ #
 
+
 class TestRoadEditor:
     def test_catmull_rom_passes_near_control_points(self):
         pts = [Point2D(0, 0), Point2D(10, 0), Point2D(20, 5), Point2D(30, 5)]
@@ -321,7 +347,11 @@ class TestRoadEditor:
         assert spline[-1] == Point2D(10, 0)
 
     def test_road_to_mesh_produces_geometry(self):
-        road = Road(road_id="r1", control_points=[Point2D(0, 0), Point2D(10, 0), Point2D(20, 0)], width_m=4.0)
+        road = Road(
+            road_id="r1",
+            control_points=[Point2D(0, 0), Point2D(10, 0), Point2D(20, 0)],
+            width_m=4.0,
+        )
         mesh = road.to_mesh()
         assert mesh.vertex_count() > 0
         assert mesh.triangle_count() > 0
@@ -359,8 +389,12 @@ class TestRoadEditor:
         assert road.width_m == 4.0
 
     def test_wider_road_has_wider_bbox(self):
-        narrow = Road(road_id="r1", control_points=[Point2D(0, 0), Point2D(10, 0)], width_m=2.0).to_mesh()
-        wide = Road(road_id="r2", control_points=[Point2D(0, 0), Point2D(10, 0)], width_m=20.0).to_mesh()
+        narrow = Road(
+            road_id="r1", control_points=[Point2D(0, 0), Point2D(10, 0)], width_m=2.0
+        ).to_mesh()
+        wide = Road(
+            road_id="r2", control_points=[Point2D(0, 0), Point2D(10, 0)], width_m=20.0
+        ).to_mesh()
         narrow_ys = [v.y for v in narrow.vertices]
         wide_ys = [v.y for v in wide.vertices]
         assert (max(wide_ys) - min(wide_ys)) > (max(narrow_ys) - min(narrow_ys))
@@ -369,6 +403,7 @@ class TestRoadEditor:
 # ============================================================================ #
 # building_editor.py
 # ============================================================================ #
+
 
 def _make_building():
     polygon = Polygon(points=[Point2D(0, 0), Point2D(10, 0), Point2D(10, 10), Point2D(0, 10)])

@@ -19,26 +19,39 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from ...core_engine.geometry_engine import Point2D, Polygon
+from ...lighting import AmbientOcclusionBaker, SceneAOBaker
 from ...mesh_engine import FloorPlateBuilder, Mesh3D, MeshBuilder, MeshMerger
 from ...mesh_engine.uv_atlas import MeshUVAtlasBaker, WorldScaleUVMapper
-from ...lighting import AmbientOcclusionBaker, SceneAOBaker
-
-from ..footprint_parser import Footprint, FootprintParser
-from ..roof_generator import RoofGenerator, RoofType
-from ..facade_generator import Facade, FacadeGenerator, FacadeMaterial
-from ..room_generator import Room, RoomGenerator, RoomType
-from ..building_elements import (
-    Balcony, BalconyGenerator, CorridorGenerator, Door, DoorGenerator,
-    DoubleSkinFacade, DoubleSkinFacadeGenerator, ElevatorCore, ElevatorCoreGenerator,
-    SetbackFloorGenerator, Stair, StairGenerator, WindowGenerator, WindowPlacement,
-)
-from ..interior_generator import (
-    ElevatorShaftMeshBuilder, FurnitureGenerator, FurnitureItem,
-    InteriorWallBuilder, StairMeshBuilder,
-)
-from ..terrain_integration import TerrainFoundationGenerator, RetainingWallGenerator
-from ..curved_facade import VerticalProfileGenerator
 from ...terrain_engine import HeightmapGrid
+from ..building_elements import (
+    Balcony,
+    BalconyGenerator,
+    CorridorGenerator,
+    Door,
+    DoorGenerator,
+    DoubleSkinFacade,
+    DoubleSkinFacadeGenerator,
+    ElevatorCore,
+    ElevatorCoreGenerator,
+    SetbackFloorGenerator,
+    Stair,
+    StairGenerator,
+    WindowGenerator,
+    WindowPlacement,
+)
+from ..curved_facade import VerticalProfileGenerator
+from ..facade_generator import Facade, FacadeGenerator, FacadeMaterial
+from ..footprint_parser import Footprint, FootprintParser
+from ..interior_generator import (
+    ElevatorShaftMeshBuilder,
+    FurnitureGenerator,
+    FurnitureItem,
+    InteriorWallBuilder,
+    StairMeshBuilder,
+)
+from ..roof_generator import RoofGenerator, RoofType
+from ..room_generator import Room, RoomGenerator, RoomType
+from ..terrain_integration import RetainingWallGenerator, TerrainFoundationGenerator
 
 
 class BuildingType(str, Enum):
@@ -75,18 +88,42 @@ class BuildingTypeRules:
     """Roadmap: 'BuildingTypeRules registry'."""
 
     _RULES: dict[BuildingType, BuildingTypeRule] = {
-        BuildingType.APARTMAN: BuildingTypeRule(3.0, 5, RoofType.FLAT, 15, True, True, 2.4, FacadeMaterial.BETON, 3.0),
-        BuildingType.VILLA: BuildingTypeRule(3.2, 2, RoofType.HIP, 30, False, True, 2.0, FacadeMaterial.TAS, 3.5),
-        BuildingType.OFIS: BuildingTypeRule(3.5, 8, RoofType.FLAT, 5, True, False, 1.8, FacadeMaterial.CAM, 4.0),
-        BuildingType.FABRIKA: BuildingTypeRule(6.0, 1, RoofType.INDUSTRIAL, 8, False, False, 4.0, FacadeMaterial.ENDUSTRIYEL, 6.0),
-        BuildingType.AVM: BuildingTypeRule(5.0, 2, RoofType.FLAT, 5, True, False, 3.5, FacadeMaterial.CAM, 8.0),
-        BuildingType.DEPO: BuildingTypeRule(7.0, 1, RoofType.FLAT, 3, False, False, 5.0, FacadeMaterial.METAL, 10.0),
-        BuildingType.HASTANE: BuildingTypeRule(3.6, 6, RoofType.FLAT, 5, True, False, 2.2, FacadeMaterial.KOMPOZIT, 3.5),
-        BuildingType.OKUL: BuildingTypeRule(3.4, 3, RoofType.HIP, 20, False, False, 2.5, FacadeMaterial.TUGLA, 4.0),
-        BuildingType.SANAYI_TESISI: BuildingTypeRule(8.0, 1, RoofType.SAWTOOTH, 35, False, False, 4.5, FacadeMaterial.ENDUSTRIYEL, 6.0),
-        BuildingType.TERMINAL: BuildingTypeRule(9.0, 1, RoofType.MODERN, 8, True, False, 3.0, FacadeMaterial.CAM, 10.0),
-        BuildingType.HANGAR: BuildingTypeRule(12.0, 1, RoofType.INDUSTRIAL, 10, False, False, 6.0, FacadeMaterial.METAL, 15.0),
-        BuildingType.STADYUM: BuildingTypeRule(6.0, 1, RoofType.MODERN, 12, False, False, 4.0, FacadeMaterial.KOMPOZIT, 8.0),
+        BuildingType.APARTMAN: BuildingTypeRule(
+            3.0, 5, RoofType.FLAT, 15, True, True, 2.4, FacadeMaterial.BETON, 3.0
+        ),
+        BuildingType.VILLA: BuildingTypeRule(
+            3.2, 2, RoofType.HIP, 30, False, True, 2.0, FacadeMaterial.TAS, 3.5
+        ),
+        BuildingType.OFIS: BuildingTypeRule(
+            3.5, 8, RoofType.FLAT, 5, True, False, 1.8, FacadeMaterial.CAM, 4.0
+        ),
+        BuildingType.FABRIKA: BuildingTypeRule(
+            6.0, 1, RoofType.INDUSTRIAL, 8, False, False, 4.0, FacadeMaterial.ENDUSTRIYEL, 6.0
+        ),
+        BuildingType.AVM: BuildingTypeRule(
+            5.0, 2, RoofType.FLAT, 5, True, False, 3.5, FacadeMaterial.CAM, 8.0
+        ),
+        BuildingType.DEPO: BuildingTypeRule(
+            7.0, 1, RoofType.FLAT, 3, False, False, 5.0, FacadeMaterial.METAL, 10.0
+        ),
+        BuildingType.HASTANE: BuildingTypeRule(
+            3.6, 6, RoofType.FLAT, 5, True, False, 2.2, FacadeMaterial.KOMPOZIT, 3.5
+        ),
+        BuildingType.OKUL: BuildingTypeRule(
+            3.4, 3, RoofType.HIP, 20, False, False, 2.5, FacadeMaterial.TUGLA, 4.0
+        ),
+        BuildingType.SANAYI_TESISI: BuildingTypeRule(
+            8.0, 1, RoofType.SAWTOOTH, 35, False, False, 4.5, FacadeMaterial.ENDUSTRIYEL, 6.0
+        ),
+        BuildingType.TERMINAL: BuildingTypeRule(
+            9.0, 1, RoofType.MODERN, 8, True, False, 3.0, FacadeMaterial.CAM, 10.0
+        ),
+        BuildingType.HANGAR: BuildingTypeRule(
+            12.0, 1, RoofType.INDUSTRIAL, 10, False, False, 6.0, FacadeMaterial.METAL, 15.0
+        ),
+        BuildingType.STADYUM: BuildingTypeRule(
+            6.0, 1, RoofType.MODERN, 12, False, False, 4.0, FacadeMaterial.KOMPOZIT, 8.0
+        ),
     }
 
     @classmethod
@@ -157,18 +194,24 @@ class Building:
     # ROADMAP_V5 M2.2 (kalan madde) — `add_double_skin=True` verildiyse
     # üretilen ikinci cam kabuk + gölgeleme kanatları. Varsayılan `None`
     # (opt-in, mevcut çağıranlar hiçbir fark görmez).
-    double_skin: "DoubleSkinFacade | None" = None
+    double_skin: DoubleSkinFacade | None = None
 
     @property
     def total_height_m(self) -> float:
         return sum(f.height_m for f in self.floors)
 
     def full_mesh(
-        self, include_interior: bool = False,
-        generate_uvs: bool = False, texture_size_m: float = 2.0,
-        bake_ao: bool = False, ao_sample_count: int = 8, ao_max_distance: float = 5.0,
-        pack_uv_atlas: bool = False, atlas_texture_px: int = 512,
-        atlas_width_px: int = 2048, atlas_height_px: int = 2048,
+        self,
+        include_interior: bool = False,
+        generate_uvs: bool = False,
+        texture_size_m: float = 2.0,
+        bake_ao: bool = False,
+        ao_sample_count: int = 8,
+        ao_max_distance: float = 5.0,
+        pack_uv_atlas: bool = False,
+        atlas_texture_px: int = 512,
+        atlas_width_px: int = 2048,
+        atlas_height_px: int = 2048,
     ) -> Mesh3D:
         """Facade + roof mesh'lerini (ve `include_interior=True` ise Faz 2
         iç mekan mesh'lerini: bölme duvarları, merdiven, asansör kuyusu,
@@ -228,9 +271,15 @@ class Building:
         if self.retaining_wall and self.retaining_wall.triangle_count() > 0:
             parts.append(self.retaining_wall)
         if self.double_skin is not None:
-            if self.double_skin.outer_skin_mesh and self.double_skin.outer_skin_mesh.triangle_count() > 0:
+            if (
+                self.double_skin.outer_skin_mesh
+                and self.double_skin.outer_skin_mesh.triangle_count() > 0
+            ):
                 parts.append(self.double_skin.outer_skin_mesh)
-            if self.double_skin.shading_fin_mesh and self.double_skin.shading_fin_mesh.triangle_count() > 0:
+            if (
+                self.double_skin.shading_fin_mesh
+                and self.double_skin.shading_fin_mesh.triangle_count() > 0
+            ):
                 parts.append(self.double_skin.shading_fin_mesh)
         if include_interior:
             for floor in self.floors:
@@ -250,14 +299,14 @@ class Building:
                 if not part.triangles:
                     continue
                 uv_part = WorldScaleUVMapper.box_mapping_world_scale(
-                    part, texture_size_m=texture_size_m,
+                    part,
+                    texture_size_m=texture_size_m,
                 )
-                atlas_parts.append(
-                    (f"part_{idx}", uv_part, atlas_texture_px, atlas_texture_px)
-                )
+                atlas_parts.append((f"part_{idx}", uv_part, atlas_texture_px, atlas_texture_px))
             if atlas_parts:
                 bake_result = MeshUVAtlasBaker.bake(
-                    atlas_parts, atlas_width=atlas_width_px,
+                    atlas_parts,
+                    atlas_width=atlas_width_px,
                     atlas_height=atlas_height_px,
                     name=f"building_{self.building_type.value}",
                 )
@@ -267,11 +316,15 @@ class Building:
         else:
             merged = MeshMerger.merge(parts, name=f"building_{self.building_type.value}")
             if generate_uvs and merged.triangles:
-                merged = WorldScaleUVMapper.box_mapping_world_scale(merged, texture_size_m=texture_size_m)
+                merged = WorldScaleUVMapper.box_mapping_world_scale(
+                    merged, texture_size_m=texture_size_m
+                )
 
         if bake_ao and merged.triangles:
             merged = AmbientOcclusionBaker.apply_vertex_ao(
-                merged, sample_count=ao_sample_count, max_distance=ao_max_distance,
+                merged,
+                sample_count=ao_sample_count,
+                max_distance=ao_max_distance,
             )
         return merged
 
@@ -291,7 +344,7 @@ class ProceduralBuildingGenerator:
         basement_floor_height: float = 2.8,
         setback_floor_index: int | None = None,
         setback_inset_m: float = 1.0,
-        heightmap: "HeightmapGrid | None" = None,
+        heightmap: HeightmapGrid | None = None,
         add_retaining_wall: bool = False,
         add_double_skin: bool = False,
         double_skin_gap_m: float = 0.9,
@@ -372,18 +425,34 @@ class ProceduralBuildingGenerator:
         rule = BuildingTypeRules.get(bt)
 
         n_floors = floor_count or footprint.floor_count or rule.default_floor_count
-        floor_height = footprint.height_m / n_floors if footprint.height_m else rule.default_floor_height
+        floor_height = (
+            footprint.height_m / n_floors if footprint.height_m else rule.default_floor_height
+        )
 
         floors = ProceduralBuildingGenerator._generate_floors(
-            footprint.polygon, bt, rule, n_floors, floor_height, seed, generate_interior,
-            min_room_size=min_room_size, window_spacing=window_spacing,
+            footprint.polygon,
+            bt,
+            rule,
+            n_floors,
+            floor_height,
+            seed,
+            generate_interior,
+            min_room_size=min_room_size,
+            window_spacing=window_spacing,
         )
 
         basement_envelope = None
         if basement_floor_count > 0:
-            basement_floors, basement_envelope = ProceduralBuildingGenerator._generate_basement_floors(
-                footprint.polygon, bt, rule, basement_floor_count, basement_floor_height,
-                seed, generate_interior,
+            basement_floors, basement_envelope = (
+                ProceduralBuildingGenerator._generate_basement_floors(
+                    footprint.polygon,
+                    bt,
+                    rule,
+                    basement_floor_count,
+                    basement_floor_height,
+                    seed,
+                    generate_interior,
+                )
             )
             # Bodrum katlar negatif seviyede, yer üstü katların önüne eklenir
             # (level sırası: en alt bodrum -> zemin kat -> üst katlar).
@@ -398,48 +467,72 @@ class ProceduralBuildingGenerator:
             and setback_inset_m > 0
         )
         if has_setback:
-            setback_polygon = SetbackFloorGenerator.offset_footprint(footprint.polygon, setback_inset_m)
+            setback_polygon = SetbackFloorGenerator.offset_footprint(
+                footprint.polygon, setback_inset_m
+            )
             setback_base_z = setback_floor_index * floor_height
             lower_floor_count = setback_floor_index
             upper_floor_count = n_floors - setback_floor_index
 
             lower_facade = FacadeGenerator.generate(
-                footprint.polygon, bt.value, base_z=0.0, floor_height=floor_height,
-                floor_count=lower_floor_count, seed=seed, material_override=rule.facade_material,
+                footprint.polygon,
+                bt.value,
+                base_z=0.0,
+                floor_height=floor_height,
+                floor_count=lower_floor_count,
+                seed=seed,
+                material_override=rule.facade_material,
             )
             upper_facade = FacadeGenerator.generate(
-                setback_polygon, bt.value, base_z=setback_base_z, floor_height=floor_height,
-                floor_count=upper_floor_count, seed=seed, material_override=rule.facade_material,
+                setback_polygon,
+                bt.value,
+                base_z=setback_base_z,
+                floor_height=floor_height,
+                floor_count=upper_floor_count,
+                seed=seed,
+                material_override=rule.facade_material,
             )
-            facade_meshes = [m for m in (lower_facade.mesh, upper_facade.mesh) if m and m.triangle_count() > 0]
+            facade_meshes = [
+                m for m in (lower_facade.mesh, upper_facade.mesh) if m and m.triangle_count() > 0
+            ]
             facade = lower_facade
             if facade_meshes:
                 facade.mesh = MeshMerger.merge(facade_meshes, name="facade_with_setback")
             roof_footprint_polygon = setback_polygon
         else:
             has_vertical_profile = (
-                vertical_scale_at is not None or vertical_rotation_deg_at is not None
+                vertical_scale_at is not None
+                or vertical_rotation_deg_at is not None
                 or vertical_offset_at is not None
             )
             vertical_floor_polygons = None
             if has_vertical_profile:
                 vertical_floor_polygons = VerticalProfileGenerator.floor_polygons(
-                    footprint.polygon, n_floors,
-                    scale_at=vertical_scale_at, rotation_deg_at=vertical_rotation_deg_at,
+                    footprint.polygon,
+                    n_floors,
+                    scale_at=vertical_scale_at,
+                    rotation_deg_at=vertical_rotation_deg_at,
                     offset_at=vertical_offset_at,
                 )
                 # Çatı, en üst katın (gerçekte üretilen) gerçek çokgenine
                 # otursun (`setback` dalıyla tutarlı desen).
                 roof_footprint_polygon = vertical_floor_polygons[-1]
             facade = FacadeGenerator.generate(
-                footprint.polygon, bt.value, base_z=0.0, floor_height=floor_height,
-                floor_count=n_floors, seed=seed, material_override=rule.facade_material,
+                footprint.polygon,
+                bt.value,
+                base_z=0.0,
+                floor_height=floor_height,
+                floor_count=n_floors,
+                seed=seed,
+                material_override=rule.facade_material,
                 floor_polygons=vertical_floor_polygons,
             )
 
         roof_mesh = RoofGenerator.generate(
-            roof_footprint_polygon, base_z=base_z,
-            roof_type=rule.default_roof_type, pitch_deg=rule.roof_pitch_deg,
+            roof_footprint_polygon,
+            base_z=base_z,
+            roof_type=rule.default_roof_type,
+            pitch_deg=rule.roof_pitch_deg,
         )
 
         terrain_foundation = None
@@ -447,10 +540,14 @@ class ProceduralBuildingGenerator:
         terrain_intersection = None
         if heightmap is not None:
             terrain_intersection = TerrainFoundationGenerator.analyze_intersection(
-                footprint.polygon, building_base_z=0.0, heightmap=heightmap,
+                footprint.polygon,
+                building_base_z=0.0,
+                heightmap=heightmap,
             )
             terrain_foundation = TerrainFoundationGenerator.foundation_skirt_mesh(
-                footprint.polygon, building_base_z=0.0, heightmap=heightmap,
+                footprint.polygon,
+                building_base_z=0.0,
+                heightmap=heightmap,
             )
             if add_retaining_wall:
                 retaining_wall = RetainingWallGenerator.generate(footprint.polygon, heightmap)
@@ -458,16 +555,25 @@ class ProceduralBuildingGenerator:
         double_skin = None
         if add_double_skin:
             double_skin = DoubleSkinFacadeGenerator.generate(
-                footprint.polygon, base_z=0.0, floor_count=n_floors,
-                floor_height=floor_height, gap_m=double_skin_gap_m,
+                footprint.polygon,
+                base_z=0.0,
+                floor_count=n_floors,
+                floor_height=floor_height,
+                gap_m=double_skin_gap_m,
                 gap_profile=double_skin_gap_profile,
             )
 
         return Building(
-            footprint=footprint, floors=floors, roof=roof_mesh,
-            facade=facade, building_type=bt, basement_envelope=basement_envelope,
-            terrain_foundation=terrain_foundation, retaining_wall=retaining_wall,
-            terrain_intersection=terrain_intersection, double_skin=double_skin,
+            footprint=footprint,
+            floors=floors,
+            roof=roof_mesh,
+            facade=facade,
+            building_type=bt,
+            basement_envelope=basement_envelope,
+            terrain_foundation=terrain_foundation,
+            retaining_wall=retaining_wall,
+            terrain_intersection=terrain_intersection,
+            double_skin=double_skin,
         )
 
     @staticmethod
@@ -492,8 +598,10 @@ class ProceduralBuildingGenerator:
             floor_seed = None if seed is None else seed + level
 
             rooms = RoomGenerator.generate(
-                polygon, building_type=bt.value,
-                min_room_size=rule.room_generation_min_size, seed=floor_seed,
+                polygon,
+                building_type=bt.value,
+                min_room_size=rule.room_generation_min_size,
+                seed=floor_seed,
             )
             # Yer altı kat: oda tipleri GARAJ/DEPO'ya sabitlenir (gerçek
             # kural: yer altı katlar konut/ofis olarak kullanılmaz).
@@ -508,42 +616,65 @@ class ProceduralBuildingGenerator:
                 interior_parts: list[Mesh3D] = []
                 slab_thickness = min(0.15, basement_floor_height * 0.08)
                 floor_slab = FloorPlateBuilder.build(
-                    polygon, floor_base_z, slab_thickness=slab_thickness,
+                    polygon,
+                    floor_base_z,
+                    slab_thickness=slab_thickness,
                     name=f"basement_floor_slab_{level}",
                 )
                 if floor_slab.triangle_count() > 0:
                     interior_parts.append(floor_slab)
                 wall_mesh = InteriorWallBuilder.build_floor_walls(
-                    rooms, polygon, base_z=floor_base_z, floor_height=basement_floor_height,
+                    rooms,
+                    polygon,
+                    base_z=floor_base_z,
+                    floor_height=basement_floor_height,
                     interior_doors=interior_doors,
                 )
                 if wall_mesh.triangle_count() > 0:
                     interior_parts.append(wall_mesh)
-                interior_mesh = MeshMerger.merge(interior_parts, name=f"basement_interior_{level}") if interior_parts else None
+                interior_mesh = (
+                    MeshMerger.merge(interior_parts, name=f"basement_interior_{level}")
+                    if interior_parts
+                    else None
+                )
 
             # Dış zarf: penceresiz kutu ekstrüzyonu (istinat duvarı yaklaşıklığı).
             envelope = MeshBuilder.extrude_polygon(
-                polygon, base_z=floor_base_z, height=basement_floor_height,
+                polygon,
+                base_z=floor_base_z,
+                height=basement_floor_height,
                 name=f"basement_envelope_{level}",
             )
             if envelope.triangle_count() > 0:
                 envelope_parts.append(envelope)
 
-            floors.append(Floor(
-                level=level, height_m=basement_floor_height, rooms=rooms,
-                corridors=corridors, doors=[d.position for d in interior_doors],
-                windows=[],  # bilinçli olarak boş - "ışıksız" yer altı kat
-                interior_doors=interior_doors, interior_mesh=interior_mesh,
-                is_below_grade=True,
-            ))
+            floors.append(
+                Floor(
+                    level=level,
+                    height_m=basement_floor_height,
+                    rooms=rooms,
+                    corridors=corridors,
+                    doors=[d.position for d in interior_doors],
+                    windows=[],  # bilinçli olarak boş - "ışıksız" yer altı kat
+                    interior_doors=interior_doors,
+                    interior_mesh=interior_mesh,
+                    is_below_grade=True,
+                )
+            )
 
-        envelope_mesh = MeshMerger.merge(envelope_parts, name="basement_envelope") if envelope_parts else Mesh3D(name="basement_envelope")
+        envelope_mesh = (
+            MeshMerger.merge(envelope_parts, name="basement_envelope")
+            if envelope_parts
+            else Mesh3D(name="basement_envelope")
+        )
         return floors, envelope_mesh
 
     @staticmethod
     def _resolve_type(footprint: Footprint, override: BuildingType | str | None) -> BuildingType:
         if override is not None:
-            return override if isinstance(override, BuildingType) else BuildingType(override.lower())
+            return (
+                override if isinstance(override, BuildingType) else BuildingType(override.lower())
+            )
         raw = (footprint.building_type or "").lower()
         for bt in BuildingType:
             if bt.value in raw:
@@ -565,30 +696,40 @@ class ProceduralBuildingGenerator:
         floors: list[Floor] = []
         centroid = ProceduralBuildingGenerator._centroid(polygon)
         total_height = n_floors * floor_height
-        effective_min_room_size = min_room_size if min_room_size is not None else rule.room_generation_min_size
-        effective_window_spacing = window_spacing if window_spacing is not None else rule.window_spacing
+        effective_min_room_size = (
+            min_room_size if min_room_size is not None else rule.room_generation_min_size
+        )
+        effective_window_spacing = (
+            window_spacing if window_spacing is not None else rule.window_spacing
+        )
 
         # Asansör çekirdeği bina genelinde tek/sabit konumda olmalı (tüm
         # katlarda aynı şaft) - bina bazında bir kere hesaplanır.
         elevator_core = None
         if rule.has_elevator:
             elevator_core = ElevatorCoreGenerator.generate(
-                centroid, total_building_height=total_height, base_z=0.0,
+                centroid,
+                total_building_height=total_height,
+                base_z=0.0,
             )
 
         for level in range(n_floors):
             floor_seed = None if seed is None else seed + level
             floor_base_z = level * floor_height
             rooms = RoomGenerator.generate(
-                polygon, building_type=bt.value,
-                min_room_size=effective_min_room_size, seed=floor_seed,
+                polygon,
+                building_type=bt.value,
+                min_room_size=effective_min_room_size,
+                seed=floor_seed,
             )
             corridors = CorridorGenerator.from_rooms(rooms)
             interior_doors = DoorGenerator.interior_doors(rooms)
             entrance = DoorGenerator.exterior_entrance(polygon) if level == 0 else None
 
             windows = WindowGenerator.place_on_footprint(
-                polygon, spacing=effective_window_spacing, seed=floor_seed,
+                polygon,
+                spacing=effective_window_spacing,
+                seed=floor_seed,
             )
 
             stair_position = centroid
@@ -612,14 +753,19 @@ class ProceduralBuildingGenerator:
                 # zemin döşemesini de taşır - facade'dan bağımsız olarak.
                 slab_thickness = min(0.15, floor_height * 0.08)
                 floor_slab = FloorPlateBuilder.build(
-                    polygon, floor_base_z, slab_thickness=slab_thickness,
+                    polygon,
+                    floor_base_z,
+                    slab_thickness=slab_thickness,
                     name=f"interior_floor_slab_{level}",
                 )
                 if floor_slab.triangle_count() > 0:
                     interior_parts.append(floor_slab)
 
                 wall_mesh = InteriorWallBuilder.build_floor_walls(
-                    rooms, polygon, base_z=floor_base_z, floor_height=floor_height,
+                    rooms,
+                    polygon,
+                    base_z=floor_base_z,
+                    floor_height=floor_height,
                     interior_doors=interior_doors,
                 )
                 if wall_mesh.triangle_count() > 0:
@@ -635,36 +781,51 @@ class ProceduralBuildingGenerator:
                     # katlarda tekrar üretilmez - aynı şaft tüm katları
                     # kat eder).
                     shaft_mesh = ElevatorShaftMeshBuilder.build(
-                        elevator_core, floor_height=floor_height, floor_count=n_floors,
+                        elevator_core,
+                        floor_height=floor_height,
+                        floor_count=n_floors,
                     )
                     if shaft_mesh.triangle_count() > 0:
                         interior_parts.append(shaft_mesh)
 
                 furniture = FurnitureGenerator.place_for_floor(
-                    rooms, base_z=floor_base_z, floor_level=level,
-                    stairs=[stair], exterior_door=entrance,
+                    rooms,
+                    base_z=floor_base_z,
+                    floor_level=level,
+                    stairs=[stair],
+                    exterior_door=entrance,
                 )
                 furniture_mesh = FurnitureGenerator.build_mesh(furniture)
                 if furniture_mesh.triangle_count() > 0:
                     interior_parts.append(furniture_mesh)
 
-                interior_mesh = MeshMerger.merge(interior_parts, name=f"interior_floor_{level}") if interior_parts else None
+                interior_mesh = (
+                    MeshMerger.merge(interior_parts, name=f"interior_floor_{level}")
+                    if interior_parts
+                    else None
+                )
 
             door_positions = [d.position for d in interior_doors]
             if entrance:
                 door_positions.append(entrance.position)
 
-            floors.append(Floor(
-                level=level, height_m=floor_height, rooms=rooms,
-                corridors=corridors, stairs=[stair.position],
-                elevators=[elevator_core.position] if elevator_core else [],
-                doors=door_positions, windows=[w.position for w in windows],
-                stair_objects=[stair],
-                elevator_objects=[elevator_core] if (elevator_core and level == 0) else [],
-                interior_doors=interior_doors,
-                furniture=furniture,
-                interior_mesh=interior_mesh,
-            ))
+            floors.append(
+                Floor(
+                    level=level,
+                    height_m=floor_height,
+                    rooms=rooms,
+                    corridors=corridors,
+                    stairs=[stair.position],
+                    elevators=[elevator_core.position] if elevator_core else [],
+                    doors=door_positions,
+                    windows=[w.position for w in windows],
+                    stair_objects=[stair],
+                    elevator_objects=[elevator_core] if (elevator_core and level == 0) else [],
+                    interior_doors=interior_doors,
+                    furniture=furniture,
+                    interior_mesh=interior_mesh,
+                )
+            )
         return floors
 
     @staticmethod
@@ -714,7 +875,8 @@ class CityScenePacker:
         parts: list[tuple[str, Mesh3D, int, int]] = []
         for key, building in buildings.items():
             mesh = building.full_mesh(
-                include_interior=include_interior, generate_uvs=True,
+                include_interior=include_interior,
+                generate_uvs=True,
                 texture_size_m=texture_size_m,
             )
             if mesh.triangle_count() > 0:
@@ -722,13 +884,17 @@ class CityScenePacker:
         if not parts:
             return {}
         remapped, _atlas = MeshUVAtlasBaker.bake_scene(
-            parts, atlas_width=atlas_width_px, atlas_height=atlas_height_px,
+            parts,
+            atlas_width=atlas_width_px,
+            atlas_height=atlas_height_px,
         )
         return remapped
 
     @staticmethod
     def bake_shared_ao(
-        meshes: dict[str, Mesh3D], sample_count: int = 8, max_distance: float = 5.0,
+        meshes: dict[str, Mesh3D],
+        sample_count: int = 8,
+        max_distance: float = 5.0,
         cell_size: float | None = None,
     ) -> dict[str, Mesh3D]:
         """`meshes`: `{bina_id: Mesh3D}` (ör. `pack_shared_atlas()`
@@ -747,7 +913,9 @@ class CityScenePacker:
         keys = list(meshes.keys())
         mesh_list = [meshes[k] for k in keys]
         ao_applied = SceneAOBaker.apply_scene_ao(
-            mesh_list, sample_count=sample_count, max_distance=max_distance,
+            mesh_list,
+            sample_count=sample_count,
+            max_distance=max_distance,
             cell_size=cell_size,
         )
         return dict(zip(keys, ao_applied))

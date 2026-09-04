@@ -3,22 +3,19 @@ testleri."""
 
 from __future__ import annotations
 
-import math
-
 import pytest
-
+from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.street_furniture.infrastructure import (
     BridgeGenerator,
     BridgeSpec,
-    WaterSurfaceGenerator,
     LandscapeDetailGenerator,
+    WaterSurfaceGenerator,
 )
-from harita.core_engine.geometry_engine import Point2D, Polygon
-
 
 # ---------------------------------------------------------------------- #
 # BridgeGenerator
 # ---------------------------------------------------------------------- #
+
 
 class TestBridgeGenerator:
     def test_straight_bridge_produces_mesh(self):
@@ -46,7 +43,9 @@ class TestBridgeGenerator:
 
     def test_deck_bbox_spans_deck_z_thickness(self):
         path = [Point2D(0, 0), Point2D(50, 0)]
-        spec = BridgeSpec(path=path, deck_width_m=8.0, deck_thickness_m=0.6, deck_z=5.0, pier_ground_z=-3.0)
+        spec = BridgeSpec(
+            path=path, deck_width_m=8.0, deck_thickness_m=0.6, deck_z=5.0, pier_ground_z=-3.0
+        )
         mesh = BridgeGenerator.generate(spec)
         bbox_min, bbox_max = mesh.bounding_box()
         # Tabliye üst yüzeyi deck_z civarında olmalı (korkuluk/ayak alt
@@ -57,7 +56,9 @@ class TestBridgeGenerator:
     def test_more_piers_for_longer_bridge(self):
         short_path = [Point2D(0, 0), Point2D(10, 0)]
         long_path = [Point2D(0, 0), Point2D(100, 0)]
-        short_spec = BridgeSpec(path=short_path, pier_spacing_m=15.0, deck_z=5.0, pier_ground_z=-3.0)
+        short_spec = BridgeSpec(
+            path=short_path, pier_spacing_m=15.0, deck_z=5.0, pier_ground_z=-3.0
+        )
         long_spec = BridgeSpec(path=long_path, pier_spacing_m=15.0, deck_z=5.0, pier_ground_z=-3.0)
         short_mesh = BridgeGenerator.generate(short_spec)
         long_mesh = BridgeGenerator.generate(long_spec)
@@ -69,6 +70,7 @@ class TestBridgeGenerator:
         footprint = BridgeGenerator._deck_footprint(path, width_m=8.0)
         # Basit sürekli bir şerit olmalı - kendi kendini kesmemeli.
         from harita.building_reconstruction.curved_facade import CurvedFootprintGenerator
+
         assert not CurvedFootprintGenerator.is_self_intersecting(footprint)
 
 
@@ -76,9 +78,12 @@ class TestBridgeGenerator:
 # WaterSurfaceGenerator
 # ---------------------------------------------------------------------- #
 
+
 class TestWaterSurfaceGenerator:
     def test_rectangular_surface_has_correct_bbox(self):
-        mesh = WaterSurfaceGenerator.rectangular_surface(Point2D(0, 0), width_m=100.0, depth_m=80.0, z=0.0)
+        mesh = WaterSurfaceGenerator.rectangular_surface(
+            Point2D(0, 0), width_m=100.0, depth_m=80.0, z=0.0
+        )
         bbox_min, bbox_max = mesh.bounding_box()
         assert abs((bbox_max[0] - bbox_min[0]) - 100.0) < 1e-6
         assert abs((bbox_max[1] - bbox_min[1]) - 80.0) < 1e-6
@@ -89,7 +94,9 @@ class TestWaterSurfaceGenerator:
         assert (bbox_max[2] - bbox_min[2]) < 0.1
 
     def test_polygon_surface_arbitrary_shape(self):
-        poly = Polygon([Point2D(0, 0), Point2D(10, 0), Point2D(10, 5), Point2D(5, 8), Point2D(0, 5)])
+        poly = Polygon(
+            [Point2D(0, 0), Point2D(10, 0), Point2D(10, 5), Point2D(5, 8), Point2D(0, 5)]
+        )
         mesh = WaterSurfaceGenerator.polygon_surface(poly, z=-1.0)
         assert mesh.triangle_count() > 0
 
@@ -103,6 +110,7 @@ class TestWaterSurfaceGenerator:
 # LandscapeDetailGenerator
 # ---------------------------------------------------------------------- #
 
+
 class TestLandscapeDetailGenerator:
     def test_sidewalk_strip_produces_mesh(self):
         path = [Point2D(0, 0), Point2D(30, 0)]
@@ -111,8 +119,12 @@ class TestLandscapeDetailGenerator:
 
     def test_sidewalk_offset_shifts_strip(self):
         path = [Point2D(0, 0), Point2D(30, 0)]
-        no_offset = LandscapeDetailGenerator.sidewalk_strip(path, width_m=2.0, offset_from_road_m=0.0)
-        with_offset = LandscapeDetailGenerator.sidewalk_strip(path, width_m=2.0, offset_from_road_m=5.0)
+        no_offset = LandscapeDetailGenerator.sidewalk_strip(
+            path, width_m=2.0, offset_from_road_m=0.0
+        )
+        with_offset = LandscapeDetailGenerator.sidewalk_strip(
+            path, width_m=2.0, offset_from_road_m=5.0
+        )
         _, no_offset_max = no_offset.bounding_box()
         _, offset_max = with_offset.bounding_box()
         assert offset_max[1] > no_offset_max[1]
@@ -124,16 +136,26 @@ class TestLandscapeDetailGenerator:
 
     def test_crosswalk_stripe_count_matches_request(self):
         mesh_6 = LandscapeDetailGenerator.crosswalk_stripes(
-            Point2D(10, 0), direction_deg=0.0, road_width_m=8.0, stripe_count=6,
+            Point2D(10, 0),
+            direction_deg=0.0,
+            road_width_m=8.0,
+            stripe_count=6,
         )
         mesh_10 = LandscapeDetailGenerator.crosswalk_stripes(
-            Point2D(10, 0), direction_deg=0.0, road_width_m=8.0, stripe_count=10,
+            Point2D(10, 0),
+            direction_deg=0.0,
+            road_width_m=8.0,
+            stripe_count=10,
         )
         assert mesh_10.triangle_count() > mesh_6.triangle_count()
 
     def test_crosswalk_rotates_with_direction(self):
-        mesh_0 = LandscapeDetailGenerator.crosswalk_stripes(Point2D(0, 0), direction_deg=0.0, road_width_m=8.0)
-        mesh_90 = LandscapeDetailGenerator.crosswalk_stripes(Point2D(0, 0), direction_deg=90.0, road_width_m=8.0)
+        mesh_0 = LandscapeDetailGenerator.crosswalk_stripes(
+            Point2D(0, 0), direction_deg=0.0, road_width_m=8.0
+        )
+        mesh_90 = LandscapeDetailGenerator.crosswalk_stripes(
+            Point2D(0, 0), direction_deg=90.0, road_width_m=8.0
+        )
         bbox0_min, bbox0_max = mesh_0.bounding_box()
         bbox90_min, bbox90_max = mesh_90.bounding_box()
         # 0 derecede genişlik y-ekseninde daha büyük, 90 derecede x-ekseninde.
@@ -145,8 +167,12 @@ class TestLandscapeDetailGenerator:
         assert span90_x > span90_y
 
     def test_parking_lines_count_matches_stalls_plus_one(self):
-        mesh_3 = LandscapeDetailGenerator.parking_lines(Point2D(0, 0), direction_deg=0.0, stall_count=3)
-        mesh_5 = LandscapeDetailGenerator.parking_lines(Point2D(0, 0), direction_deg=0.0, stall_count=5)
+        mesh_3 = LandscapeDetailGenerator.parking_lines(
+            Point2D(0, 0), direction_deg=0.0, stall_count=3
+        )
+        mesh_5 = LandscapeDetailGenerator.parking_lines(
+            Point2D(0, 0), direction_deg=0.0, stall_count=5
+        )
         # 5 stall -> 6 çizgi, 3 stall -> 4 çizgi: daha fazla stall daha
         # fazla üçgen üretmeli.
         assert mesh_5.triangle_count() > mesh_3.triangle_count()
@@ -157,13 +183,22 @@ class TestLandscapeDetailGenerator:
 # üretilip sahneye yerleştirilmeli" - entegrasyon testi.
 # ---------------------------------------------------------------------- #
 
+
 def test_m25_four_categories_integration():
-    from harita.street_furniture import StreetFurnitureGenerator, StreetFurnitureItem, StreetFurnitureType
     from harita.mesh_engine import MeshMerger
+    from harita.street_furniture import (
+        StreetFurnitureGenerator,
+        StreetFurnitureItem,
+        StreetFurnitureType,
+    )
 
     road_path = [Point2D(0, 0), Point2D(50, 0)]
-    sidewalk = LandscapeDetailGenerator.sidewalk_strip(road_path, width_m=2.0, offset_from_road_m=5.0)
-    bridge = BridgeGenerator.generate(BridgeSpec(path=[Point2D(50, 0), Point2D(80, 0)], deck_z=3.0, pier_ground_z=-2.0))
+    sidewalk = LandscapeDetailGenerator.sidewalk_strip(
+        road_path, width_m=2.0, offset_from_road_m=5.0
+    )
+    bridge = BridgeGenerator.generate(
+        BridgeSpec(path=[Point2D(50, 0), Point2D(80, 0)], deck_z=3.0, pier_ground_z=-2.0)
+    )
     water = WaterSurfaceGenerator.rectangular_surface(Point2D(65, 0), 40.0, 20.0, z=-2.0)
     furniture = StreetFurnitureGenerator.generate(
         StreetFurnitureItem(furniture_type=StreetFurnitureType.BENCH, position=Point2D(10, 6))
@@ -182,6 +217,7 @@ def test_m25_four_categories_integration():
 # ROADMAP_V7.md UV-unwrap kapanışı: bridge/water/landscape artık gerçek
 # UV atıyor (daha önce hiç atamıyordu, bkz. UVGenerator wiring)
 # ---------------------------------------------------------------------- #
+
 
 class TestInfrastructureUVCoverage:
     def test_bridge_mesh_has_uv_on_every_vertex(self):
@@ -214,14 +250,18 @@ class TestInfrastructureUVCoverage:
 
     def test_crosswalk_stripes_have_uv(self):
         mesh = LandscapeDetailGenerator.crosswalk_stripes(
-            center=Point2D(10, 10), direction_deg=0.0, road_width_m=8.0,
+            center=Point2D(10, 10),
+            direction_deg=0.0,
+            road_width_m=8.0,
         )
         assert mesh.vertex_count() > 0
         assert all(v.uv is not None for v in mesh.vertices)
 
     def test_parking_lines_have_uv(self):
         mesh = LandscapeDetailGenerator.parking_lines(
-            origin=Point2D(0, 0), direction_deg=0.0, stall_count=5,
+            origin=Point2D(0, 0),
+            direction_deg=0.0,
+            stall_count=5,
         )
         assert mesh.vertex_count() > 0
         assert all(v.uv is not None for v in mesh.vertices)

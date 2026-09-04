@@ -66,7 +66,7 @@ def _lzw_encode(raw: bytes) -> bytes:
     out = bytearray()
     for i in range(0, len(bits), 8):
         byte = 0
-        for b in bits[i:i + 8]:
+        for b in bits[i : i + 8]:
             byte = (byte << 1) | b
         out.append(byte)
     return bytes(out)
@@ -222,7 +222,6 @@ def test_corrupted_lzw_stream_raises_parse_error_not_silent_garbage():
     # Compression tag'ini 5'e çevirip strip verisini rastgele baytlarla
     # değiştirerek "sözdizimsel olarak LZW ama bozuk" bir akış üretiyoruz.
     data = bytearray(data)
-    import re as _re
     # basit yaklaşım: yeni, kasıtlı-bozuk bir dosya inşa etmek yerine
     # doğrudan _build_tiff(compression=5) çıktısının strip verisini boz.
     good = bytearray(_build_tiff(4, 3, _GRID, compression=5))

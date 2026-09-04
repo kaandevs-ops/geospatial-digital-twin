@@ -17,9 +17,15 @@ from harita.analysis_engine.result_narrator import (
 )
 from harita.mobility.crowd_simulation import EvacuationResult
 from harita.mobility.crowd_simulation.capacity_analysis import (
-    CapacityAnalysisReport, CapacityRunResult,
+    CapacityAnalysisReport,
+    CapacityRunResult,
 )
-from harita.mobility.simulation_recorder import AgentFrameState, AgentSnapshot, Keyframe, SimulationRecorder
+from harita.mobility.simulation_recorder import (
+    AgentFrameState,
+    AgentSnapshot,
+    Keyframe,
+    SimulationRecorder,
+)
 from harita.render_engine.animation_export import (
     AnimationExportError,
     compute_export_bounds,
@@ -31,25 +37,37 @@ from harita.render_engine.animation_export import (
 
 def _sample_keyframes() -> list[Keyframe]:
     return [
-        Keyframe(t=0.0, agents=[
-            AgentSnapshot(agent_id=1, x=0.0, y=0.0, state=AgentFrameState.MOVING),
-            AgentSnapshot(agent_id=2, x=1.0, y=1.0, state=AgentFrameState.WAITING),
-        ]),
-        Keyframe(t=0.5, agents=[
-            AgentSnapshot(agent_id=1, x=1.0, y=0.5, state=AgentFrameState.MOVING),
-            AgentSnapshot(agent_id=2, x=1.0, y=1.0, state=AgentFrameState.EVACUATED),
-        ]),
-        Keyframe(t=1.0, agents=[
-            AgentSnapshot(agent_id=1, x=2.0, y=1.0, state=AgentFrameState.PANIC),
-        ]),
+        Keyframe(
+            t=0.0,
+            agents=[
+                AgentSnapshot(agent_id=1, x=0.0, y=0.0, state=AgentFrameState.MOVING),
+                AgentSnapshot(agent_id=2, x=1.0, y=1.0, state=AgentFrameState.WAITING),
+            ],
+        ),
+        Keyframe(
+            t=0.5,
+            agents=[
+                AgentSnapshot(agent_id=1, x=1.0, y=0.5, state=AgentFrameState.MOVING),
+                AgentSnapshot(agent_id=2, x=1.0, y=1.0, state=AgentFrameState.EVACUATED),
+            ],
+        ),
+        Keyframe(
+            t=1.0,
+            agents=[
+                AgentSnapshot(agent_id=1, x=2.0, y=1.0, state=AgentFrameState.PANIC),
+            ],
+        ),
     ]
 
 
 class TestNarrateEvacuationResult(unittest.TestCase):
     def test_basic_summary_contains_key_numbers(self):
         result = EvacuationResult(
-            total_agents=87, evacuated_count=87, evacuation_time_s=142.0,
-            per_agent_time_s={}, timed_out=False,
+            total_agents=87,
+            evacuated_count=87,
+            evacuation_time_s=142.0,
+            per_agent_time_s={},
+            timed_out=False,
         )
         text = narrate_evacuation_result(result)
         self.assertIn("87", text)
@@ -57,16 +75,23 @@ class TestNarrateEvacuationResult(unittest.TestCase):
 
     def test_timed_out_mentioned(self):
         result = EvacuationResult(
-            total_agents=50, evacuated_count=30, evacuation_time_s=600.0,
-            per_agent_time_s={}, timed_out=True,
+            total_agents=50,
+            evacuated_count=30,
+            evacuation_time_s=600.0,
+            per_agent_time_s={},
+            timed_out=True,
         )
         text = narrate_evacuation_result(result)
         self.assertIn("tamamlanamadı", text)
 
     def test_bottleneck_mentioned_when_present(self):
         result = EvacuationResult(
-            total_agents=50, evacuated_count=50, evacuation_time_s=90.0,
-            per_agent_time_s={}, timed_out=False, bottleneck_peak_count=12,
+            total_agents=50,
+            evacuated_count=50,
+            evacuation_time_s=90.0,
+            per_agent_time_s={},
+            timed_out=False,
+            bottleneck_peak_count=12,
             bottleneck_peak_time_s=45.0,
         )
         text = narrate_evacuation_result(result)
@@ -74,24 +99,47 @@ class TestNarrateEvacuationResult(unittest.TestCase):
         self.assertIn("12", text)
 
     def test_never_raises_never_empty(self):
-        text = narrate_evacuation_result(EvacuationResult(
-            total_agents=0, evacuated_count=0, evacuation_time_s=0.0,
-            per_agent_time_s={}, timed_out=False,
-        ))
+        text = narrate_evacuation_result(
+            EvacuationResult(
+                total_agents=0,
+                evacuated_count=0,
+                evacuation_time_s=0.0,
+                per_agent_time_s={},
+                timed_out=False,
+            )
+        )
         self.assertTrue(text)
 
 
 class TestNarrateCapacityReport(unittest.TestCase):
     def test_flags_over_threshold_scenarios(self):
         report = CapacityAnalysisReport(
-            building_type="residential", exit_width_m=1.2, regulation_profile_name="default",
+            building_type="residential",
+            exit_width_m=1.2,
+            regulation_profile_name="default",
             runs=[
-                CapacityRunResult(agent_count=20, evacuation_time_s=40.0, evacuated_count=20,
-                                   total_agents=20, timed_out=False, bottleneck_cell=None,
-                                   bottleneck_count=None, threshold_s=120.0, within_threshold=True),
-                CapacityRunResult(agent_count=80, evacuation_time_s=150.0, evacuated_count=80,
-                                   total_agents=80, timed_out=False, bottleneck_cell=None,
-                                   bottleneck_count=None, threshold_s=120.0, within_threshold=False),
+                CapacityRunResult(
+                    agent_count=20,
+                    evacuation_time_s=40.0,
+                    evacuated_count=20,
+                    total_agents=20,
+                    timed_out=False,
+                    bottleneck_cell=None,
+                    bottleneck_count=None,
+                    threshold_s=120.0,
+                    within_threshold=True,
+                ),
+                CapacityRunResult(
+                    agent_count=80,
+                    evacuation_time_s=150.0,
+                    evacuated_count=80,
+                    total_agents=80,
+                    timed_out=False,
+                    bottleneck_cell=None,
+                    bottleneck_count=None,
+                    threshold_s=120.0,
+                    within_threshold=False,
+                ),
             ],
         )
         text = narrate_capacity_report(report)
@@ -100,7 +148,9 @@ class TestNarrateCapacityReport(unittest.TestCase):
 
     def test_empty_runs_does_not_raise(self):
         report = CapacityAnalysisReport(
-            building_type="residential", exit_width_m=1.2, regulation_profile_name="default",
+            building_type="residential",
+            exit_width_m=1.2,
+            regulation_profile_name="default",
             runs=[],
         )
         text = narrate_capacity_report(report)
@@ -110,8 +160,12 @@ class TestNarrateCapacityReport(unittest.TestCase):
 class TestNarrateScenarioComparison(unittest.TestCase):
     def test_reports_direction_of_change(self):
         comparisons = [
-            ScenarioComparison(label="x", metric_name="tahliye süresi", before_value=100.0, after_value=85.0),
-            ScenarioComparison(label="x", metric_name="enerji talebi", before_value=100.0, after_value=108.0),
+            ScenarioComparison(
+                label="x", metric_name="tahliye süresi", before_value=100.0, after_value=85.0
+            ),
+            ScenarioComparison(
+                label="x", metric_name="enerji talebi", before_value=100.0, after_value=108.0
+            ),
         ]
         text = narrate_scenario_comparison(comparisons)
         self.assertIn("azaldı", text)
@@ -165,6 +219,7 @@ class TestAnimationExportGif(unittest.TestCase):
             self.assertGreater(result_path.stat().st_size, 0)
             try:
                 from PIL import Image
+
                 with Image.open(result_path) as img:
                     self.assertEqual(img.format, "GIF")
                     frame_count = 0

@@ -17,16 +17,17 @@ titizlikle "kesin nüfus sayımı değildir" notunu taşır - TÜİK/WorldPop ge
 eğilimlerinin kaba bir yaklaşımıdır, belirli bir binanın gerçek sakinlerini
 temsil etmez.
 """
+
 from __future__ import annotations
 
 import random
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Sequence
 
 from ..mobility.crowd_simulation import (
-    MobilityProfile,
     DEFAULT_MOBILITY_PROFILE_DISTRIBUTION,
+    MobilityProfile,
 )
 
 
@@ -34,10 +35,10 @@ class AgeGroup(str, Enum):
     """Kaba yaş grubu sınıflandırması (TÜİK yaş grubu raporlarıyla aynı
     granülaritede - gösterge amaçlı)."""
 
-    CHILD = "child"              # 0-14
-    YOUTH = "youth"              # 15-24
-    ADULT = "adult"              # 25-64
-    ELDERLY = "elderly"          # 65+
+    CHILD = "child"  # 0-14
+    YOUTH = "youth"  # 15-24
+    ADULT = "adult"  # 25-64
+    ELDERLY = "elderly"  # 65+
 
 
 #: TÜİK Türkiye geneli kaba yaş dağılımı yaklaşımı (gösterge niteliğinde,
@@ -54,12 +55,12 @@ class DailyRoutineType(str, Enum):
     """Katman 2.2 (activity_model) tarafından tüketilecek günlük rutin
     tipi - "kim, ne zaman, nereye gider" sorusunun kaba sınıflandırması."""
 
-    SCHOOL_CHILD = "school_child"          # ev <-> okul
-    WORKER_OFFICE = "worker_office"        # ev <-> iş (sabit mesai)
-    WORKER_SHIFT = "worker_shift"          # ev <-> iş (vardiyalı, farklı saat)
-    HOMEMAKER = "homemaker"                # evde, kısa yerel gündelik çıkışlar
-    RETIRED = "retired"                    # evde, düzensiz kısa çıkışlar
-    UNEMPLOYED_OR_FLEXIBLE = "flexible"    # düzensiz
+    SCHOOL_CHILD = "school_child"  # ev <-> okul
+    WORKER_OFFICE = "worker_office"  # ev <-> iş (sabit mesai)
+    WORKER_SHIFT = "worker_shift"  # ev <-> iş (vardiyalı, farklı saat)
+    HOMEMAKER = "homemaker"  # evde, kısa yerel gündelik çıkışlar
+    RETIRED = "retired"  # evde, düzensiz kısa çıkışlar
+    UNEMPLOYED_OR_FLEXIBLE = "flexible"  # düzensiz
 
 
 #: Yaş grubuna göre en olası rutin tipi dağılımı - `activity_model`'in
@@ -170,10 +171,10 @@ class SyntheticPopulationGenerator:
         açık bir kural (kara kutu değil)."""
         size = max(1, round(self._rng.gauss(self.avg_household_size, 0.8)))
         household_id = f"{building_ref}:hh{household_index}"
-        individuals = [
-            self._make_individual(f"{household_id}:p{i}") for i in range(size)
-        ]
-        return Household(household_id=household_id, building_ref=building_ref, individuals=individuals)
+        individuals = [self._make_individual(f"{household_id}:p{i}") for i in range(size)]
+        return Household(
+            household_id=household_id, building_ref=building_ref, individuals=individuals
+        )
 
     def generate_for_building(self, building_ref: str, household_count: int) -> list[Household]:
         """Bir bina için `household_count` adet hane üretir (ör. bir konut
@@ -184,9 +185,7 @@ class SyntheticPopulationGenerator:
         bu yüzden bina->daire sayısı çıkarımı çağırana bırakılmıştır)."""
         if household_count < 0:
             raise ValueError("household_count negatif olamaz")
-        return [
-            self.generate_household(building_ref, i) for i in range(household_count)
-        ]
+        return [self.generate_household(building_ref, i) for i in range(household_count)]
 
     def all_individuals(self, households: Sequence[Household]) -> list[SyntheticIndividual]:
         result: list[SyntheticIndividual] = []

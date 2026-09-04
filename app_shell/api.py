@@ -141,20 +141,20 @@ Route seti:
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
+from ..digital_twin.iot_bridge import MqttBackendUnavailable
 from ..extensibility.rest_api import RestResponse, RestRouter
 from ..observability.metrics import MetricsRegistry
 from ..performance.profiler import GPUProfiler
 from ..security.rate_limiter import SlidingWindowRateLimiter
-from ..digital_twin.iot_bridge import MqttBackendUnavailable
 from .session import AppSession, AppSessionError
 
 
 def build_app_router(
     session: AppSession,
-    metrics: Optional[MetricsRegistry] = None,
-    gpu_profiler: Optional[GPUProfiler] = None,
+    metrics: MetricsRegistry | None = None,
+    gpu_profiler: GPUProfiler | None = None,
 ) -> RestRouter:
     router = RestRouter()
 
@@ -172,17 +172,19 @@ def build_app_router(
 
     # -- Roadmap V4 - Faz E15: Observability ------------------------------
     if metrics is not None:
+
         @router.get("/api/metrics")
         def _metrics(**_: Any) -> RestResponse:
             body = metrics.render_prometheus()
             return RestResponse(
-                status=200, body=body,
+                status=200,
+                body=body,
                 headers={"Content-Type": "text/plain; version=0.0.4; charset=utf-8"},
             )
 
-
     # -- Roadmap V4 - Faz E10: gercek GPU donanim zamanlama koprusu --------
     if gpu_profiler is not None:
+
         @router.post("/api/performance/gpu-timing")
         def _report_gpu_timing(body: Any = None, **_: Any) -> RestResponse:
             body = body or {}
@@ -219,7 +221,9 @@ def build_app_router(
         return RestResponse(status=201, body=info)
 
     @router.post("/api/projects/<id>/open")
-    def _open_project(id: str, body: Any = None, query: dict | None = None, **_: Any) -> RestResponse:  # noqa: A002
+    def _open_project(
+        id: str, body: Any = None, query: dict | None = None, **_: Any
+    ) -> RestResponse:  # noqa: A002
         body = body or {}
         path = body.get("path") or (query or {}).get("path")
         try:
@@ -289,7 +293,8 @@ def build_app_router(
         body = body or {}
         try:
             result = session.regenerate_interior(
-                id, key,
+                id,
+                key,
                 seed=body.get("seed"),
                 min_room_size=body.get("min_room_size"),
                 window_spacing=body.get("window_spacing"),
@@ -309,7 +314,9 @@ def build_app_router(
             return _err(exc)
 
     @router.delete("/api/projects/<id>/buildings/<key>")
-    def _remove_building(id: str, key: str, query: dict | None = None, **_: Any) -> RestResponse | dict[str, Any]:  # noqa: A002
+    def _remove_building(
+        id: str, key: str, query: dict | None = None, **_: Any
+    ) -> RestResponse | dict[str, Any]:  # noqa: A002
         token = (query or {}).get("token")
         try:
             removed = session.remove_building(id, key, token=token)
@@ -354,7 +361,10 @@ def build_app_router(
         body = body or {}
         text = body.get("text", "")
         try:
-            return RestResponse(status=200, body=session.run_assistant_command(id, key, text, token=body.get("token")))
+            return RestResponse(
+                status=200,
+                body=session.run_assistant_command(id, key, text, token=body.get("token")),
+            )
         except AppSessionError as exc:
             return _err(exc)
 
@@ -400,14 +410,22 @@ def build_app_router(
         if not tool or not isinstance(tool, str):
             return RestResponse(status=422, body={"error": "eksik/geçersiz alan: tool"})
         if not isinstance(points, list) or not all(isinstance(p, (list, tuple)) for p in points):
-            return RestResponse(status=422, body={"error": "points, [[x,y,z],...] biçiminde bir liste olmalı"})
+            return RestResponse(
+                status=422, body={"error": "points, [[x,y,z],...] biçiminde bir liste olmalı"}
+            )
         try:
             return session.measure(id, tool, points)
         except (AppSessionError, ValueError, TypeError) as exc:
-            return _err(exc) if isinstance(exc, AppSessionError) else RestResponse(status=422, body={"error": str(exc)})
+            return (
+                _err(exc)
+                if isinstance(exc, AppSessionError)
+                else RestResponse(status=422, body={"error": str(exc)})
+            )
 
     @router.get("/api/projects/<id>/facade-compliance/narrate")
-    def _narrate_facade_compliance(id: str, query: dict | None = None, **_: Any) -> RestResponse | dict[str, Any]:  # noqa: A002
+    def _narrate_facade_compliance(
+        id: str, query: dict | None = None, **_: Any
+    ) -> RestResponse | dict[str, Any]:  # noqa: A002
         query = query or {}
         building_key = query.get("building")
         if not building_key:
@@ -440,7 +458,9 @@ def build_app_router(
         if not isinstance(geojson_text, str):
             return RestResponse(status=422, body={"error": "geojson bir metin (str) olmalı."})
         try:
-            result = session.import_geojson(id, geojson_text, seed=body.get("seed"), token=body.get("token"))
+            result = session.import_geojson(
+                id, geojson_text, seed=body.get("seed"), token=body.get("token")
+            )
         except AppSessionError as exc:
             return _err(exc)
         return RestResponse(status=201, body=result)
@@ -453,7 +473,9 @@ def build_app_router(
         required = ("south", "west", "north", "east")
         missing = [k for k in required if k not in body]
         if missing:
-            return RestResponse(status=422, body={"error": f"eksik alan(lar): {', '.join(missing)}"})
+            return RestResponse(
+                status=422, body={"error": f"eksik alan(lar): {', '.join(missing)}"}
+            )
         try:
             south = float(body["south"])
             west = float(body["west"])
@@ -470,19 +492,35 @@ def build_app_router(
             try:
                 osm_ids = [int(v) for v in osm_ids_raw]
             except (TypeError, ValueError):
-                return RestResponse(status=422, body={"error": "osm_ids içindeki değerler tam sayı olmalı."})
+                return RestResponse(
+                    status=422, body={"error": "osm_ids içindeki değerler tam sayı olmalı."}
+                )
             if not osm_ids:
-                return RestResponse(status=422, body={"error": "osm_ids boş olamaz (hiç bina seçilmedi)."})
+                return RestResponse(
+                    status=422, body={"error": "osm_ids boş olamaz (hiç bina seçilmedi)."}
+                )
         if not _osm_import_limiter.allow(id):
             retry_after = _osm_import_limiter.retry_after(id)
             return RestResponse(
                 status=429,
-                body={"error": f"çok fazla OSM içe aktarma isteği; {retry_after:.0f} saniye sonra tekrar deneyin."},
-                headers={"Content-Type": "application/json", "Retry-After": str(int(retry_after) + 1)},
+                body={
+                    "error": f"çok fazla OSM içe aktarma isteği; {retry_after:.0f} saniye sonra tekrar deneyin."
+                },
+                headers={
+                    "Content-Type": "application/json",
+                    "Retry-After": str(int(retry_after) + 1),
+                },
             )
         try:
             result = session.import_osm_bbox(
-                id, south, west, north, east, seed=seed, token=body.get("token"), osm_ids=osm_ids,
+                id,
+                south,
+                west,
+                north,
+                east,
+                seed=seed,
+                token=body.get("token"),
+                osm_ids=osm_ids,
             )
         except AppSessionError as exc:
             return _err(exc)
@@ -502,7 +540,9 @@ def build_app_router(
         required = ("south", "west", "north", "east")
         missing = [k for k in required if k not in body]
         if missing:
-            return RestResponse(status=422, body={"error": f"eksik alan(lar): {', '.join(missing)}"})
+            return RestResponse(
+                status=422, body={"error": f"eksik alan(lar): {', '.join(missing)}"}
+            )
         try:
             south = float(body["south"])
             west = float(body["west"])
@@ -514,8 +554,13 @@ def build_app_router(
             retry_after = _osm_preview_limiter.retry_after(id)
             return RestResponse(
                 status=429,
-                body={"error": f"çok fazla OSM önizleme isteği; {retry_after:.0f} saniye sonra tekrar deneyin."},
-                headers={"Content-Type": "application/json", "Retry-After": str(int(retry_after) + 1)},
+                body={
+                    "error": f"çok fazla OSM önizleme isteği; {retry_after:.0f} saniye sonra tekrar deneyin."
+                },
+                headers={
+                    "Content-Type": "application/json",
+                    "Retry-After": str(int(retry_after) + 1),
+                },
             )
         try:
             result = session.preview_osm_bbox(id, south, west, north, east)
@@ -535,7 +580,9 @@ def build_app_router(
         required = ("south", "west", "north", "east")
         missing = [k for k in required if k not in body]
         if missing:
-            return RestResponse(status=422, body={"error": f"eksik alan(lar): {', '.join(missing)}"})
+            return RestResponse(
+                status=422, body={"error": f"eksik alan(lar): {', '.join(missing)}"}
+            )
         try:
             south = float(body["south"])
             west = float(body["west"])
@@ -550,11 +597,18 @@ def build_app_router(
             retry_after = _osm_category_summary_limiter.retry_after(id)
             return RestResponse(
                 status=429,
-                body={"error": f"çok fazla katman özeti isteği; {retry_after:.0f} saniye sonra tekrar deneyin."},
-                headers={"Content-Type": "application/json", "Retry-After": str(int(retry_after) + 1)},
+                body={
+                    "error": f"çok fazla katman özeti isteği; {retry_after:.0f} saniye sonra tekrar deneyin."
+                },
+                headers={
+                    "Content-Type": "application/json",
+                    "Retry-After": str(int(retry_after) + 1),
+                },
             )
         try:
-            result = session.osm_category_summary(id, south, west, north, east, categories=categories)
+            result = session.osm_category_summary(
+                id, south, west, north, east, categories=categories
+            )
         except AppSessionError as exc:
             return _err(exc)
         return RestResponse(status=200, body=result)
@@ -572,7 +626,9 @@ def build_app_router(
         required = ("south", "west", "north", "east", "categories")
         missing = [k for k in required if k not in body]
         if missing:
-            return RestResponse(status=422, body={"error": f"eksik alan(lar): {', '.join(missing)}"})
+            return RestResponse(
+                status=422, body={"error": f"eksik alan(lar): {', '.join(missing)}"}
+            )
         try:
             south = float(body["south"])
             west = float(body["west"])
@@ -587,12 +643,23 @@ def build_app_router(
             retry_after = _osm_import_layers_limiter.retry_after(id)
             return RestResponse(
                 status=429,
-                body={"error": f"çok fazla katman içe aktarma isteği; {retry_after:.0f} saniye sonra tekrar deneyin."},
-                headers={"Content-Type": "application/json", "Retry-After": str(int(retry_after) + 1)},
+                body={
+                    "error": f"çok fazla katman içe aktarma isteği; {retry_after:.0f} saniye sonra tekrar deneyin."
+                },
+                headers={
+                    "Content-Type": "application/json",
+                    "Retry-After": str(int(retry_after) + 1),
+                },
             )
         try:
             result = session.import_osm_categories(
-                id, south, west, north, east, categories, token=body.get("token"),
+                id,
+                south,
+                west,
+                north,
+                east,
+                categories,
+                token=body.get("token"),
             )
         except AppSessionError as exc:
             return _err(exc)
@@ -751,7 +818,8 @@ def build_app_router(
         body = body or {}
         try:
             result = session.feature_survey_webodm_test_connection(
-                base_url=body.get("base_url", ""), token=body.get("token"),
+                base_url=body.get("base_url", ""),
+                token=body.get("token"),
             )
         except AppSessionError as exc:
             return _err(exc)
@@ -832,10 +900,16 @@ def build_app_router(
         except KeyError as exc:
             return RestResponse(status=422, body={"error": f"eksik alan: {exc}"})
         except (TypeError, ValueError):
-            return RestResponse(status=422, body={"error": "start_x/start_y/goal_x/goal_y sayısal olmalı."})
+            return RestResponse(
+                status=422, body={"error": "start_x/start_y/goal_x/goal_y sayısal olmalı."}
+            )
         try:
             result = session.find_path(
-                id, start_x=start_x, start_y=start_y, goal_x=goal_x, goal_y=goal_y,
+                id,
+                start_x=start_x,
+                start_y=start_y,
+                goal_x=goal_x,
+                goal_y=goal_y,
                 cell_size=float(body.get("cell_size", 2.0)),
                 algorithm=body.get("algorithm", "astar"),
             )
@@ -875,8 +949,10 @@ def build_app_router(
         try:
             result = session.hazard_earthquake_catalog(
                 id,
-                min_lat=float(body["min_lat"]), max_lat=float(body["max_lat"]),
-                min_lon=float(body["min_lon"]), max_lon=float(body["max_lon"]),
+                min_lat=float(body["min_lat"]),
+                max_lat=float(body["max_lat"]),
+                min_lon=float(body["min_lon"]),
+                max_lon=float(body["max_lon"]),
                 source=body.get("source", "usgs"),
                 min_magnitude=float(body.get("min_magnitude", 2.5)),
                 days=int(body.get("days", 30)),
@@ -884,7 +960,9 @@ def build_app_router(
         except KeyError as exc:
             return RestResponse(status=422, body={"error": f"eksik alan: {exc}"})
         except (TypeError, ValueError):
-            return RestResponse(status=422, body={"error": "min_lat/max_lat/min_lon/max_lon sayısal olmalı."})
+            return RestResponse(
+                status=422, body={"error": "min_lat/max_lat/min_lon/max_lon sayısal olmalı."}
+            )
         except AppSessionError as exc:
             return _err(exc)
         return RestResponse(status=200, body=result)
@@ -917,7 +995,9 @@ def build_app_router(
             return RestResponse(status=422, body={"error": "lat/lon sayısal olmalı."})
         try:
             result = session.hazard_building_risk(
-                id, lat=lat, lon=lon,
+                id,
+                lat=lat,
+                lon=lon,
                 key=body.get("key"),
                 construction_year=body.get("construction_year"),
                 floor_count=body.get("floor_count"),
@@ -936,7 +1016,9 @@ def build_app_router(
         if not buildings:
             return RestResponse(status=422, body={"error": "en az bir bina (buildings) gerekli."})
         try:
-            result = session.hazard_evacuation_plan(id, buildings=buildings, safe_points=safe_points)
+            result = session.hazard_evacuation_plan(
+                id, buildings=buildings, safe_points=safe_points
+            )
         except AppSessionError as exc:
             return _err(exc)
         return RestResponse(status=200, body=result)
@@ -1099,8 +1181,11 @@ def build_app_router(
     @router.post("/api/projects/<id>/simulation/environment/run")
     def _environment_run(id: str, body: Any = None, **_: Any) -> RestResponse:  # noqa: A002
         body = body or {}
-        for field_name in ("average_building_height_m", "average_street_width_m",
-                            "building_footprint_ratio"):
+        for field_name in (
+            "average_building_height_m",
+            "average_street_width_m",
+            "building_footprint_ratio",
+        ):
             if field_name not in body:
                 return RestResponse(status=422, body={"error": f"{field_name} gerekli."})
         try:
@@ -1112,15 +1197,18 @@ def build_app_router(
                 canopy_coverage_ratio=float(body.get("canopy_coverage_ratio", 0.0)),
                 baseline_temperature_c=(
                     float(body["baseline_temperature_c"])
-                    if body.get("baseline_temperature_c") is not None else None
+                    if body.get("baseline_temperature_c") is not None
+                    else None
                 ),
                 vehicles_per_hour=(
                     float(body["vehicles_per_hour"])
-                    if body.get("vehicles_per_hour") is not None else None
+                    if body.get("vehicles_per_hour") is not None
+                    else None
                 ),
                 density_people_per_m2=(
                     float(body["density_people_per_m2"])
-                    if body.get("density_people_per_m2") is not None else None
+                    if body.get("density_people_per_m2") is not None
+                    else None
                 ),
                 road_segments=body.get("road_segments", []),
             )
@@ -1169,8 +1257,14 @@ def build_app_router(
     @router.post("/api/projects/<id>/simulation/city-event/run")
     def _city_event_run(id: str, body: Any = None, **_: Any) -> RestResponse:  # noqa: A002
         body = body or {}
-        for field_name in ("event_id", "category", "location_ref", "expected_attendance",
-                            "start_hour", "duration_h"):
+        for field_name in (
+            "event_id",
+            "category",
+            "location_ref",
+            "expected_attendance",
+            "start_hour",
+            "duration_h",
+        ):
             if field_name not in body:
                 return RestResponse(status=422, body={"error": f"{field_name} gerekli."})
         try:
@@ -1237,7 +1331,9 @@ def build_app_router(
             result = session.regional_congestion_demo_run(
                 id,
                 hierarchy_edges=body["hierarchy_edges"],
-                agent_counts_by_leaf={str(k): int(v) for k, v in body["agent_counts_by_leaf"].items()},
+                agent_counts_by_leaf={
+                    str(k): int(v) for k, v in body["agent_counts_by_leaf"].items()
+                },
                 candidate_region_ids=list(body["candidate_region_ids"]),
             )
         except AppSessionError as exc:
@@ -1320,7 +1416,9 @@ def build_app_router(
             return RestResponse(status=422, body={"error": "lat/lon sayısal olmalı."})
         try:
             result = session.solar_feasibility(
-                id, lat=lat, lon=lon,
+                id,
+                lat=lat,
+                lon=lon,
                 key=body.get("key"),
                 roof_area_m2=body.get("roof_area_m2"),
                 roof_tilt_deg=body.get("roof_tilt_deg"),
@@ -1344,22 +1442,37 @@ def build_app_router(
         plot_points = body.get("plot_points")
         try:
             result = session.permit_precheck(
-                id, str(key),
+                id,
+                str(key),
                 plot_points=plot_points,
                 min_setback_m=float(body.get("min_setback_m", 3.0)),
-                max_floor_count=(int(body["max_floor_count"]) if body.get("max_floor_count") not in (None, "") else None),
-                max_height_m=(float(body["max_height_m"]) if body.get("max_height_m") not in (None, "") else None),
+                max_floor_count=(
+                    int(body["max_floor_count"])
+                    if body.get("max_floor_count") not in (None, "")
+                    else None
+                ),
+                max_height_m=(
+                    float(body["max_height_m"])
+                    if body.get("max_height_m") not in (None, "")
+                    else None
+                ),
                 profile_name=body.get("profile_name"),
             )
         except AppSessionError as exc:
             return _err(exc)
         except (TypeError, ValueError, KeyError):
-            return RestResponse(status=422, body={"error": "min_setback_m/max_floor_count/max_height_m sayısal olmalı, plot_points [[x,y],...] biçiminde olmalı."})
+            return RestResponse(
+                status=422,
+                body={
+                    "error": "min_setback_m/max_floor_count/max_height_m sayısal olmalı, plot_points [[x,y],...] biçiminde olmalı."
+                },
+            )
         return RestResponse(status=200, body=result)
 
     @router.get("/api/regulatory/profiles")
     def _regulatory_profiles(**_: Any) -> RestResponse:
         from ..building_reconstruction import available_regulation_profiles
+
         return RestResponse(status=200, body={"profiles": available_regulation_profiles()})
 
     # -- Web arayüzü genişletmesi: Bina Enerji Kabuğu Denetimi (TS 825) ---
@@ -1371,15 +1484,20 @@ def build_app_router(
             return RestResponse(status=422, body={"error": "eksik alan: key"})
         try:
             result = session.energy_envelope_audit(
-                id, str(key),
+                id,
+                str(key),
                 climate_zone=int(body.get("climate_zone", 2)),
-                u_wall=body.get("u_wall"), u_window=body.get("u_window"),
-                u_roof=body.get("u_roof"), u_floor=body.get("u_floor"),
+                u_wall=body.get("u_wall"),
+                u_window=body.get("u_window"),
+                u_roof=body.get("u_roof"),
+                u_floor=body.get("u_floor"),
             )
         except AppSessionError as exc:
             return _err(exc)
         except (TypeError, ValueError):
-            return RestResponse(status=422, body={"error": "climate_zone/U değerleri sayısal olmalı."})
+            return RestResponse(
+                status=422, body={"error": "climate_zone/U değerleri sayısal olmalı."}
+            )
         return RestResponse(status=200, body=result)
 
     # -- Web arayüzü genişletmesi: Aylık ısı denge yöntemi (EN ISO 13790) -
@@ -1393,31 +1511,40 @@ def build_app_router(
         solar = body.get("monthly_solar_gain_kwh")
         internal = body.get("monthly_internal_gain_kwh")
         if not (isinstance(temps, list) and isinstance(solar, list) and isinstance(internal, list)):
-            return RestResponse(status=422, body={
-                "error": (
-                    "eksik/hatalı alan: monthly_mean_external_temp_c, "
-                    "monthly_solar_gain_kwh, monthly_internal_gain_kwh "
-                    "(her biri 12 elemanlı sayı listesi olmalı)"
-                ),
-            })
+            return RestResponse(
+                status=422,
+                body={
+                    "error": (
+                        "eksik/hatalı alan: monthly_mean_external_temp_c, "
+                        "monthly_solar_gain_kwh, monthly_internal_gain_kwh "
+                        "(her biri 12 elemanlı sayı listesi olmalı)"
+                    ),
+                },
+            )
         try:
             result = session.energy_envelope_monthly_balance(
-                id, str(key),
+                id,
+                str(key),
                 monthly_mean_external_temp_c=[float(x) for x in temps],
                 monthly_solar_gain_kwh=[float(x) for x in solar],
                 monthly_internal_gain_kwh=[float(x) for x in internal],
                 climate_zone=int(body.get("climate_zone", 2)),
                 indoor_temp_c=float(body.get("indoor_temp_c", 20.0)),
-                u_wall=body.get("u_wall"), u_window=body.get("u_window"),
-                u_roof=body.get("u_roof"), u_floor=body.get("u_floor"),
+                u_wall=body.get("u_wall"),
+                u_window=body.get("u_window"),
+                u_roof=body.get("u_roof"),
+                u_floor=body.get("u_floor"),
                 air_changes_per_hour=body.get("air_changes_per_hour"),
             )
         except AppSessionError as exc:
             return _err(exc)
         except (TypeError, ValueError):
-            return RestResponse(status=422, body={
-                "error": "climate_zone/indoor_temp_c/U/aylık diziler sayısal olmalı.",
-            })
+            return RestResponse(
+                status=422,
+                body={
+                    "error": "climate_zone/indoor_temp_c/U/aylık diziler sayısal olmalı.",
+                },
+            )
         return RestResponse(status=200, body=result)
 
     # -- Web arayüzü genişletmesi: Fizik (deprem/sarsıntı stabilite) ------
@@ -1442,7 +1569,8 @@ def build_app_router(
         body = body or {}
         try:
             result = session.building_shake_simulate(
-                id, key,
+                id,
+                key,
                 mode=str(body.get("mode", "standard")),
                 peak_acceleration_g=float(body.get("peak_acceleration_g", 0.3)),
                 frequency_hz=float(body.get("frequency_hz", 1.5)),
@@ -1452,9 +1580,12 @@ def build_app_router(
         except AppSessionError as exc:
             return _err(exc)
         except (TypeError, ValueError):
-            return RestResponse(status=422, body={
-                "error": "mode/peak_acceleration_g/frequency_hz/duration_s/fps geçersiz.",
-            })
+            return RestResponse(
+                status=422,
+                body={
+                    "error": "mode/peak_acceleration_g/frequency_hz/duration_s/fps geçersiz.",
+                },
+            )
         return RestResponse(status=200, body=result)
 
     @router.get("/api/projects/<id>/buildings/<key>/damage/state")
@@ -1471,7 +1602,8 @@ def build_app_router(
         body = body or {}
         try:
             result = session.building_fire_simulate(
-                id, key,
+                id,
+                key,
                 duration_s=float(body.get("duration_s", 30.0)),
                 fps=int(body.get("fps", 4)),
                 spread_rate_per_s=float(body.get("spread_rate_per_s", 0.35)),
@@ -1482,9 +1614,12 @@ def build_app_router(
         except AppSessionError as exc:
             return _err(exc)
         except (TypeError, ValueError):
-            return RestResponse(status=422, body={
-                "error": "duration_s/fps/spread_rate_per_s/grid_size/ignition/seed geçersiz.",
-            })
+            return RestResponse(
+                status=422,
+                body={
+                    "error": "duration_s/fps/spread_rate_per_s/grid_size/ignition/seed geçersiz.",
+                },
+            )
         return RestResponse(status=200, body=result)
 
     # -- Web arayüzü genişletmesi: Roadmap V10 / Faz 7 — Sinematik Kamera
@@ -1515,9 +1650,12 @@ def build_app_router(
         except AppSessionError as exc:
             return _err(exc)
         except (TypeError, ValueError, KeyError):
-            return RestResponse(status=422, body={
-                "error": "event_index/from_position/from_target/transition_duration_s/hold_duration_s/viewing_distance_m/fov_deg geçersiz.",
-            })
+            return RestResponse(
+                status=422,
+                body={
+                    "error": "event_index/from_position/from_target/transition_duration_s/hold_duration_s/viewing_distance_m/fov_deg geçersiz.",
+                },
+            )
         return RestResponse(status=200, body=result)
 
     # -- Web arayüzü genişletmesi: Roadmap V10 / Mekansal Ses (Faz 5.6) ---
@@ -1534,7 +1672,9 @@ def build_app_router(
         except AppSessionError as exc:
             return _err(exc)
         except (TypeError, ValueError):
-            return RestResponse(status=422, body={"error": "listener_x/listener_y/listener_z geçersiz."})
+            return RestResponse(
+                status=422, body={"error": "listener_x/listener_y/listener_z geçersiz."}
+            )
         return RestResponse(status=200, body=result)
 
     # -- Web arayüzü genişletmesi: Fikir 10 — IoT Sensör + Dijital İkiz ---
@@ -1556,7 +1696,8 @@ def build_app_router(
         body = body or {}
         try:
             result = session.connect_iot_bridge(
-                id, key,
+                id,
+                key,
                 host=str(body.get("host", "localhost")),
                 port=int(body.get("port", 1883)),
                 timeout_s=float(body.get("timeout_s", 5.0)),
@@ -1589,8 +1730,12 @@ def build_app_router(
             return RestResponse(status=422, body={"error": "lat/lon sayısal olmalı."})
         try:
             result = session.vegetation_species_recommendation(
-                id, lat=lat, lon=lon,
-                tree_count=(int(body["tree_count"]) if body.get("tree_count") not in (None, "") else None),
+                id,
+                lat=lat,
+                lon=lon,
+                tree_count=(
+                    int(body["tree_count"]) if body.get("tree_count") not in (None, "") else None
+                ),
                 days_back=int(body.get("days_back", 10)),
             )
         except AppSessionError as exc:
@@ -1614,8 +1759,12 @@ def build_app_router(
             return RestResponse(status=422, body={"error": "actor_id ve field_name gerekli."})
         try:
             result = session.collab_edit(
-                id, key, actor_id=actor_id, field_name=field_name,
-                value=body.get("value"), timestamp=body.get("timestamp"),
+                id,
+                key,
+                actor_id=actor_id,
+                field_name=field_name,
+                value=body.get("value"),
+                timestamp=body.get("timestamp"),
             )
         except AppSessionError as exc:
             return _err(exc)
@@ -1641,7 +1790,8 @@ def build_app_router(
         body = body or {}
         try:
             result = session.generate_building_report(
-                id, key,
+                id,
+                key,
                 lat=(float(body["lat"]) if body.get("lat") not in (None, "") else None),
                 lon=(float(body["lon"]) if body.get("lon") not in (None, "") else None),
                 fmt=body.get("format", "markdown"),
@@ -1701,7 +1851,9 @@ def build_app_router(
     @router.post("/api/ai/config")
     def _set_ai_config(body: Any = None, **_: Any) -> RestResponse:
         if not _ai_config_limiter.allow("ai-config"):
-            return RestResponse(status=429, body={"error": "cok fazla istek, biraz sonra tekrar deneyin."})
+            return RestResponse(
+                status=429, body={"error": "cok fazla istek, biraz sonra tekrar deneyin."}
+            )
         body = body or {}
         try:
             result = session.set_ai_config(body)
@@ -1717,7 +1869,9 @@ def build_app_router(
     @router.post("/api/ai/test-connection")
     def _test_ai_connection(**_: Any) -> RestResponse:
         if not _ai_test_limiter.allow("ai-test-connection"):
-            return RestResponse(status=429, body={"error": "cok fazla baglanti testi, biraz sonra tekrar deneyin."})
+            return RestResponse(
+                status=429, body={"error": "cok fazla baglanti testi, biraz sonra tekrar deneyin."}
+            )
         result = session.test_ai_connection()
         return RestResponse(status=200 if result.get("ok") else 400, body=result)
 
@@ -1726,7 +1880,10 @@ def build_app_router(
         body = body or {}
         try:
             result = session.grant_project_role(
-                id, body["token"], body["user_id"], body.get("role", "viewer"),
+                id,
+                body["token"],
+                body["user_id"],
+                body.get("role", "viewer"),
             )
         except KeyError as exc:
             return RestResponse(status=422, body={"error": f"eksik alan: {exc}"})
@@ -1744,7 +1901,8 @@ def build_app_router(
         body = body or {}
         try:
             result = session.generate_interior_layout(
-                id, key,
+                id,
+                key,
                 n_variants=int(body.get("n_variants", 5)),
                 min_room_size=float(body.get("min_room_size", 3.0)),
             )
@@ -1757,7 +1915,8 @@ def build_app_router(
         body = body or {}
         try:
             result = session.generate_environment(
-                id, key,
+                id,
+                key,
                 margin_m=float(body.get("margin_m", 15.0)),
                 min_setback_m=float(body.get("min_setback_m", 1.5)),
                 seed=body.get("seed"),
@@ -1774,7 +1933,8 @@ def build_app_router(
         try:
             info = session.terrain_init(
                 id,
-                width=body.get("width", 64), height=body.get("height", 64),
+                width=body.get("width", 64),
+                height=body.get("height", 64),
                 resolution_m=body.get("resolution_m", 2.0),
                 base_elevation=body.get("base_elevation", 0.0),
             )
@@ -1800,10 +1960,16 @@ def build_app_router(
             return RestResponse(status=422, body={"error": "center_x_m/center_y_m sayı olmalı."})
         try:
             info = session.terrain_brush(
-                id, operation, center_x_m, center_y_m,
-                radius_m=body.get("radius_m", 6.0), strength=body.get("strength", 1.0),
-                amount_m=body.get("amount_m", 1.0), target_elevation=body.get("target_elevation"),
-                iterations=body.get("iterations", 1), seed=body.get("seed"),
+                id,
+                operation,
+                center_x_m,
+                center_y_m,
+                radius_m=body.get("radius_m", 6.0),
+                strength=body.get("strength", 1.0),
+                amount_m=body.get("amount_m", 1.0),
+                target_elevation=body.get("target_elevation"),
+                iterations=body.get("iterations", 1),
+                seed=body.get("seed"),
                 paint_weight=body.get("paint_weight", 1.0),
             )
         except AppSessionError as exc:
@@ -1845,7 +2011,9 @@ def build_app_router(
         except (TypeError, ValueError):
             return RestResponse(status=422, body={"error": "x_m/y_m sayısal olmalı."})
         try:
-            result = session.terrain_hazard_point(id, x_m=x_m, y_m=y_m, rainfall_mm_24h=body.get("rainfall_mm_24h"))
+            result = session.terrain_hazard_point(
+                id, x_m=x_m, y_m=y_m, rainfall_mm_24h=body.get("rainfall_mm_24h")
+            )
         except AppSessionError as exc:
             return _err(exc)
         return RestResponse(status=200, body=result)
@@ -1855,7 +2023,8 @@ def build_app_router(
         body = body or {}
         try:
             result = session.terrain_hazard_top_cells(
-                id, kind=body.get("kind", "landslide"),
+                id,
+                kind=body.get("kind", "landslide"),
                 limit=int(body.get("limit", 20)),
                 rainfall_mm_24h=body.get("rainfall_mm_24h"),
             )
@@ -1874,15 +2043,20 @@ def build_app_router(
         body = body or {}
         try:
             info = session.road_add(
-                id, road_id=body.get("road_id"), width_m=body.get("width_m", 6.0),
-                elevation_z=body.get("elevation_z", 0.0), name=body.get("name"),
+                id,
+                road_id=body.get("road_id"),
+                width_m=body.get("width_m", 6.0),
+                elevation_z=body.get("elevation_z", 0.0),
+                name=body.get("name"),
             )
         except AppSessionError as exc:
             return _err(exc)
         return RestResponse(status=201, body=info)
 
     @router.delete("/api/projects/<id>/roads/<road_id>")
-    def _remove_road(id: str, road_id: str, query: dict | None = None, **_: Any) -> RestResponse | dict[str, Any]:  # noqa: A002
+    def _remove_road(
+        id: str, road_id: str, query: dict | None = None, **_: Any
+    ) -> RestResponse | dict[str, Any]:  # noqa: A002
         token = (query or {}).get("token")
         try:
             return {"removed": session.remove_road(id, road_id, token=token)}
@@ -1906,7 +2080,9 @@ def build_app_router(
         return RestResponse(status=201, body=info)
 
     @router.put("/api/projects/<id>/roads/<road_id>/points/<index>")
-    def _road_move_point(id: str, road_id: str, index: str, body: Any = None, **_: Any) -> RestResponse:  # noqa: A002
+    def _road_move_point(
+        id: str, road_id: str, index: str, body: Any = None, **_: Any
+    ) -> RestResponse:  # noqa: A002
         body = body or {}
         try:
             idx = int(index)
@@ -1986,15 +2162,28 @@ def build_app_router(
     @router.post("/api/offline/download")
     def _offline_download(body: Any = None, **_: Any) -> RestResponse:
         body = body or {}
-        required = ("min_lat", "min_lon", "max_lat", "max_lon", "zoom_min", "zoom_max", "url_template")
+        required = (
+            "min_lat",
+            "min_lon",
+            "max_lat",
+            "max_lon",
+            "zoom_min",
+            "zoom_max",
+            "url_template",
+        )
         missing = [k for k in required if k not in body]
         if missing:
-            return RestResponse(status=422, body={"error": f"Eksik alan(lar): {', '.join(missing)}"})
+            return RestResponse(
+                status=422, body={"error": f"Eksik alan(lar): {', '.join(missing)}"}
+            )
         try:
             result = session.offline_download_region(
-                min_lat=float(body["min_lat"]), min_lon=float(body["min_lon"]),
-                max_lat=float(body["max_lat"]), max_lon=float(body["max_lon"]),
-                zoom_min=int(body["zoom_min"]), zoom_max=int(body["zoom_max"]),
+                min_lat=float(body["min_lat"]),
+                min_lon=float(body["min_lon"]),
+                max_lat=float(body["max_lat"]),
+                max_lon=float(body["max_lon"]),
+                zoom_min=int(body["zoom_min"]),
+                zoom_max=int(body["zoom_max"]),
                 url_template=str(body["url_template"]),
                 region_name=str(body.get("region_name", "offline_region")),
             )
@@ -2047,6 +2236,8 @@ def build_app_router(
             limit = int(limit_raw)
         except (TypeError, ValueError):
             limit = 10
-        return RestResponse(status=200, body={"results": session.offline_search_places(q, limit=limit)})
+        return RestResponse(
+            status=200, body={"results": session.offline_search_places(q, limit=limit)}
+        )
 
     return router

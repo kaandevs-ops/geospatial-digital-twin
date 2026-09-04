@@ -45,8 +45,8 @@ frame()` bu düşüşü otomatik uygular.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Callable, Optional
+from collections.abc import Callable
+from dataclasses import dataclass
 
 from ..hazard_data.fire_spread import CellId, FireCellState, FireSpreadModel
 
@@ -94,8 +94,8 @@ class FluidGridConfig:
     cell_size_m: float = 0.4
     diffusion: float = 0.0008
     viscosity: float = 0.0006
-    buoyancy: float = 3.2          # ısı -> yukarı itki katsayısı
-    dissipation: float = 0.985     # her adımda yoğunluğun sönümlenmesi
+    buoyancy: float = 3.2  # ısı -> yukarı itki katsayısı
+    dissipation: float = 0.985  # her adımda yoğunluğun sönümlenmesi
 
     def __post_init__(self) -> None:
         if self.nx < 2 or self.ny < 2 or self.nz < 2:
@@ -222,7 +222,9 @@ class StableFluidsSimulation:
         self._pending_density.clear()
         self._pending_heat.clear()
 
-    def _diffuse(self, field: list[float], diff: float, dt: float, iterations: int = 12) -> list[float]:
+    def _diffuse(
+        self, field: list[float], diff: float, dt: float, iterations: int = 12
+    ) -> list[float]:
         c = self.config
         a = dt * diff * c.nx * c.ny * c.nz
         out = list(field)
@@ -236,7 +238,14 @@ class StableFluidsSimulation:
                             out[i] = 0.0
                             continue
                         s = 0.0
-                        for (dx, dy, dz) in ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)):
+                        for dx, dy, dz in (
+                            (1, 0, 0),
+                            (-1, 0, 0),
+                            (0, 1, 0),
+                            (0, -1, 0),
+                            (0, 0, 1),
+                            (0, 0, -1),
+                        ):
                             nx_, ny_, nz_ = x + dx, y + dy, z + dz
                             if self._in_bounds(nx_, ny_, nz_):
                                 ni = _idx(nx_, ny_, nz_, c.nx, c.ny)
@@ -318,7 +327,14 @@ class StableFluidsSimulation:
                             continue
                         s = 0.0
                         cnt = 0
-                        for (dx, dy, dz) in ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)):
+                        for dx, dy, dz in (
+                            (1, 0, 0),
+                            (-1, 0, 0),
+                            (0, 1, 0),
+                            (0, -1, 0),
+                            (0, 0, 1),
+                            (0, 0, -1),
+                        ):
                             nx_, ny_, nz_ = x + dx, y + dy, z + dz
                             if self._in_bounds(nx_, ny_, nz_):
                                 ni = _idx(nx_, ny_, nz_, c.nx, c.ny)
@@ -454,16 +470,18 @@ def voxel_frame(
                 d = sim.density[i]
                 if d < density_threshold:
                     continue
-                voxels.append(SmokeVoxel(
-                    grid_xyz=(x, y, z),
-                    world_position=(
-                        ox + x * c.cell_size_m,
-                        oy + y * c.cell_size_m,
-                        oz + z * c.cell_size_m,
-                    ),
-                    density=d,
-                    temperature=sim.temperature[i],
-                ))
+                voxels.append(
+                    SmokeVoxel(
+                        grid_xyz=(x, y, z),
+                        world_position=(
+                            ox + x * c.cell_size_m,
+                            oy + y * c.cell_size_m,
+                            oz + z * c.cell_size_m,
+                        ),
+                        density=d,
+                        temperature=sim.temperature[i],
+                    )
+                )
     return voxels
 
 
@@ -471,12 +489,12 @@ def cfd_or_sprite_frame(
     fire_model: FireSpreadModel,
     building_id: str,
     *,
-    sim: Optional[StableFluidsSimulation],
+    sim: StableFluidsSimulation | None,
     is_camera_focused: bool,
     active_cfd_building_count: int,
     distance_to_camera_m: float,
-    cell_to_world: Callable[[CellId], "object"],
-    cell_to_floor: Optional[Callable[[CellId], int]] = None,
+    cell_to_world: Callable[[CellId], object],
+    cell_to_floor: Callable[[CellId], int] | None = None,
 ) -> dict:
     """Roadmap 6.3'ün "zorunlu fallback" maddesinin doğrudan uygulaması:
     uygunluk koşulları (6.2.2) sağlanıyorsa VE `sim` sağlanmışsa VE
@@ -502,6 +520,9 @@ def cfd_or_sprite_frame(
         return {"mode": "cfd", "voxels": voxel_frame(sim)}
 
     sprites = fire_facade_overlay(
-        fire_model, building_id, cell_to_world=cell_to_world, cell_to_floor=cell_to_floor,
+        fire_model,
+        building_id,
+        cell_to_world=cell_to_world,
+        cell_to_floor=cell_to_floor,
     )
     return {"mode": "sprite_fallback", "sprites": sprites}

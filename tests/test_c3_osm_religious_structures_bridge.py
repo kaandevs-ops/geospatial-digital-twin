@@ -7,6 +7,7 @@ birim testler: `religion` tag sınıflandırması, tag->item çevrimi, tip
 bazlı mesh üretimi (cami/kilise/genel kubbe), ve uçtan uca
 `generate_religious_structures_for_collection`.
 """
+
 from __future__ import annotations
 
 import unittest
@@ -41,9 +42,20 @@ class TestCategoryRegistered(unittest.TestCase):
         self.assertEqual(DEFAULT_CATEGORIES["place_of_worship"].geometry, "point")
 
     def test_existing_categories_untouched(self) -> None:
-        for key in ("roads", "trees", "forest", "wood", "water_area", "waterway",
-                    "street_lamp", "power_pole", "waste_basket", "bench",
-                    "bus_stop", "bus_station"):
+        for key in (
+            "roads",
+            "trees",
+            "forest",
+            "wood",
+            "water_area",
+            "waterway",
+            "street_lamp",
+            "power_pole",
+            "waste_basket",
+            "bench",
+            "bus_stop",
+            "bus_station",
+        ):
             self.assertIn(key, DEFAULT_CATEGORIES)
 
 
@@ -71,7 +83,9 @@ class TestReligiousStructureItemFromPoint(unittest.TestCase):
         self.assertAlmostEqual(item.position.y, 4.0)
 
     def test_height_tag_overrides_default(self) -> None:
-        item = religious_structure_item_from_point(_worship_feature(religion="christian", height="15 m"))
+        item = religious_structure_item_from_point(
+            _worship_feature(religion="christian", height="15 m")
+        )
         self.assertAlmostEqual(item.base_height_m, 15.0)
 
     def test_missing_height_uses_default(self) -> None:
@@ -120,7 +134,8 @@ class TestGenerateReligiousStructuresForCollection(unittest.TestCase):
                 _worship_feature(religion="muslim"),
                 _worship_feature(religion="christian", x=10.0, y=10.0),
                 GeoFeature(  # ilgisiz kategori, atlanmalı
-                    geometry_type="Point", coordinates=[0.0, 0.0],
+                    geometry_type="Point",
+                    coordinates=[0.0, 0.0],
                     properties={"__category__": "bench"},
                 ),
             ],

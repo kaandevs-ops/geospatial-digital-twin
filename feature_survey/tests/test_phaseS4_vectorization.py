@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from harita.feature_survey.codes import FeatureCode
 from harita.feature_survey.field_point import FieldPoint, FieldSurveySession
 from harita.feature_survey.vectorization import (
@@ -27,7 +26,9 @@ from harita.feature_survey.vectorization.export_bridge import (
 )
 
 
-def _square_building(session: FieldSurveySession, idx: int, ox: float, oy: float, side: float = 10.0) -> None:
+def _square_building(
+    session: FieldSurveySession, idx: int, ox: float, oy: float, side: float = 10.0
+) -> None:
     """(ox,oy) sol-alt köşeli kare bina — 4 köşe, string_id ile gruplu."""
     sid = f"BLD{idx:02d}"
     corners = [(ox, oy), (ox + side, oy), (ox + side, oy + side), (ox, oy + side)]

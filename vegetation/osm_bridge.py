@@ -24,6 +24,7 @@ projekte edilmiş bir `GeoFeatureCollection` beklenir (WGS84 derece
 olmaz — roadmap'in "mevcut mimari korunacak" ilkesi gereği aynı
 projeksiyon adımı, bina boru hattında olduğu gibi burada da zorunlu).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -143,7 +144,9 @@ def tree_instance_from_point(feature: GeoFeature, seed: int = 0) -> VegetationIn
     inst_seed = seed * 1_000_003 + int(osm_id) if isinstance(osm_id, int) else seed
     return VegetationInstance(
         species=species,
-        x=x, y=y, z=0.0,
+        x=x,
+        y=y,
+        z=0.0,
         height=height,
         canopy_radius=canopy_radius,
         rotation_deg=(inst_seed % 360),

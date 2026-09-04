@@ -18,7 +18,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.app_shell import AppSession, AppSessionError, build_app_router
 from harita.extensibility.city_events import CityEventType
 from harita.extensibility.event_system import default_bus
@@ -45,7 +44,9 @@ def _make_project_with_building(session, tmp_path):
     info = session.create_project("Deprem Test", _project_path(tmp_path))
     pid = info["project_id"]
     poly = [(0, 0), (20, 0), (20, 15), (0, 15)]
-    b = session.add_building(pid, poly, building_type="apartman", floor_count=5, height_m=15.0, seed=7)
+    b = session.add_building(
+        pid, poly, building_type="apartman", floor_count=5, height_m=15.0, seed=7
+    )
     return pid, b["key"]
 
 
@@ -54,7 +55,11 @@ def _scenario_payload(building_key: str, scenario_id: str = "s1", count: int = 2
         "scenario_id": scenario_id,
         "name": "Test Deprem Tahliyesi",
         "building": {"building_ref": building_key},
-        "agents": {"count": count, "behavior_distribution": {"normal": 0.7, "panic": 0.3}, "seed": 42},
+        "agents": {
+            "count": count,
+            "behavior_distribution": {"normal": 0.7, "panic": 0.3},
+            "seed": 42,
+        },
         "hazard": "earthquake",
         "disable_elevators": True,
     }
@@ -63,6 +68,7 @@ def _scenario_payload(building_key: str, scenario_id: str = "s1", count: int = 2
 # --------------------------------------------------------------------------- #
 # AppSession — doğrudan kullanım
 # --------------------------------------------------------------------------- #
+
 
 class TestSimulationSessionDirect:
     def test_save_and_load_scenario(self, session, tmp_path):
@@ -80,7 +86,9 @@ class TestSimulationSessionDirect:
     def test_run_evacuation_inline_scenario_produces_result(self, session, tmp_path):
         pid, key = _make_project_with_building(session, tmp_path)
         result = session.simulation_evacuation_run(
-            pid, scenario_data=_scenario_payload(key, count=15), max_time_s=120.0,
+            pid,
+            scenario_data=_scenario_payload(key, count=15),
+            max_time_s=120.0,
         )
         assert result["total_agents"] == 15
         assert result["evacuated_count"] <= 15
@@ -97,7 +105,9 @@ class TestSimulationSessionDirect:
         assert result["scenario_id"] == "s2"
         assert result["total_agents"] == 10
 
-    def test_run_evacuation_disable_elevators_computes_real_accessibility_impact(self, session, tmp_path):
+    def test_run_evacuation_disable_elevators_computes_real_accessibility_impact(
+        self, session, tmp_path
+    ):
         """ROADMAP_V9.md Katman 2.4 madde 2 — gerçek bina RoomGenerator
         çıktısı taşıdığından (`add_building` varsayılan olarak odalar/
         merdiven/asansör üretir), `disable_elevators=True` istendiğinde
@@ -106,7 +116,8 @@ class TestSimulationSessionDirect:
         henüz tüketilmiyor" belirsizliği değil, somut bir sonuç dönmeli."""
         pid, key = _make_project_with_building(session, tmp_path)
         result = session.simulation_evacuation_run(
-            pid, scenario_data=_scenario_payload(key, scenario_id="s3", count=5),
+            pid,
+            scenario_data=_scenario_payload(key, scenario_id="s3", count=5),
             max_time_s=60.0,
         )
         impact = result["elevator_accessibility_impact"]
@@ -142,7 +153,9 @@ class TestSimulationSessionDirect:
     def test_result_retrieval_includes_agent_frames(self, session, tmp_path):
         pid, key = _make_project_with_building(session, tmp_path)
         summary = session.simulation_evacuation_run(
-            pid, scenario_data=_scenario_payload(key, count=8), max_time_s=60.0,
+            pid,
+            scenario_data=_scenario_payload(key, count=8),
+            max_time_s=60.0,
         )
         full = session.simulation_evacuation_result(pid, summary["result_id"])
         assert "agent_frames" in full
@@ -159,15 +172,19 @@ class TestSimulationSessionDirect:
     def test_default_safe_point_is_flagged(self, session, tmp_path):
         pid, key = _make_project_with_building(session, tmp_path)
         result = session.simulation_evacuation_run(
-            pid, scenario_data=_scenario_payload(key, count=5), max_time_s=60.0,
+            pid,
+            scenario_data=_scenario_payload(key, count=5),
+            max_time_s=60.0,
         )
         assert result["safe_point_is_default"] is True
 
     def test_explicit_safe_point_used(self, session, tmp_path):
         pid, key = _make_project_with_building(session, tmp_path)
         result = session.simulation_evacuation_run(
-            pid, scenario_data=_scenario_payload(key, count=5),
-            safe_point={"x": 500.0, "y": 500.0}, max_time_s=60.0,
+            pid,
+            scenario_data=_scenario_payload(key, count=5),
+            safe_point={"x": 500.0, "y": 500.0},
+            max_time_s=60.0,
         )
         assert result["safe_point_is_default"] is False
         assert result["safe_point"] == {"x": 500.0, "y": 500.0}
@@ -177,7 +194,9 @@ class TestSimulationSessionDirect:
         default_bus.clear()
         try:
             session.simulation_evacuation_run(
-                pid, scenario_data=_scenario_payload(key, count=5), max_time_s=60.0,
+                pid,
+                scenario_data=_scenario_payload(key, count=5),
+                max_time_s=60.0,
             )
             started = default_bus.history(CityEventType.EVACUATION_STARTED.value)
             completed = default_bus.history(CityEventType.EVACUATION_COMPLETED.value)
@@ -192,12 +211,16 @@ class TestSimulationSessionDirect:
 # REST router — dispatch() üzerinden headless HTTP-benzeri akış
 # --------------------------------------------------------------------------- #
 
+
 class TestSimulationRestRouter:
     def test_full_rest_flow(self, session, router, tmp_path):
         pid, key = _make_project_with_building(session, tmp_path)
 
-        resp = router.dispatch("POST", f"/api/projects/{pid}/simulation/scenario",
-                                body=_scenario_payload(key, scenario_id="rest1", count=12))
+        resp = router.dispatch(
+            "POST",
+            f"/api/projects/{pid}/simulation/scenario",
+            body=_scenario_payload(key, scenario_id="rest1", count=12),
+        )
         assert resp.status == 200
         assert resp.body["scenario_id"] == "rest1"
 
@@ -205,8 +228,11 @@ class TestSimulationRestRouter:
         assert resp.status == 200
         assert resp.body["agents"]["count"] == 12
 
-        resp = router.dispatch("POST", f"/api/projects/{pid}/simulation/evacuation/run",
-                                body={"scenario_id": "rest1", "max_time_s": 60.0})
+        resp = router.dispatch(
+            "POST",
+            f"/api/projects/{pid}/simulation/evacuation/run",
+            body={"scenario_id": "rest1", "max_time_s": 60.0},
+        )
         assert resp.status == 200
         result_id = resp.body["result_id"]
         assert resp.body["total_agents"] == 12
@@ -223,6 +249,7 @@ class TestSimulationRestRouter:
     def test_unknown_scenario_returns_400(self, session, router, tmp_path):
         pid, _ = _make_project_with_building(session, tmp_path)
         resp = router.dispatch(
-            "GET", f"/api/projects/{pid}/simulation/scenario/nope",
+            "GET",
+            f"/api/projects/{pid}/simulation/scenario/nope",
         )
         assert resp.status == 400

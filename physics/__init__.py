@@ -39,6 +39,7 @@ GRAVITY = 9.81  # m/s^2
 # Rijit gövde
 # ============================================================================ #
 
+
 @dataclass
 class RigidBox:
     """Eksene-hizalı dikdörtgenler prizması rijit gövde.
@@ -49,10 +50,10 @@ class RigidBox:
     """
 
     body_id: str
-    position: Tuple[float, float, float]
-    half_extents: Tuple[float, float, float]
+    position: tuple[float, float, float]
+    half_extents: tuple[float, float, float]
     mass: float = 1.0
-    velocity: Tuple[float, float, float] = (0.0, 0.0, 0.0)
+    velocity: tuple[float, float, float] = (0.0, 0.0, 0.0)
     angular_velocity: float = 0.0  # basitleştirme: yalnızca z-ekseni etrafında (2D devrilme)
     orientation: float = 0.0  # radyan, z-ekseni etrafında
     is_static: bool = False
@@ -70,18 +71,22 @@ class RigidBox:
         # genişletiyoruz (tam OBB değil, kaba-faz için yeterli).
         expand = abs(math.sin(self.orientation)) * max(hx, hy)
         return AABB3D(
-            px - hx - expand, py - hy - expand, pz - hz,
-            px + hx + expand, py + hy + expand, pz + hz,
+            px - hx - expand,
+            py - hy - expand,
+            pz - hz,
+            px + hx + expand,
+            py + hy + expand,
+            pz + hz,
         )
 
     def inverse_mass(self) -> float:
         return 0.0 if self.is_static else 1.0 / self.mass
 
-    def top_center(self) -> Tuple[float, float, float]:
+    def top_center(self) -> tuple[float, float, float]:
         px, py, pz = self.position
         return (px, py, pz + self.half_extents[2])
 
-    def base_center(self) -> Tuple[float, float, float]:
+    def base_center(self) -> tuple[float, float, float]:
         px, py, pz = self.position
         return (px, py, pz - self.half_extents[2])
 
@@ -93,13 +98,16 @@ class RigidBox:
         hx, hy, hz = self.half_extents
         # Kritik açı: taban yarı-genişliği / gövde yarı-yüksekliği (yaklaşık).
         critical = math.atan2(min(hx, hy), hz)
-        return abs(self.orientation) > min(critical, tolerance_rad) * 1.0 and \
-            abs(self.orientation) > critical
+        return (
+            abs(self.orientation) > min(critical, tolerance_rad) * 1.0
+            and abs(self.orientation) > critical
+        )
 
 
 # ============================================================================ #
 # Kuvvet üreteçleri
 # ============================================================================ #
+
 
 @dataclass
 class GroundShakeForceModel:
@@ -121,7 +129,7 @@ class GroundShakeForceModel:
         omega = 2.0 * math.pi * self.frequency_hz
         return self.peak_acceleration_g * GRAVITY * math.sin(omega * t + self.phase)
 
-    def force_on(self, body: RigidBox, t: float) -> Tuple[float, float, float]:
+    def force_on(self, body: RigidBox, t: float) -> tuple[float, float, float]:
         if body.is_static:
             return (0.0, 0.0, 0.0)
         a = self.acceleration_at(t)
@@ -132,21 +140,22 @@ class GroundShakeForceModel:
 # Çarpışma tespiti + impuls-tabanlı çözümleyici
 # ============================================================================ #
 
+
 @dataclass
 class ContactManifold:
     body_a: RigidBox
     body_b: RigidBox
     penetration: float
-    normal: Tuple[float, float, float]
+    normal: tuple[float, float, float]
 
 
-def detect_collisions(bodies: List[RigidBox]) -> List[ContactManifold]:
+def detect_collisions(bodies: list[RigidBox]) -> list[ContactManifold]:
     """Kaba-faz: `AABB3D.intersects` (`data_engine.spatial_index`).
     N^2 basit tarama - roadmap'in hedeflediği "temel" seviye için yeterli;
     büyük gövde sayılarında `data_engine.spatial_index.Octree` ile
     genişletilebilir (aynı `AABB3D` sözleşmesi üzerinden, gelecekteki bir
     optimizasyon - bu oturumun kapsamı dışında)."""
-    contacts: List[ContactManifold] = []
+    contacts: list[ContactManifold] = []
     n = len(bodies)
     for i in range(n):
         for j in range(i + 1, n):
@@ -172,7 +181,7 @@ def detect_collisions(bodies: List[RigidBox]) -> List[ContactManifold]:
     return contacts
 
 
-def _resolve_contact(contact: ContactManifold, restitution_override: Optional[float] = None) -> None:
+def _resolve_contact(contact: ContactManifold, restitution_override: float | None = None) -> None:
     a, b = contact.body_a, contact.body_b
     inv_mass_a, inv_mass_b = a.inverse_mass(), b.inverse_mass()
     total_inv_mass = inv_mass_a + inv_mass_b
@@ -186,7 +195,11 @@ def _resolve_contact(contact: ContactManifold, restitution_override: Optional[fl
     if rel_vel > 0:
         return  # zaten ayrılıyorlar
 
-    restitution = restitution_override if restitution_override is not None else min(a.restitution, b.restitution)
+    restitution = (
+        restitution_override
+        if restitution_override is not None
+        else min(a.restitution, b.restitution)
+    )
     j = -(1 + restitution) * rel_vel / total_inv_mass
 
     impulse = (j * nx, j * ny, j * nz)
@@ -236,9 +249,9 @@ class PhysicsWorld:
     bir sismik analiz motoru değil" hedefine bilinçli olarak uygun.
     """
 
-    bodies: List[RigidBox] = field(default_factory=list)
+    bodies: list[RigidBox] = field(default_factory=list)
     gravity: float = GRAVITY
-    shake_model: Optional[GroundShakeForceModel] = None
+    shake_model: GroundShakeForceModel | None = None
     time: float = 0.0
 
     def add_body(self, body: RigidBox) -> None:
@@ -294,13 +307,14 @@ class PhysicsWorld:
 # Hazır senaryo: kule/blok yığını stabilite testi
 # ============================================================================ #
 
+
 @dataclass
 class TowerStabilityScenario:
     """Basit bir kule (blok yığını) - kabul kriteri senaryosu: yeterince
     güçlü taban ivmesi altında devrilir, düşük ivmede stabil kalır."""
 
     num_blocks: int = 4
-    block_half_extents: Tuple[float, float, float] = (1.0, 1.0, 1.0)
+    block_half_extents: tuple[float, float, float] = (1.0, 1.0, 1.0)
     block_mass: float = 500.0
 
     def build_world(self, peak_acceleration_g: float, frequency_hz: float = 1.5) -> PhysicsWorld:
@@ -329,12 +343,15 @@ class TowerStabilityScenario:
 
         if peak_acceleration_g > 0:
             world.shake_model = GroundShakeForceModel(
-                peak_acceleration_g=peak_acceleration_g, frequency_hz=frequency_hz,
+                peak_acceleration_g=peak_acceleration_g,
+                frequency_hz=frequency_hz,
             )
         return world
 
     def run_stability_test(
-        self, peak_acceleration_g: float, duration_s: float = 6.0,
+        self,
+        peak_acceleration_g: float,
+        duration_s: float = 6.0,
         frequency_hz: float = 1.5,
     ) -> bool:
         """`True` dönerse en az bir blok test süresi içinde devrildi."""

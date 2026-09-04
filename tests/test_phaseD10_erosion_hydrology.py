@@ -20,17 +20,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from harita.core_engine.coordinate_systems import GeoPoint
 from harita.terrain_engine import (
-    HeightmapGrid,
     DEMImporter,
     ErosionSimulator,
     FlowAccumulation,
+    HeightmapGrid,
 )
-
 
 ORIGIN = GeoPoint(lat=39.9, lon=32.8, elevation=0.0)
 
 
-def _single_hill_grid(size: int = 24, amplitude: float = 30.0, resolution_m: float = 2.0) -> HeightmapGrid:
+def _single_hill_grid(
+    size: int = 24, amplitude: float = 30.0, resolution_m: float = 2.0
+) -> HeightmapGrid:
     """Tek, keskin (dik yamaçlı) bir koniyi merkeze yerleştirir - erozyonun
     "vadi oyma" davranışını net biçimde ortaya çıkaracak bir test sahnesi."""
     center = size / 2.0
@@ -52,12 +53,15 @@ def _elevation_variance(grid: HeightmapGrid) -> float:
 
 
 def _flat_grid(size: int = 8, elevation: float = 5.0) -> HeightmapGrid:
-    return DEMImporter.flat_terrain(size, size, resolution_m=1.0, elevation=elevation, origin=ORIGIN)
+    return DEMImporter.flat_terrain(
+        size, size, resolution_m=1.0, elevation=elevation, origin=ORIGIN
+    )
 
 
 # ============================================================================ #
 # ErosionSimulator - thermal erosion
 # ============================================================================ #
+
 
 class TestThermalErosion:
     def test_flat_terrain_is_unaffected(self):
@@ -97,6 +101,7 @@ class TestThermalErosion:
 # ErosionSimulator - hydraulic (droplet-based) erosion
 # ============================================================================ #
 
+
 class TestHydraulicErosion:
     def test_moves_material_on_sloped_terrain(self):
         grid = _single_hill_grid(size=20, amplitude=35.0)
@@ -133,6 +138,7 @@ class TestHydraulicErosion:
 # Kabul kriteri: birleşik pipeline (`simulate`) -> vadi oluşumu
 # ============================================================================ #
 
+
 class TestErosionAcceptanceCriterion:
     def test_variance_decreases_after_full_simulation(self):
         """Kabul kriteri (1/2): erozyon sonrası yükseklik varyansı azalmalı
@@ -140,7 +146,9 @@ class TestErosionAcceptanceCriterion:
         grid = _single_hill_grid(size=24, amplitude=35.0)
         variance_before = _elevation_variance(grid)
 
-        result = ErosionSimulator.simulate(grid, thermal_iterations=12, hydraulic_droplets=300, seed=99)
+        result = ErosionSimulator.simulate(
+            grid, thermal_iterations=12, hydraulic_droplets=300, seed=99
+        )
         variance_after = _elevation_variance(result.grid)
 
         assert variance_after < variance_before
@@ -159,7 +167,9 @@ class TestErosionAcceptanceCriterion:
             return sum(1 for row in g.elevations for z in row if z < threshold)
 
         count_before = _count_below(grid)
-        result = ErosionSimulator.simulate(grid, thermal_iterations=12, hydraulic_droplets=300, seed=99)
+        result = ErosionSimulator.simulate(
+            grid, thermal_iterations=12, hydraulic_droplets=300, seed=99
+        )
         count_after = _count_below(result.grid)
 
         assert count_after > count_before
@@ -168,12 +178,16 @@ class TestErosionAcceptanceCriterion:
         """Taşınan toplam malzeme miktarı sıfırdan büyük olmalı (aktif bir
         simülasyon oldu, no-op değil)."""
         grid = _single_hill_grid(size=20, amplitude=30.0)
-        result = ErosionSimulator.simulate(grid, thermal_iterations=8, hydraulic_droplets=200, seed=5)
+        result = ErosionSimulator.simulate(
+            grid, thermal_iterations=8, hydraulic_droplets=200, seed=5
+        )
         assert result.total_material_moved > 0.0
 
     def test_simulate_preserves_grid_metadata(self):
         grid = _single_hill_grid(size=16, resolution_m=3.0)
-        result = ErosionSimulator.simulate(grid, thermal_iterations=5, hydraulic_droplets=80, seed=1)
+        result = ErosionSimulator.simulate(
+            grid, thermal_iterations=5, hydraulic_droplets=80, seed=1
+        )
         assert result.grid.resolution_m == grid.resolution_m
         assert result.grid.width == grid.width
         assert result.grid.height == grid.height
@@ -182,6 +196,7 @@ class TestErosionAcceptanceCriterion:
 # ============================================================================ #
 # FlowAccumulation
 # ============================================================================ #
+
 
 class TestFlowAccumulation:
     def test_flow_direction_points_toward_steepest_descent(self):
@@ -218,7 +233,9 @@ class TestFlowAccumulation:
         total_cells = grid.width * grid.height
         max_accum = max(v for row in accum for v in row)
         assert max_accum >= 1.0
-        assert max_accum <= total_cells  # fiziksel üst sınır: tüm hücreler tek noktaya akamaz aşabilir ama makul sınır
+        assert (
+            max_accum <= total_cells
+        )  # fiziksel üst sınır: tüm hücreler tek noktaya akamaz aşabilir ama makul sınır
 
     def test_every_cell_has_at_least_its_own_flow(self):
         grid = _single_hill_grid(size=10)

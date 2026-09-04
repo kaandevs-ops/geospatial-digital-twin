@@ -65,14 +65,20 @@ def parse_gcp_list(path: str | Path) -> GcpList:
         try:
             geo_x, geo_y, geo_z, im_x, im_y = (float(p) for p in parts[:5])
         except ValueError as exc:
-            raise MalformedRecordError(f"{path}:{line_no}: sayısal alan ayrıştırılamadı: {line!r}") from exc
+            raise MalformedRecordError(
+                f"{path}:{line_no}: sayısal alan ayrıştırılamadı: {line!r}"
+            ) from exc
         image_name = parts[5]
         gcp_name = parts[6] if len(parts) > 6 else None
         points.append(
             GroundControlPoint(
-                geo_x=geo_x, geo_y=geo_y, geo_z=geo_z,
-                image_x=im_x, image_y=im_y,
-                image_name=image_name, gcp_name=gcp_name,
+                geo_x=geo_x,
+                geo_y=geo_y,
+                geo_z=geo_z,
+                image_x=im_x,
+                image_y=im_y,
+                image_name=image_name,
+                gcp_name=gcp_name,
             )
         )
 
@@ -89,7 +95,14 @@ def write_gcp_list(gcp_list: GcpList, path: str | Path) -> None:
     path = Path(path)
     lines = [gcp_list.projection]
     for p in gcp_list.points:
-        fields = [f"{p.geo_x}", f"{p.geo_y}", f"{p.geo_z}", f"{p.image_x}", f"{p.image_y}", p.image_name]
+        fields = [
+            f"{p.geo_x}",
+            f"{p.geo_y}",
+            f"{p.geo_z}",
+            f"{p.image_x}",
+            f"{p.image_y}",
+            p.image_name,
+        ]
         if p.gcp_name is not None:
             fields.append(p.gcp_name)
         lines.append(" ".join(fields))

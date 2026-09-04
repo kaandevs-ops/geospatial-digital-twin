@@ -17,12 +17,12 @@ Test edilenler:
 5. `ProceduralBuildingGenerator.generate(double_skin_gap_profile=...)`
    uçtan uca çalışıyor, ana yapısal sistem (kat sayısı, pencere) etkilenmiyor.
 """
+
 from __future__ import annotations
 
 import math
 
 import pytest
-
 from harita.building_reconstruction.building_elements import (
     DoubleSkinFacade,
     DoubleSkinFacadeGenerator,
@@ -47,8 +47,12 @@ def _avg_radius(vertices, cx: float, cy: float) -> float:
 class TestBackwardCompatibility:
     def test_none_profile_matches_original_single_extrude_path(self, base_polygon):
         result = DoubleSkinFacadeGenerator.generate(
-            base_polygon, base_z=0.0, floor_count=5, floor_height=3.0,
-            gap_m=1.0, gap_profile=None,
+            base_polygon,
+            base_z=0.0,
+            floor_count=5,
+            floor_height=3.0,
+            gap_m=1.0,
+            gap_profile=None,
         )
         assert isinstance(result, DoubleSkinFacade)
         assert result.outer_skin_mesh.triangle_count() > 0
@@ -58,7 +62,9 @@ class TestBackwardCompatibility:
         fp = Footprint(polygon=poly, height_m=12.0, floor_count=4)
         b1 = ProceduralBuildingGenerator.generate(fp, building_type=BuildingType.OFIS)
         b2 = ProceduralBuildingGenerator.generate(
-            fp, building_type=BuildingType.OFIS, add_double_skin=False,
+            fp,
+            building_type=BuildingType.OFIS,
+            add_double_skin=False,
         )
         assert b1.double_skin is None and b2.double_skin is None
 
@@ -71,8 +77,12 @@ class TestTaperingProfile:
             return 1.0 * (1.0 - 0.6 * (z / total_height))
 
         result = DoubleSkinFacadeGenerator.generate(
-            base_polygon, base_z=0.0, floor_count=5, floor_height=3.0,
-            gap_m=1.0, gap_profile=taper,
+            base_polygon,
+            base_z=0.0,
+            floor_count=5,
+            floor_height=3.0,
+            gap_m=1.0,
+            gap_profile=taper,
         )
         verts_bottom = [v for v in result.outer_skin_mesh.vertices if abs(v.z - 0.0) < 1e-6]
         verts_top = [v for v in result.outer_skin_mesh.vertices if abs(v.z - total_height) < 1e-6]
@@ -88,7 +98,10 @@ class TestTaperingProfile:
             return 0.5 + 1.0 * (z / total_height)
 
         result = DoubleSkinFacadeGenerator.generate(
-            base_polygon, base_z=0.0, floor_count=4, floor_height=3.0,
+            base_polygon,
+            base_z=0.0,
+            floor_count=4,
+            floor_height=3.0,
             gap_profile=expand,
         )
         verts_bottom = [v for v in result.outer_skin_mesh.vertices if abs(v.z - 0.0) < 1e-6]
@@ -99,10 +112,17 @@ class TestTaperingProfile:
 
     def test_constant_profile_matches_constant_gap_m_bounding_box(self, base_polygon):
         constant_gap = DoubleSkinFacadeGenerator.generate(
-            base_polygon, base_z=0.0, floor_count=3, floor_height=3.0, gap_m=1.3,
+            base_polygon,
+            base_z=0.0,
+            floor_count=3,
+            floor_height=3.0,
+            gap_m=1.3,
         )
         constant_profile = DoubleSkinFacadeGenerator.generate(
-            base_polygon, base_z=0.0, floor_count=3, floor_height=3.0,
+            base_polygon,
+            base_z=0.0,
+            floor_count=3,
+            floor_height=3.0,
             gap_profile=lambda z: 1.3,
         )
         bb1 = constant_gap.outer_skin_mesh.bounding_box()
@@ -119,7 +139,10 @@ class TestTaperingProfile:
             return 1.0 + 0.4 * math.sin(2 * math.pi * z / total_height)
 
         result = DoubleSkinFacadeGenerator.generate(
-            base_polygon, base_z=0.0, floor_count=6, floor_height=3.0,
+            base_polygon,
+            base_z=0.0,
+            floor_count=6,
+            floor_height=3.0,
             gap_profile=twisted,
         )
         radii_by_floor = []
@@ -146,8 +169,12 @@ class TestMullionAlignment:
             return 1.0 * (1.0 - 0.5 * (z / total))
 
         result = DoubleSkinFacadeGenerator.generate(
-            base_polygon, base_z=0.0, floor_count=5, floor_height=3.0,
-            gap_profile=taper, add_shading_fins=False,
+            base_polygon,
+            base_z=0.0,
+            floor_count=5,
+            floor_height=3.0,
+            gap_profile=taper,
+            add_shading_fins=False,
         )
         outer_only = DoubleSkinFacadeGenerator._build_lofted_shell(
             base_polygon,
@@ -173,8 +200,10 @@ class TestProceduralGeneratorIntegration:
             return 1.0 * (1.0 - 0.5 * (z / 15.0))
 
         building = ProceduralBuildingGenerator.generate(
-            fp, building_type=BuildingType.OFIS,
-            add_double_skin=True, double_skin_gap_m=1.0,
+            fp,
+            building_type=BuildingType.OFIS,
+            add_double_skin=True,
+            double_skin_gap_m=1.0,
             double_skin_gap_profile=taper,
         )
         assert building.double_skin is not None
@@ -187,12 +216,17 @@ class TestProceduralGeneratorIntegration:
         poly = Polygon([Point2D(-8, -6), Point2D(8, -6), Point2D(8, 6), Point2D(-8, 6)])
         fp = Footprint(polygon=poly, height_m=12.0, floor_count=4)
         with_gap_m_only = ProceduralBuildingGenerator.generate(
-            fp, building_type=BuildingType.OFIS,
-            add_double_skin=True, double_skin_gap_m=0.8,
+            fp,
+            building_type=BuildingType.OFIS,
+            add_double_skin=True,
+            double_skin_gap_m=0.8,
         )
         with_explicit_none = ProceduralBuildingGenerator.generate(
-            fp, building_type=BuildingType.OFIS,
-            add_double_skin=True, double_skin_gap_m=0.8, double_skin_gap_profile=None,
+            fp,
+            building_type=BuildingType.OFIS,
+            add_double_skin=True,
+            double_skin_gap_m=0.8,
+            double_skin_gap_profile=None,
         )
         t1 = with_gap_m_only.double_skin.outer_skin_mesh.triangle_count()
         t2 = with_explicit_none.double_skin.outer_skin_mesh.triangle_count()

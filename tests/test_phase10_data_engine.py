@@ -7,20 +7,28 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
-from harita.mesh_engine import Mesh3D, Vertex3D
-from harita.editor.commands import FunctionCommand
 from harita.data_engine import (
-    AABB2D, AABB3D, QuadTree, Octree, KDTree, BVH, RayHit, RTree,
-    ObjectCache, SceneCache,
-    History, Versioning,
+    AABB2D,
+    AABB3D,
+    BVH,
+    History,
+    KDTree,
+    ObjectCache,
+    Octree,
+    QuadTree,
+    RayHit,
+    RTree,
+    SceneCache,
     UndoRedoStack,
+    Versioning,
 )
-
+from harita.editor.commands import FunctionCommand
+from harita.mesh_engine import Mesh3D, Vertex3D
 
 # ======================================================================== #
 # AABB2D / AABB3D
 # ======================================================================== #
+
 
 def test_aabb2d_intersects_and_contains():
     a = AABB2D(0, 0, 10, 10)
@@ -55,6 +63,7 @@ def test_aabb3d_intersects_ray_hits_and_misses():
 # ======================================================================== #
 # QuadTree
 # ======================================================================== #
+
 
 def test_quadtree_basic_insert_and_query():
     qt = QuadTree(AABB2D(0, 0, 100, 100), capacity=4)
@@ -93,6 +102,7 @@ def test_quadtree_no_duplicate_results_across_quadrants():
 # Octree
 # ======================================================================== #
 
+
 def test_octree_basic_insert_and_query():
     ot = Octree(AABB3D(0, 0, 0, 100, 100, 100), capacity=4)
     for i in range(30):
@@ -114,6 +124,7 @@ def test_octree_subdivides_into_eight_children():
 # ======================================================================== #
 # KDTree
 # ======================================================================== #
+
 
 def test_kdtree_nearest_2d():
     points = [(0, 0), (5, 5), (10, 10), (1, 1), (9, 9)]
@@ -167,6 +178,7 @@ def test_kdtree_with_associated_data():
 # ======================================================================== #
 # BVH
 # ======================================================================== #
+
 
 def _flat_quad_mesh() -> Mesh3D:
     """z=0 düzleminde 4x4'lük 16 karelik (32 üçgenlik) düz bir mesh."""
@@ -226,6 +238,7 @@ def test_bvh_query_aabb():
 # RTree
 # ======================================================================== #
 
+
 def test_rtree_basic_search():
     rt = RTree(max_entries=4)
     rt.insert("building_a", AABB2D(0, 0, 10, 10))
@@ -281,6 +294,7 @@ def test_rtree_search_finds_footprint_like_overlaps():
 # ======================================================================== #
 # ObjectCache / SceneCache
 # ======================================================================== #
+
 
 def test_object_cache_lru_eviction():
     cache: ObjectCache[str] = ObjectCache(capacity=3)
@@ -376,6 +390,7 @@ def test_scene_cache_bucket_capacity_preserved_on_reaccess():
 # History
 # ======================================================================== #
 
+
 def test_history_records_do_undo_redo():
     history = History()
     state = {"value": 0}
@@ -383,8 +398,10 @@ def test_history_records_do_undo_redo():
     def make_command(delta):
         def do():
             state["value"] += delta
+
         def undo():
             state["value"] -= delta
+
         return FunctionCommand(do, undo, label=f"add({delta})")
 
     history.execute(make_command(5))
@@ -399,7 +416,10 @@ def test_history_records_do_undo_redo():
 
     labels_actions = [(e.label, e.action) for e in history.entries()]
     assert labels_actions == [
-        ("add(5)", "do"), ("add(3)", "do"), ("add(3)", "undo"), ("add(3)", "redo"),
+        ("add(5)", "do"),
+        ("add(3)", "do"),
+        ("add(3)", "undo"),
+        ("add(3)", "redo"),
     ]
 
 
@@ -446,6 +466,7 @@ def test_history_noop_undo_redo_not_recorded():
 # ======================================================================== #
 # Versioning
 # ======================================================================== #
+
 
 def test_versioning_snapshot_and_restore():
     v = Versioning()

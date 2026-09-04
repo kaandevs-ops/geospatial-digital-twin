@@ -31,10 +31,10 @@ from dataclasses import dataclass, field
 from ..terrain_engine import HeightmapGrid
 from .commands import EditorCommand, FunctionCommand
 
-
 # ============================================================================ #
 # Brush
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class Brush:
@@ -75,6 +75,7 @@ class Brush:
 # TerrainPaintLayer
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class TerrainPaintLayer:
     """Heightmap ile aynı boyutta, [0, 1] aralığında katman ağırlığı
@@ -102,6 +103,7 @@ class TerrainPaintLayer:
 # TerrainEditor
 # ============================================================================ #
 
+
 class TerrainEditor:
     """`HeightmapGrid` (ve opsiyonel `TerrainPaintLayer`) üzerinde fırça
     tabanlı düzenleme operasyonları. Her metod bir `EditorCommand`
@@ -113,9 +115,7 @@ class TerrainEditor:
     def _apply_delta(
         grid: HeightmapGrid, cells: list[tuple[int, int, float]], delta_fn, label: str
     ) -> EditorCommand:
-        before: dict[tuple[int, int], float] = {
-            (r, c): grid.elevations[r][c] for r, c, _w in cells
-        }
+        before: dict[tuple[int, int], float] = {(r, c): grid.elevations[r][c] for r, c, _w in cells}
 
         def do() -> None:
             for r, c, w in cells:
@@ -144,7 +144,9 @@ class TerrainEditor:
 
     # -- Flatten ------------------------------------------------------------- #
     @staticmethod
-    def flatten(grid: HeightmapGrid, brush: Brush, target_elevation: float | None = None) -> EditorCommand:
+    def flatten(
+        grid: HeightmapGrid, brush: Brush, target_elevation: float | None = None
+    ) -> EditorCommand:
         cells = brush.affected_cells(grid.width, grid.height)
         if target_elevation is None:
             # Belirtilmezse fırça merkezindeki mevcut yüksekliği hedef al.
@@ -174,7 +176,7 @@ class TerrainEditor:
             current = {k: v for k, v in before.items()}
             for _ in range(max(1, iterations)):
                 new_values = {}
-                for (r, c, w) in cells:
+                for r, c, w in cells:
                     blurred = box_blur_value(r, c)
                     new_values[(r, c)] = current[(r, c)] + (blurred - current[(r, c)]) * w
                 current = new_values
@@ -199,7 +201,9 @@ class TerrainEditor:
 
     @staticmethod
     def _apply_delta_with_noise(
-        grid: HeightmapGrid, cells: list[tuple[int, int, float]], noise_values: dict[tuple[int, int], float]
+        grid: HeightmapGrid,
+        cells: list[tuple[int, int, float]],
+        noise_values: dict[tuple[int, int], float],
     ) -> EditorCommand:
         before: dict[tuple[int, int], float] = {(r, c): grid.elevations[r][c] for r, c, _w in cells}
 

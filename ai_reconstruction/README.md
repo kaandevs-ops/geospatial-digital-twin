@@ -25,11 +25,14 @@ Teknik spesifikasyon: [`../docs/PHASE_SPECS.md`](../docs/PHASE_SPECS.md#phase-4-
 from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.building_reconstruction.footprint_parser import Footprint
 from harita.ai_reconstruction import (
-    AIBuildingAnalyzer, AIRoofPredictor, AIEnvironmentGenerator,
-    ClimateZone, EnvironmentObjectType,
+    AIBuildingAnalyzer,
+    AIRoofPredictor,
+    AIEnvironmentGenerator,
+    ClimateZone,
+    EnvironmentObjectType,
 )
 
-poly = Polygon([Point2D(0,0), Point2D(20,0), Point2D(20,15), Point2D(0,15)])
+poly = Polygon([Point2D(0, 0), Point2D(20, 0), Point2D(20, 15), Point2D(0, 15)])
 fp = Footprint(polygon=poly, building_type="apartments")
 
 analysis = AIBuildingAnalyzer().analyze(fp)
@@ -39,7 +42,9 @@ roof = AIRoofPredictor().predict("apartments", ClimateZone.ILIMAN)
 print(roof.most_likely, roof.top_n(3))
 
 env = AIEnvironmentGenerator(seed=1).generate(
-    poly, margin_m=20.0, object_types=[EnvironmentObjectType.AGAC],
+    poly,
+    margin_m=20.0,
+    object_types=[EnvironmentObjectType.AGAC],
 )
 print(len(env), "ağaç yerleştirildi")
 ```
@@ -75,10 +80,12 @@ veriden öğrenen) hafif bir doğrusal regresyon modeli sunuyor —
 
 ```python
 from harita.ai_reconstruction import (
-    train_default_height_model, MLAssistedHeightPredictor, AIBuildingAnalyzer,
+    train_default_height_model,
+    MLAssistedHeightPredictor,
+    AIBuildingAnalyzer,
 )
 
-model = train_default_height_model()               # sentetik veriyle eğit
+model = train_default_height_model()  # sentetik veriyle eğit
 predictor = MLAssistedHeightPredictor(model=model)  # egitilmisse kullanir, yoksa heuristic
 analysis = AIBuildingAnalyzer(predictor=predictor).analyze(footprint)
 print(analysis.height_m, analysis.confidence, analysis.uncertainty_m)
@@ -170,7 +177,7 @@ opsiyonel `pip install harita-modelleme[ml]` bağımlılığı kuruluysa:
 ```python
 from harita.ai_reconstruction import sklearn_wrapper
 
-model = sklearn_wrapper.train_default_sklearn_model()        # sentetik veriyle egit
+model = sklearn_wrapper.train_default_sklearn_model()  # sentetik veriyle egit
 predictor = sklearn_wrapper.as_ml_assisted_predictor(model)  # MLAssistedHeightPredictor'a koprule
 analysis = AIBuildingAnalyzer(predictor=predictor).analyze(footprint)
 ```

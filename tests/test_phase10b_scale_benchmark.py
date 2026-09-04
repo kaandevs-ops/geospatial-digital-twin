@@ -10,7 +10,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.data_engine.benchmark import (
     benchmark_kdtree,
     benchmark_octree,
@@ -20,7 +19,6 @@ from harita.data_engine.benchmark import (
     run_all,
 )
 from harita.data_engine.spatial_index import AABB2D, RTree
-
 
 # ---------------------------------------------------------------------------
 # RTree doğruluğu - küçük/orta ölçekte kaba kuvvetle karşılaştırma
@@ -130,7 +128,9 @@ def test_run_all_and_format_report():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("bench_fn", [benchmark_rtree, benchmark_quadtree, benchmark_octree, benchmark_kdtree])
+@pytest.mark.parametrize(
+    "bench_fn", [benchmark_rtree, benchmark_quadtree, benchmark_octree, benchmark_kdtree]
+)
 def test_query_p99_under_10ms_at_moderate_scale(bench_fn):
     """Roadmap kabul kriteri: '1.000.000 nesnelik sahnede insert/query
     <10ms p99'. CI'da her PR'da 1M nesne üretip ölçmek pahalı olduğundan,

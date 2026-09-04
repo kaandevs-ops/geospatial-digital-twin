@@ -5,21 +5,25 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from harita.core_engine.geometry_engine import Point2D, Polygon
-from harita.building_reconstruction.footprint_parser import Footprint
-from harita.building_reconstruction.procedural_generator import Building, BuildingType, Floor
-
 from harita.ai_assistant import (
     BuildingRegistry,
     DialogueSession,
     IntentAction,
     UnknownBuildingError,
 )
+from harita.building_reconstruction.footprint_parser import Footprint
+from harita.building_reconstruction.procedural_generator import Building, BuildingType, Floor
+from harita.core_engine.geometry_engine import Point2D, Polygon
 
 
 def _make_building(floor_count: int = 2) -> Building:
     polygon = Polygon(points=[Point2D(0, 0), Point2D(10, 0), Point2D(10, 10), Point2D(0, 10)])
-    footprint = Footprint(polygon=polygon, building_type="apartments", floor_count=floor_count, height_m=3.0 * floor_count)
+    footprint = Footprint(
+        polygon=polygon,
+        building_type="apartments",
+        floor_count=floor_count,
+        height_m=3.0 * floor_count,
+    )
     building = Building(footprint=footprint, building_type=BuildingType.APARTMAN)
     building.floors = [Floor(level=i, height_m=3.0) for i in range(floor_count)]
     return building
@@ -28,6 +32,7 @@ def _make_building(floor_count: int = 2) -> Building:
 # ============================================================================ #
 # BuildingRegistry
 # ============================================================================ #
+
 
 class TestBuildingRegistry:
     def test_register_and_lookup(self):
@@ -61,6 +66,7 @@ class TestBuildingRegistry:
 # Tek bina — belirsizlik yok, doğrudan uygulanır (geriye uyumlu davranış)
 # ============================================================================ #
 
+
 class TestSingleBuildingNoAmbiguity:
     def test_single_building_executes_immediately(self):
         registry = BuildingRegistry()
@@ -85,6 +91,7 @@ class TestSingleBuildingNoAmbiguity:
 # Çok bina — Kabul kriteri senaryosu:
 # "bir kat ekle" -> "hangi binaya?" -> "A binası" akışı
 # ============================================================================ #
+
 
 class TestMultiBuildingClarificationFlow:
     def test_acceptance_scenario_add_floor_then_clarify(self):

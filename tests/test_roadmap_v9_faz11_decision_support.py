@@ -11,7 +11,6 @@ import unittest
 
 from harita.analysis_engine.decision_support import (
     INDICATIVE_DISCLAIMER,
-    Recommendation,
     RecommendationEngine,
     ScenarioComparison,
     SensitivityAnalyzer,
@@ -21,39 +20,59 @@ from harita.analysis_engine.decision_support import (
 )
 from harita.core_engine.geometry_engine import Point2D
 from harita.mobility.crowd_simulation import (
-    Agent, EvacuationResult, SocialForceModel, spawn_random_agents,
+    EvacuationResult,
+    spawn_random_agents,
 )
 from harita.mobility.crowd_simulation.capacity_analysis import (
-    CapacityAnalysisReport, CapacityRunResult,
+    CapacityAnalysisReport,
+    CapacityRunResult,
 )
 from harita.mobility.pathfinding import NavGraph
 
 
-def _make_result(evac_time: float, evacuated: int, bottleneck: int | None = None) -> EvacuationResult:
+def _make_result(
+    evac_time: float, evacuated: int, bottleneck: int | None = None
+) -> EvacuationResult:
     return EvacuationResult(
-        total_agents=evacuated, evacuated_count=evacuated, evacuation_time_s=evac_time,
-        per_agent_time_s={}, timed_out=False, bottleneck_peak_count=bottleneck,
+        total_agents=evacuated,
+        evacuated_count=evacuated,
+        evacuation_time_s=evac_time,
+        per_agent_time_s={},
+        timed_out=False,
+        bottleneck_peak_count=bottleneck,
     )
 
 
-def _make_capacity_run(count: int, evac_time: float, within: bool | None, timed_out: bool = False) -> CapacityRunResult:
+def _make_capacity_run(
+    count: int, evac_time: float, within: bool | None, timed_out: bool = False
+) -> CapacityRunResult:
     return CapacityRunResult(
-        agent_count=count, evacuation_time_s=evac_time, evacuated_count=count,
-        total_agents=count, timed_out=timed_out, bottleneck_cell=None,
-        bottleneck_count=None, threshold_s=120.0, within_threshold=within,
+        agent_count=count,
+        evacuation_time_s=evac_time,
+        evacuated_count=count,
+        total_agents=count,
+        timed_out=timed_out,
+        bottleneck_cell=None,
+        bottleneck_count=None,
+        threshold_s=120.0,
+        within_threshold=within,
     )
 
 
 def _make_capacity_report(runs: list[CapacityRunResult]) -> CapacityAnalysisReport:
     return CapacityAnalysisReport(
-        building_type="residential", exit_width_m=1.2,
-        regulation_profile_name="default", runs=runs,
+        building_type="residential",
+        exit_width_m=1.2,
+        regulation_profile_name="default",
+        runs=runs,
     )
 
 
 class TestScenarioComparison(unittest.TestCase):
     def test_delta_and_pct_change(self):
-        c = ScenarioComparison(label="x", metric_name="evacuation_time_s", before_value=100.0, after_value=80.0)
+        c = ScenarioComparison(
+            label="x", metric_name="evacuation_time_s", before_value=100.0, after_value=80.0
+        )
         self.assertAlmostEqual(c.delta, -20.0)
         self.assertAlmostEqual(c.pct_change, -20.0)
 
@@ -85,12 +104,18 @@ class TestScenarioComparison(unittest.TestCase):
         self.assertNotIn("bottleneck_peak_count", names)
 
     def test_compare_capacity_reports_matches_common_agent_counts(self):
-        before = _make_capacity_report([
-            _make_capacity_run(20, 50.0, True), _make_capacity_run(40, 95.0, True),
-        ])
-        after = _make_capacity_report([
-            _make_capacity_run(20, 40.0, True), _make_capacity_run(60, 200.0, False),
-        ])
+        before = _make_capacity_report(
+            [
+                _make_capacity_run(20, 50.0, True),
+                _make_capacity_run(40, 95.0, True),
+            ]
+        )
+        after = _make_capacity_report(
+            [
+                _make_capacity_run(20, 40.0, True),
+                _make_capacity_run(60, 200.0, False),
+            ]
+        )
         comparisons = compare_capacity_reports(before, after)
         self.assertEqual(len(comparisons), 1)
         self.assertIn("20 kişi", comparisons[0].label)
@@ -167,12 +192,22 @@ class TestWhatIfCloseExitAndRerun(unittest.TestCase):
         graph.add_edge("mid", "exit_b", cost=5.0)
         graph.add_edge("exit_b", "mid", cost=5.0)
 
-        agents = spawn_random_agents(3, area_min=Point2D(-0.5, -0.5), area_max=Point2D(0.5, 0.5), goal=Point2D(10.0, 0.0), seed=1)
+        agents = spawn_random_agents(
+            3,
+            area_min=Point2D(-0.5, -0.5),
+            area_max=Point2D(0.5, 0.5),
+            goal=Point2D(10.0, 0.0),
+            seed=1,
+        )
         node_of_agent = lambda a: "start"  # noqa: E731 - test yardımcı fonksiyonu
 
         result = what_if_close_exit_and_rerun(
-            graph=graph, exits=["exit_a", "exit_b"], exit_to_close="exit_a",
-            agents=agents, node_of_agent=node_of_agent, max_time_s=60.0,
+            graph=graph,
+            exits=["exit_a", "exit_b"],
+            exit_to_close="exit_a",
+            agents=agents,
+            node_of_agent=node_of_agent,
+            max_time_s=60.0,
         )
         self.assertIsInstance(result, EvacuationResult)
         self.assertEqual(result.total_agents, 3)

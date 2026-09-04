@@ -25,8 +25,8 @@ geçmez."
 
 from __future__ import annotations
 
+from collections.abc import Callable, Hashable
 from dataclasses import dataclass, field
-from typing import Callable, Hashable
 
 from ..pathfinding import NavGraph
 from . import Agent, AgentBehavior, OccupancyHeatmap

@@ -23,16 +23,15 @@ from __future__ import annotations
 import math
 
 import pytest
-
+from harita.lighting import AmbientOcclusionBaker, HDRSky, ShadowCalculator
+from harita.mesh_engine import Mesh3D, Vertex3D
 from harita.render_engine import (
     Scene,
     SceneSky,
-    compute_light_space_matrix,
     apply_light_space_matrix,
+    compute_light_space_matrix,
     hdr_sky_to_scene_sky,
 )
-from harita.lighting import HDRSky, ShadowCalculator, AmbientOcclusionBaker
-from harita.mesh_engine import Mesh3D, Vertex3D
 
 
 def _quad_mesh(y: float, half: float = 1.0, name: str = "occluder") -> Mesh3D:
@@ -64,6 +63,7 @@ class _FakeSun:
 # 1) Işık-uzayı projeksiyonu <-> ShadowCalculator çapraz doğrulaması
 # ======================================================================== #
 
+
 class TestLightSpaceProjectionMatchesRayCast:
     """`compute_light_space_matrix` ile üretilen shadow-map derinlik
     karşılaştırma mantığının, bağımsız ray-triangle `ShadowCalculator` ile
@@ -94,9 +94,15 @@ class TestLightSpaceProjectionMatchesRayCast:
         # Bağımsız doğrulama: ray-triangle tabanlı ShadowCalculator da aynı
         # sonuca varmalı (ışın güneşe doğru = yukarı = (0,1,0)).
         fake_sun = _FakeSun((0.0, 1.0, 0.0))
-        assert ShadowCalculator.point_in_shadow(
-            ground_pt, fake_sun, [self.occluder], max_distance=50.0,
-        ) is True
+        assert (
+            ShadowCalculator.point_in_shadow(
+                ground_pt,
+                fake_sun,
+                [self.occluder],
+                max_distance=50.0,
+            )
+            is True
+        )
 
     def test_point_outside_occluder_footprint_is_lit(self) -> None:
         matrix = compute_light_space_matrix(self.light_direction_going, self.bounds)
@@ -110,9 +116,15 @@ class TestLightSpaceProjectionMatchesRayCast:
         assert math.dist(ndc_far[:2], ndc_occluder[:2]) > 0.3
 
         fake_sun = _FakeSun((0.0, 1.0, 0.0))
-        assert ShadowCalculator.point_in_shadow(
-            far_pt, fake_sun, [self.occluder], max_distance=50.0,
-        ) is False
+        assert (
+            ShadowCalculator.point_in_shadow(
+                far_pt,
+                fake_sun,
+                [self.occluder],
+                max_distance=50.0,
+            )
+            is False
+        )
 
     def test_matrix_changes_with_sun_direction(self) -> None:
         """Kabul kriteri: 'güneş konumu değiştirildiğinde gölgenin yönü
@@ -131,6 +143,7 @@ class TestLightSpaceProjectionMatchesRayCast:
 # ======================================================================== #
 # 2) D9 AmbientOcclusionBaker -> Scene köprüsü (denetim maddesi kapatılıyor)
 # ======================================================================== #
+
 
 class TestVertexAOBridge:
     def test_attach_vertex_ao_matches_baker_directly(self) -> None:
@@ -186,6 +199,7 @@ class TestVertexAOBridge:
 # 3) Faz 2 HDRSky -> Scene.sky köprüsü
 # ======================================================================== #
 
+
 class TestSkyBridge:
     def test_hdr_sky_to_scene_sky_roundtrip(self) -> None:
         sky = HDRSky(zenith_color=(0.1, 0.2, 0.9), horizon_color=(0.9, 0.8, 0.7), turbidity=3.5)
@@ -211,5 +225,6 @@ class TestSkyBridge:
 
     def test_schema_version_bumped(self) -> None:
         from harita.render_engine import SCENE_SCHEMA_VERSION
+
         major, minor = SCENE_SCHEMA_VERSION.split(".")
         assert (int(major), int(minor)) >= (1, 2)

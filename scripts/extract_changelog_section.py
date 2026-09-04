@@ -8,6 +8,7 @@ Kullanım::
 
     python scripts/extract_changelog_section.py 0.15.0
 """
+
 from __future__ import annotations
 
 import re

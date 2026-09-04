@@ -33,7 +33,7 @@ araç varsa ince istemci) yapılabilir — bu modülün doğruluğu buna bağlı
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 Matrix = list[list[float]]
 Vector = list[float]
@@ -54,6 +54,7 @@ class SingularNormalEquationsError(ValueError):
 # --------------------------------------------------------------------------
 # Saf Python doğrusal cebir yardımcıları (stdlib-only ilkesi)
 # --------------------------------------------------------------------------
+
 
 def _zeros(rows: int, cols: int) -> Matrix:
     return [[0.0] * cols for _ in range(rows)]
@@ -125,6 +126,7 @@ def _solve(a: Matrix, b: Vector) -> Vector:
 # --------------------------------------------------------------------------
 # Ağ modeli: bilinmeyen noktalar + gözlemler (mesafe/açı/azimut)
 # --------------------------------------------------------------------------
+
 
 @dataclass(slots=True)
 class UnknownPoint:
@@ -307,13 +309,13 @@ def adjust_network(
                 row[2 * i + 1] += dn / dist
             A.append(row)
             L.append(obs.observed_m - dist)
-            P_diag.append(1.0 / (obs.sigma_m ** 2))
+            P_diag.append(1.0 / (obs.sigma_m**2))
 
         for obs in azimuth_obs:
             e_from, n_from = _coord(obs.from_id)
             e_to, n_to = _coord(obs.to_id)
             de, dn = e_to - e_from, n_to - n_from
-            dist_sq = de ** 2 + dn ** 2
+            dist_sq = de**2 + dn**2
             if dist_sq < 1e-12:
                 raise InsufficientDataError(
                     f"Azimut gözlemi {obs.from_id}->{obs.to_id}: yaklaşık koordinatlar "
@@ -337,7 +339,7 @@ def adjust_network(
             misclosure = obs.observed_gon - computed_gon
             misclosure = (misclosure + 200.0) % 400.0 - 200.0
             L.append(misclosure)
-            P_diag.append(1.0 / (obs.sigma_gon ** 2))
+            P_diag.append(1.0 / (obs.sigma_gon**2))
 
         At = _transpose(A)
         AtP = [[At[i][k] * P_diag[k] for k in range(n_obs)] for i in range(n_u)]
@@ -368,7 +370,9 @@ def adjust_network(
     vt_p_v = math.fsum(P_diag[k] * V[k] ** 2 for k in range(n_obs))
     redundancy = n_obs - n_u
     if redundancy <= 0:
-        raise InsufficientDataError("Fazla ölçü (redundancy) sıfır veya negatif — referans varyans hesaplanamaz.")
+        raise InsufficientDataError(
+            "Fazla ölçü (redundancy) sıfır veya negatif — referans varyans hesaplanamaz."
+        )
     sigma0_sq = vt_p_v / redundancy
 
     At = _transpose(A)
@@ -390,8 +394,8 @@ def adjust_network(
         # 2x2 için kapalı formül — genel özdeğer ayrıştırmasına gerek yok).
         see, snn, sen = sigma0_sq * qee, sigma0_sq * qnn, sigma0_sq * qen
         trace = see + snn
-        det = see * snn - sen ** 2
-        disc = math.sqrt(max(trace ** 2 / 4.0 - det, 0.0))
+        det = see * snn - sen**2
+        disc = math.sqrt(max(trace**2 / 4.0 - det, 0.0))
         lambda_max = trace / 2.0 + disc
         lambda_min = trace / 2.0 - disc
         if sen == 0.0 and see == snn:

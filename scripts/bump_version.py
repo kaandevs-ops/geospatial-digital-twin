@@ -16,6 +16,7 @@ CI/manuel akış: betik dosyaları günceller ve değişiklikleri commit etmez �
 çağıran (geliştirici ya da release iş akışı) commit + `git tag vX.Y.Z` +
 `git push --tags` adımlarını kendisi yürütür.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,7 +43,7 @@ def _read_current_version() -> str:
     text = PYPROJECT.read_text(encoding="utf-8")
     match = re.search(r'^version = "([^"]+)"', text, re.MULTILINE)
     if not match:
-        raise SystemExit("pyproject.toml içinde `version = \"...\"` bulunamadı")
+        raise SystemExit('pyproject.toml içinde `version = "..."` bulunamadı')
     return match.group(1)
 
 
@@ -77,9 +78,7 @@ def _update_init(new_version: str) -> None:
     text = INIT_PY.read_text(encoding="utf-8")
     if text.count('__version__ = "') == 0:
         raise SystemExit("harita/__init__.py içinde __version__ bulunamadı")
-    updated = re.sub(
-        r'__version__ = "[^"]+"', f'__version__ = "{new_version}"', text
-    )
+    updated = re.sub(r'__version__ = "[^"]+"', f'__version__ = "{new_version}"', text)
     INIT_PY.write_text(updated, encoding="utf-8")
 
 
@@ -134,14 +133,17 @@ def _update_changelog(new_version: str) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "bump", nargs="?", default=None,
+        "bump",
+        nargs="?",
+        default=None,
         help="major | minor | patch veya açık bir X.Y.Z[-pre] sürümü",
     )
     parser.add_argument(
         "--dry-run", action="store_true", help="Sadece yeni sürümü yazdır, dosyaları değiştirme"
     )
     parser.add_argument(
-        "--check", action="store_true",
+        "--check",
+        action="store_true",
         help="Bump yapmadan pyproject.toml/__init__.py sürüm senkronunu doğrula (CI için)",
     )
     args = parser.parse_args(argv)
@@ -164,8 +166,10 @@ def main(argv: list[str] | None = None) -> int:
     _update_changelog(new_version)
 
     print(f"Sürüm güncellendi: {current} -> {new_version}")
-    print("Sonraki adım: git add -A && git commit -m 'chore: release "
-          f"v{new_version}' && git tag v{new_version} && git push --tags")
+    print(
+        "Sonraki adım: git add -A && git commit -m 'chore: release "
+        f"v{new_version}' && git tag v{new_version} && git push --tags"
+    )
     return 0
 
 

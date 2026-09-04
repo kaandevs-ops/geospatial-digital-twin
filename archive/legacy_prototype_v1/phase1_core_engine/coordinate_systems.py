@@ -18,21 +18,20 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Tuple
 
 # ============================================================================
 # SABİTLER (WGS84 elipsoidi)
 # ============================================================================
 
-WGS84_A = 6378137.0                 # semi-major axis (m)
-WGS84_F = 1 / 298.257223563         # flattening
-WGS84_B = WGS84_A * (1 - WGS84_F)   # semi-minor axis (m)
+WGS84_A = 6378137.0  # semi-major axis (m)
+WGS84_F = 1 / 298.257223563  # flattening
+WGS84_B = WGS84_A * (1 - WGS84_F)  # semi-minor axis (m)
 WGS84_E2 = WGS84_F * (2 - WGS84_F)  # first eccentricity squared
 WGS84_E = math.sqrt(WGS84_E2)
 
-EARTH_RADIUS_MEAN_M = 6371008.8     # ortalama yarıçap (haversine için)
+EARTH_RADIUS_MEAN_M = 6371008.8  # ortalama yarıçap (haversine için)
 
-K0_UTM = 0.9996                     # UTM ölçek faktörü
+K0_UTM = 0.9996  # UTM ölçek faktörü
 
 
 class CoordinateSystemError(ValueError):
@@ -42,6 +41,7 @@ class CoordinateSystemError(ValueError):
 # ============================================================================
 # WGS84 — coğrafi koordinat (lon/lat/alt)
 # ============================================================================
+
 
 @dataclass(frozen=True)
 class WGS84:
@@ -57,7 +57,7 @@ class WGS84:
         if not (-90.0 <= self.lat <= 90.0):
             raise CoordinateSystemError(f"lat [-90,90] dışında: {self.lat}")
 
-    def as_radians(self) -> Tuple[float, float]:
+    def as_radians(self) -> tuple[float, float]:
         return math.radians(self.lon), math.radians(self.lat)
 
 
@@ -67,10 +67,7 @@ def haversine_distance_m(a: WGS84, b: WGS84) -> float:
     lon2, lat2 = b.as_radians()
     dlat = lat2 - lat1
     dlon = lon2 - lon1
-    h = (
-        math.sin(dlat / 2) ** 2
-        + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
-    )
+    h = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
     return 2 * EARTH_RADIUS_MEAN_M * math.asin(min(1.0, math.sqrt(h)))
 
 
@@ -89,6 +86,7 @@ def initial_bearing_deg(a: WGS84, b: WGS84) -> float:
 # WEB MERCATOR (EPSG:3857) <-> WGS84
 # ============================================================================
 
+
 @dataclass(frozen=True)
 class WebMercatorCoordinate:
     x: float
@@ -99,8 +97,7 @@ def wgs84_to_web_mercator(coord: WGS84) -> WebMercatorCoordinate:
     """WGS84 -> EPSG:3857 (Web Mercator, metre)."""
     if not (-85.05112878 <= coord.lat <= 85.05112878):
         raise CoordinateSystemError(
-            "Web Mercator lat aralığı [-85.0511, 85.0511] ile sınırlıdır: "
-            f"{coord.lat}"
+            f"Web Mercator lat aralığı [-85.0511, 85.0511] ile sınırlıdır: {coord.lat}"
         )
     lon_rad, lat_rad = coord.as_radians()
     x = WGS84_A * lon_rad
@@ -118,6 +115,7 @@ def web_mercator_to_wgs84(coord: WebMercatorCoordinate) -> WGS84:
 # ============================================================================
 # UTM <-> WGS84  (Transverse Mercator, Snyder serisi açılım)
 # ============================================================================
+
 
 @dataclass(frozen=True)
 class UTMCoordinate:
@@ -150,20 +148,16 @@ def wgs84_to_utm(coord: WGS84, zone: int | None = None) -> UTMCoordinate:
     A = math.cos(lat_rad) * (lon_rad - lon0)
 
     M = WGS84_A * (
-        (1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256) * lat_rad
-        - (3 * e2 / 8 + 3 * e2 ** 2 / 32 + 45 * e2 ** 3 / 1024) * math.sin(2 * lat_rad)
-        + (15 * e2 ** 2 / 256 + 45 * e2 ** 3 / 1024) * math.sin(4 * lat_rad)
-        - (35 * e2 ** 3 / 3072) * math.sin(6 * lat_rad)
+        (1 - e2 / 4 - 3 * e2**2 / 64 - 5 * e2**3 / 256) * lat_rad
+        - (3 * e2 / 8 + 3 * e2**2 / 32 + 45 * e2**3 / 1024) * math.sin(2 * lat_rad)
+        + (15 * e2**2 / 256 + 45 * e2**3 / 1024) * math.sin(4 * lat_rad)
+        - (35 * e2**3 / 3072) * math.sin(6 * lat_rad)
     )
 
     easting = (
         K0_UTM
         * N
-        * (
-            A
-            + (1 - T + C) * A ** 3 / 6
-            + (5 - 18 * T + T ** 2 + 72 * C - 58 * ep2) * A ** 5 / 120
-        )
+        * (A + (1 - T + C) * A**3 / 6 + (5 - 18 * T + T**2 + 72 * C - 58 * ep2) * A**5 / 120)
         + 500000.0
     )
 
@@ -172,9 +166,9 @@ def wgs84_to_utm(coord: WGS84, zone: int | None = None) -> UTMCoordinate:
         + N
         * math.tan(lat_rad)
         * (
-            A ** 2 / 2
-            + (5 - T + 9 * C + 4 * C ** 2) * A ** 4 / 24
-            + (61 - 58 * T + T ** 2 + 600 * C - 330 * ep2) * A ** 6 / 720
+            A**2 / 2
+            + (5 - T + 9 * C + 4 * C**2) * A**4 / 24
+            + (61 - 58 * T + T**2 + 600 * C - 330 * ep2) * A**6 / 720
         )
     )
 
@@ -197,17 +191,14 @@ def utm_to_wgs84(coord: UTMCoordinate) -> WGS84:
         y -= 10000000.0
 
     M = y / K0_UTM
-    mu = M / (
-        WGS84_A
-        * (1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256)
-    )
+    mu = M / (WGS84_A * (1 - e2 / 4 - 3 * e2**2 / 64 - 5 * e2**3 / 256))
 
     phi1 = (
         mu
-        + (3 * e1 / 2 - 27 * e1 ** 3 / 32) * math.sin(2 * mu)
-        + (21 * e1 ** 2 / 16 - 55 * e1 ** 4 / 32) * math.sin(4 * mu)
-        + (151 * e1 ** 3 / 96) * math.sin(6 * mu)
-        + (1097 * e1 ** 4 / 512) * math.sin(8 * mu)
+        + (3 * e1 / 2 - 27 * e1**3 / 32) * math.sin(2 * mu)
+        + (21 * e1**2 / 16 - 55 * e1**4 / 32) * math.sin(4 * mu)
+        + (151 * e1**3 / 96) * math.sin(6 * mu)
+        + (1097 * e1**4 / 512) * math.sin(8 * mu)
     )
 
     N1 = WGS84_A / math.sqrt(1 - e2 * math.sin(phi1) ** 2)
@@ -217,16 +208,16 @@ def utm_to_wgs84(coord: UTMCoordinate) -> WGS84:
     D = x / (N1 * K0_UTM)
 
     lat = phi1 - (N1 * math.tan(phi1) / R1) * (
-        D ** 2 / 2
-        - (5 + 3 * T1 + 10 * C1 - 4 * C1 ** 2 - 9 * ep2) * D ** 4 / 24
-        + (61 + 90 * T1 + 298 * C1 + 45 * T1 ** 2 - 252 * ep2 - 3 * C1 ** 2) * D ** 6 / 720
+        D**2 / 2
+        - (5 + 3 * T1 + 10 * C1 - 4 * C1**2 - 9 * ep2) * D**4 / 24
+        + (61 + 90 * T1 + 298 * C1 + 45 * T1**2 - 252 * ep2 - 3 * C1**2) * D**6 / 720
     )
 
     lon0 = math.radians((coord.zone - 1) * 6 - 180 + 3)
     lon = lon0 + (
         D
-        - (1 + 2 * T1 + C1) * D ** 3 / 6
-        + (5 - 2 * C1 + 28 * T1 - 3 * C1 ** 2 + 8 * ep2 + 24 * T1 ** 2) * D ** 5 / 120
+        - (1 + 2 * T1 + C1) * D**3 / 6
+        + (5 - 2 * C1 + 28 * T1 - 3 * C1**2 + 8 * ep2 + 24 * T1**2) * D**5 / 120
     ) / math.cos(phi1)
 
     return WGS84(lon=math.degrees(lon), lat=math.degrees(lat))
@@ -235,6 +226,7 @@ def utm_to_wgs84(coord: UTMCoordinate) -> WGS84:
 # ============================================================================
 # LOCAL COORDINATE SYSTEM
 # ============================================================================
+
 
 @dataclass
 class LocalCoordinateSystem:
@@ -261,7 +253,7 @@ class LocalCoordinateSystem:
             + 0.118 * math.cos(5 * self._lat0_rad)
         )
 
-    def to_local(self, coord: WGS84) -> Tuple[float, float, float]:
+    def to_local(self, coord: WGS84) -> tuple[float, float, float]:
         """WGS84 -> yerel (x=doğu, y=kuzey, z=yükseklik) metre."""
         x = (coord.lon - self.origin.lon) * self._m_per_deg_lon
         y = (coord.lat - self.origin.lat) * self._m_per_deg_lat
@@ -298,7 +290,7 @@ def _epsg_utm_zone(zone: int, hemisphere: str) -> int:
     return base + zone
 
 
-def _utm_zone_from_epsg(epsg: int) -> Tuple[int, str]:
+def _utm_zone_from_epsg(epsg: int) -> tuple[int, str]:
     if 32601 <= epsg <= 32660:
         return epsg - 32600, "N"
     if 32701 <= epsg <= 32760:
@@ -335,9 +327,7 @@ def _to_wgs84_generic(coord, epsg: int) -> WGS84:
         return coord
     if epsg == EPSG_WEB_MERCATOR:
         if not isinstance(coord, WebMercatorCoordinate):
-            raise CoordinateSystemError(
-                "EPSG:3857 için WebMercatorCoordinate nesnesi bekleniyor"
-            )
+            raise CoordinateSystemError("EPSG:3857 için WebMercatorCoordinate nesnesi bekleniyor")
         return web_mercator_to_wgs84(coord)
     if is_known_epsg(epsg):
         zone, hemi = _utm_zone_from_epsg(epsg)

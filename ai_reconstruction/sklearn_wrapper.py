@@ -38,7 +38,6 @@ import statistics
 from dataclasses import dataclass, field
 
 from .height_model import (
-    FEATURE_NAMES,
     MLAssistedHeightPredictor,
     ModelNotTrainedError,
     _feature_vector,
@@ -101,7 +100,7 @@ class SklearnHeightModel:
     def is_trained(self) -> bool:
         return self._model is not None and self.n_training_samples > 0
 
-    def fit(self, samples: list[dict], targets: list[float]) -> "SklearnHeightModel":
+    def fit(self, samples: list[dict], targets: list[float]) -> SklearnHeightModel:
         _require_sklearn()
         if len(samples) != len(targets):
             raise ValueError("samples ve targets ayni uzunlukta olmali")
@@ -141,7 +140,7 @@ class SklearnHeightModel:
         staged = list(self._model.staged_predict(vec))  # type: ignore[union-attr]
         final_height = float(staged[-1][0])
         # Son %20'lik aşamadaki tahmin dalgalanması -> girdiye özgü belirsizlik.
-        tail = [float(s[0]) for s in staged[-max(2, len(staged) // 5):]]
+        tail = [float(s[0]) for s in staged[-max(2, len(staged) // 5) :]]
         local_spread = statistics.pstdev(tail) if len(tail) > 1 else 0.0
         uncertainty = max(self._train_residual_std, local_spread)
         return max(2.0, final_height), uncertainty
@@ -152,7 +151,8 @@ class SklearnHeightModel:
 
 
 def train_default_sklearn_model(
-    n_samples: int = 400, seed: int = 42,
+    n_samples: int = 400,
+    seed: int = 42,
 ) -> SklearnHeightModel:
     """Sentetik veri setiyle (aynı `height_model.generate_synthetic_training_set`)
     varsayılan bir `SklearnHeightModel` eğitir."""
@@ -161,7 +161,7 @@ def train_default_sklearn_model(
     return SklearnHeightModel().fit(samples, targets)
 
 
-def as_ml_assisted_predictor(model: SklearnHeightModel) -> "MLAssistedHeightPredictor":
+def as_ml_assisted_predictor(model: SklearnHeightModel) -> MLAssistedHeightPredictor:
     """`SklearnHeightModel`'i `MLAssistedHeightPredictor`'a takılabilecek
     hale getiren ince köprü — `HeightRegressionModel` ile aynı
     `predict_raw()` arayüzüne uyduğu için doğrudan enjekte edilebilir."""
@@ -190,7 +190,9 @@ class SklearnBenchmarkReport:
 
 
 def benchmark_sklearn_vs_heuristic(
-    n_train: int = 400, n_test: int = 150, seed: int = 7,
+    n_train: int = 400,
+    n_test: int = 150,
+    seed: int = 7,
 ) -> SklearnBenchmarkReport:
     """Aynı sentetik veri/held-out test seti üzerinde üç yaklaşımı
     karşılaştırır: `HeuristicPredictor`, stdlib `HeightRegressionModel`
@@ -215,8 +217,7 @@ def benchmark_sklearn_vs_heuristic(
 
     def _mae(predictor) -> float:
         errors = [
-            abs(predictor.predict(s)["height_m"] - y)
-            for s, y in zip(test_samples, test_targets)
+            abs(predictor.predict(s)["height_m"] - y) for s, y in zip(test_samples, test_targets)
         ]
         return sum(errors) / len(errors)
 

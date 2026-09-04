@@ -27,15 +27,15 @@ from __future__ import annotations
 
 import copy
 import time
-from dataclasses import dataclass, field
-from typing import Any, Callable
+from dataclasses import dataclass
+from typing import Any
 
 from ..editor.commands import EditorCommand, UndoRedoStack
-
 
 # ======================================================================== #
 # History
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class HistoryEntry:
@@ -64,8 +64,9 @@ class History:
 
     def _record(self, label: str, action: str) -> None:
         self._sequence += 1
-        self._entries.append(HistoryEntry(label=label, action=action,
-                                           timestamp=time.time(), sequence=self._sequence))
+        self._entries.append(
+            HistoryEntry(label=label, action=action, timestamp=time.time(), sequence=self._sequence)
+        )
 
     def execute(self, command: EditorCommand) -> EditorCommand:
         result = self.stack.execute(command)
@@ -107,6 +108,7 @@ class History:
 # Versioning
 # ======================================================================== #
 
+
 @dataclass(slots=True)
 class VersionSnapshot:
     """Tek bir anlık görüntü: sürüm numarası + zaman damgası + etiket +
@@ -137,8 +139,10 @@ class Versioning:
         """Verilen `state`'in derin kopyasını yeni bir sürüm olarak kaydeder
         ve döndürür."""
         snap = VersionSnapshot(
-            version=self._next_version, label=label or f"v{self._next_version}",
-            timestamp=time.time(), state=copy.deepcopy(state),
+            version=self._next_version,
+            label=label or f"v{self._next_version}",
+            timestamp=time.time(),
+            state=copy.deepcopy(state),
         )
         self._versions.append(snap)
         self._next_version += 1

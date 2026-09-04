@@ -15,7 +15,6 @@ davranışının değişmediğini) doğrular.
 from __future__ import annotations
 
 import pytest
-
 from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.mesh_engine import MeshBuilder, MeshSimplifier
 from harita.mesh_engine.progressive_mesh import ProgressiveMesh
@@ -27,9 +26,15 @@ from harita.render_engine.scene_bridge import (
 
 
 def _building_mesh():
-    poly = Polygon(points=[
-        Point2D(0, 0), Point2D(12, 0), Point2D(12, 8), Point2D(6, 12), Point2D(0, 8),
-    ])
+    poly = Polygon(
+        points=[
+            Point2D(0, 0),
+            Point2D(12, 0),
+            Point2D(12, 8),
+            Point2D(6, 12),
+            Point2D(0, 8),
+        ]
+    )
     return MeshBuilder.extrude_polygon(poly, base_z=0.0, height=6.0, name="test_building")
 
 

@@ -1,8 +1,5 @@
 """Phase 12 - AI Assistant: dogal dil -> Editor komut dispatch katmani."""
 
-from .intent import CommandIntent, IntentAction, ParseResult
-from .intent_parser import IntentParser
-from .orchestrator import AssistantOrchestrator, AssistantResult, IntentExecution
 from .dialogue import (
     BuildingRegistry,
     DialogueResult,
@@ -11,6 +8,8 @@ from .dialogue import (
     PendingClarification,
     UnknownBuildingError,
 )
+from .intent import CommandIntent, IntentAction, ParseResult
+from .intent_parser import IntentParser
 from .llm_bridge import (
     AnthropicLLMBridge,
     AnthropicLLMBridgeConfig,
@@ -18,9 +17,9 @@ from .llm_bridge import (
     make_mock_llm_fn,
 )
 from .llm_providers import (
+    DEFAULT_INTENT_SYSTEM_PROMPT,
     AnthropicConfig,
     AnthropicProvider,
-    DEFAULT_INTENT_SYSTEM_PROMPT,
     GGUFConfig,
     GGUFProvider,
     LLMCallError,
@@ -32,6 +31,7 @@ from .llm_providers import (
     intent_llm_fn,
     make_fixed_provider,
 )
+from .orchestrator import AssistantOrchestrator, AssistantResult, IntentExecution
 from .report_narrator import narrate_facade_compliance, narrate_room_compliance
 
 __all__ = [

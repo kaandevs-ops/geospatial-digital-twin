@@ -28,10 +28,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.app_shell import AppSession, build_app_router
-from harita.extensibility.rest_api import RestNotFoundError, RestResponse, RestRouter, build_default_router
-
+from harita.extensibility.rest_api import (
+    RestNotFoundError,
+    RestResponse,
+    RestRouter,
+    build_default_router,
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -73,7 +76,7 @@ def _assert_safe_response(resp: RestResponse) -> None:
         assert isinstance(resp.body, dict)
         assert resp.body.get("error") == "internal_error"
         assert "Traceback" not in str(resp.body)
-        assert "\n  File \"" not in str(resp.body)
+        assert '\n  File "' not in str(resp.body)
 
 
 # ---------------------------------------------------------------------------
@@ -194,9 +197,7 @@ class TestTypeConfusionFuzzing:
 
     def test_body_is_wrong_top_level_type_does_not_crash(self, router, project):
         for bad_body in ["a raw string", 12345, [1, 2, 3], True]:
-            resp = router.dispatch(
-                "POST", f"/api/projects/{project}/buildings", body=bad_body
-            )
+            resp = router.dispatch("POST", f"/api/projects/{project}/buildings", body=bad_body)
             _assert_safe_response(resp)
 
     def test_export_format_non_string_rejected(self, router, project):
@@ -205,16 +206,12 @@ class TestTypeConfusionFuzzing:
             f"/api/projects/{project}/buildings",
             body={"polygon": [[0, 0], [10, 0], [10, 10], [0, 10]]},
         )
-        resp = router.dispatch(
-            "POST", f"/api/projects/{project}/export", body={"format": 12345}
-        )
+        resp = router.dispatch("POST", f"/api/projects/{project}/export", body={"format": 12345})
         _assert_safe_response(resp)
         assert resp.status == 422
 
     def test_export_unknown_format_rejected(self, router, project):
-        resp = router.dispatch(
-            "POST", f"/api/projects/{project}/export", body={"format": "exe"}
-        )
+        resp = router.dispatch("POST", f"/api/projects/{project}/export", body={"format": "exe"})
         _assert_safe_response(resp)
         assert resp.status == 400
 
@@ -245,7 +242,7 @@ class TestInjectionAndTraversalFuzzing:
     SQLI_PAYLOADS = [
         "'; DROP TABLE objects; --",
         "1' OR '1'='1",
-        "\"; DELETE FROM history; --",
+        '"; DELETE FROM history; --',
     ]
     PATH_TRAVERSAL_PAYLOADS = [
         "../../../../etc/passwd",
@@ -534,7 +531,9 @@ class TestBrokenObjectLevelAuthorizationFuzzing:
         assert resp.body == {"buildings": []}
         assert str(project) not in str(resp.body)
 
-    def test_building_key_from_other_project_not_deletable_cross_project(self, router, project, tmp_path):
+    def test_building_key_from_other_project_not_deletable_cross_project(
+        self, router, project, tmp_path
+    ):
         # İkinci, ayrı bir proje oluştur ve içine bir bina ekle.
         resp2 = router.dispatch(
             "POST", "/api/projects", body={"name": "Proje2", "path": str(tmp_path / "p2.hproj")}
@@ -547,7 +546,9 @@ class TestBrokenObjectLevelAuthorizationFuzzing:
             body={"polygon": [[0, 0], [5, 0], [5, 5], [0, 5]]},
         )
         assert b2.status == 201
-        key2 = b2.body.get("key") or b2.body.get("building_key") or next(iter(b2.body.values()), None)
+        key2 = (
+            b2.body.get("key") or b2.body.get("building_key") or next(iter(b2.body.values()), None)
+        )
         # İlk projeden, ikinci projenin bina anahtarını SİLMEYE çalış -
         # cross-project bir silme işlemi asla "removed: True" dönmemeli.
         resp = router.dispatch("DELETE", f"/api/projects/{project}/buildings/{key2}")
@@ -592,7 +593,8 @@ class TestBrokenFunctionLevelAuthorizationFuzzing:
     işlemleri çağırmasını engellemeli."""
 
     def test_viewer_role_cannot_satisfy_editor_requirement(self):
-        from harita.collaboration.auth import AuthService, PermissionDeniedError as CollabPermissionError, Role
+        from harita.collaboration.auth import AuthService, Role
+        from harita.collaboration.auth import PermissionDeniedError as CollabPermissionError
 
         auth = AuthService()
         auth.grant_role("proje-1", "user-1", Role.VIEWER)
@@ -600,7 +602,8 @@ class TestBrokenFunctionLevelAuthorizationFuzzing:
             auth.require_role("proje-1", "user-1", at_least=Role.EDITOR)
 
     def test_no_role_at_all_cannot_satisfy_any_requirement(self):
-        from harita.collaboration.auth import AuthService, PermissionDeniedError as CollabPermissionError, Role
+        from harita.collaboration.auth import AuthService, Role
+        from harita.collaboration.auth import PermissionDeniedError as CollabPermissionError
 
         auth = AuthService()
         with pytest.raises(CollabPermissionError):
@@ -684,9 +687,11 @@ def test_acceptance_criterion_at_least_20_fuzz_scenarios_collected(request):
     toplam test sayısını sayıp doğrular (bu fonksiyonun kendisi hariç)."""
     session_ = request.session
     this_file = Path(__file__).name
-    collected = [
-        item for item in session_.items if this_file in str(item.fspath)
-    ] if hasattr(session_, "items") else []
+    collected = (
+        [item for item in session_.items if this_file in str(item.fspath)]
+        if hasattr(session_, "items")
+        else []
+    )
     # `session.items` toplama fazının sonunda dolu olmayabilir (bu test
     # collection sırasında henüz tamamlanmamış olabilir); bu yüzden asıl
     # kabul kanıtı statik olarak da doğrulanabilir bir sayıma dayanır:

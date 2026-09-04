@@ -19,35 +19,46 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from harita.core_engine.geometry_engine import Point2D, Polygon
-from harita.mesh_engine import Mesh3D, Vertex3D
+from harita.export.citygml_export import _NS, CityGMLExporter
 from harita.export.cityjson_export import (
     CityBuilding,
+    CityJSONExporter,
     CityModel,
     CityModelValidationError,
-    CityJSONExporter,
 )
-from harita.export.citygml_export import CityGMLExporter, _NS
+from harita.mesh_engine import Mesh3D, Vertex3D
 
 
 def _rect_footprint(w: float = 10.0, d: float = 6.0) -> Polygon:
-    return Polygon(points=[
-        Point2D(0.0, 0.0), Point2D(w, 0.0), Point2D(w, d), Point2D(0.0, d),
-    ])
+    return Polygon(
+        points=[
+            Point2D(0.0, 0.0),
+            Point2D(w, 0.0),
+            Point2D(w, d),
+            Point2D(0.0, d),
+        ]
+    )
 
 
-def _gable_roof_mesh(w: float = 10.0, d: float = 6.0, eave_z: float = 6.0, ridge_z: float = 8.0) -> Mesh3D:
+def _gable_roof_mesh(
+    w: float = 10.0, d: float = 6.0, eave_z: float = 6.0, ridge_z: float = 8.0
+) -> Mesh3D:
     """Basit bir beşik çatı - 2 üçgenden oluşan minimal test mesh'i."""
     verts = [
-        Vertex3D(0.0, 0.0, eave_z),   # 0
-        Vertex3D(w, 0.0, eave_z),     # 1
-        Vertex3D(w, d, eave_z),       # 2
-        Vertex3D(0.0, d, eave_z),     # 3
+        Vertex3D(0.0, 0.0, eave_z),  # 0
+        Vertex3D(w, 0.0, eave_z),  # 1
+        Vertex3D(w, d, eave_z),  # 2
+        Vertex3D(0.0, d, eave_z),  # 3
         Vertex3D(w / 2, 0.0, ridge_z),  # 4 - ön mahya
-        Vertex3D(w / 2, d, ridge_z),    # 5 - arka mahya
+        Vertex3D(w / 2, d, ridge_z),  # 5 - arka mahya
     ]
     triangles = [
-        (0, 1, 4), (1, 2, 5), (1, 5, 4),
-        (0, 4, 5), (0, 5, 3), (3, 5, 2),
+        (0, 1, 4),
+        (1, 2, 5),
+        (1, 5, 4),
+        (0, 4, 5),
+        (0, 5, 3),
+        (3, 5, 2),
     ]
     return Mesh3D(vertices=verts, triangles=triangles, name="gable_roof")
 
@@ -77,10 +88,15 @@ class TestCityBuildingValidation:
 class TestCityJSONExport:
     def test_lod1_export_structure(self, tmp_path):
         model = CityModel(crs_name="EPSG:32635")
-        model.add(CityBuilding(
-            building_id="Building_1", footprint=_rect_footprint(), height=9.0,
-            year_of_construction=2010, function="1000",
-        ))
+        model.add(
+            CityBuilding(
+                building_id="Building_1",
+                footprint=_rect_footprint(),
+                height=9.0,
+                year_of_construction=2010,
+                function="1000",
+            )
+        )
         out = tmp_path / "city_lod1.city.json"
         result = CityJSONExporter.export(model, str(out))
 
@@ -105,10 +121,15 @@ class TestCityJSONExport:
 
     def test_lod2_export_uses_roof_mesh(self, tmp_path):
         model = CityModel()
-        model.add(CityBuilding(
-            building_id="Building_2", footprint=_rect_footprint(), height=8.0,
-            eave_height=6.0, roof_mesh=_gable_roof_mesh(),
-        ))
+        model.add(
+            CityBuilding(
+                building_id="Building_2",
+                footprint=_rect_footprint(),
+                height=8.0,
+                eave_height=6.0,
+                roof_mesh=_gable_roof_mesh(),
+            )
+        )
         out = tmp_path / "city_lod2.city.json"
         CityJSONExporter.export(model, str(out))
         data = json.loads(out.read_text(encoding="utf-8"))
@@ -135,9 +156,17 @@ class TestCityJSONExport:
 
     def test_validate_structure_detects_missing_fields(self):
         assert CityJSONExporter.validate_structure({}) != []
-        assert CityJSONExporter.validate_structure({
-            "type": "CityJSON", "version": "1.1", "CityObjects": {}, "vertices": [],
-        }) == []
+        assert (
+            CityJSONExporter.validate_structure(
+                {
+                    "type": "CityJSON",
+                    "version": "1.1",
+                    "CityObjects": {},
+                    "vertices": [],
+                }
+            )
+            == []
+        )
 
 
 class TestCityGMLExport:
@@ -164,10 +193,15 @@ class TestCityGMLExport:
 
     def test_lod2_export_includes_bounded_by_surfaces(self, tmp_path):
         model = CityModel()
-        model.add(CityBuilding(
-            building_id="Building_2", footprint=_rect_footprint(), height=8.0,
-            eave_height=6.0, roof_mesh=_gable_roof_mesh(),
-        ))
+        model.add(
+            CityBuilding(
+                building_id="Building_2",
+                footprint=_rect_footprint(),
+                height=8.0,
+                eave_height=6.0,
+                roof_mesh=_gable_roof_mesh(),
+            )
+        )
         out = tmp_path / "city_lod2.gml"
         CityGMLExporter.export(model, str(out))
 
@@ -181,7 +215,9 @@ class TestCityGMLExport:
 
         roof_surfaces = building.findall(f"{{{_NS['bldg']}}}boundedBy/{{{_NS['bldg']}}}RoofSurface")
         wall_surfaces = building.findall(f"{{{_NS['bldg']}}}boundedBy/{{{_NS['bldg']}}}WallSurface")
-        ground_surfaces = building.findall(f"{{{_NS['bldg']}}}boundedBy/{{{_NS['bldg']}}}GroundSurface")
+        ground_surfaces = building.findall(
+            f"{{{_NS['bldg']}}}boundedBy/{{{_NS['bldg']}}}GroundSurface"
+        )
         assert len(roof_surfaces) == 6  # gable roof üçgen sayısı
         assert len(wall_surfaces) == 4
         assert len(ground_surfaces) == 1

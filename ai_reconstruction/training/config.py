@@ -20,7 +20,7 @@ gerektirmez.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Literal
 
@@ -44,7 +44,13 @@ class TrainingConfig:
     # --- Görev ---
     task: TaskType = "height_regression"
     roof_types: tuple[str, ...] = (
-        "flat", "gable", "hip", "mansard", "shed", "gambrel", "dome",
+        "flat",
+        "gable",
+        "hip",
+        "mansard",
+        "shed",
+        "gambrel",
+        "dome",
     )
 
     # --- Model / mod ---
@@ -83,7 +89,7 @@ class TrainingConfig:
         Path(path).write_text(json.dumps(asdict(self), indent=2, ensure_ascii=False))
 
     @classmethod
-    def from_json(cls, path: str | Path) -> "TrainingConfig":
+    def from_json(cls, path: str | Path) -> TrainingConfig:
         data = json.loads(Path(path).read_text())
         if "image_size" in data:
             data["image_size"] = tuple(data["image_size"])

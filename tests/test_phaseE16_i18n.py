@@ -6,20 +6,21 @@ arasinda gecis yapilabilir (bu test dosyasi Python tarafini dogrular; HTML
 tarafi statik olarak `app_shell/web/index.html` icinde `data-i18n` /
 `I18N` JS tablosu ile saglanir - bkz. dosyanin kendisi).
 """
+
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from harita.ai_assistant import IntentAction, IntentParser
 from harita.i18n import (
-    SUPPORTED_LANGUAGES,
     DEFAULT_LANGUAGE,
+    SUPPORTED_LANGUAGES,
     TRANSLATIONS,
-    translate,
     Translator,
     detect_language,
+    translate,
 )
-from harita.ai_assistant import IntentParser, IntentAction
 
 
 def test_supported_languages_and_default():
@@ -84,6 +85,7 @@ def test_detect_language_defaults_to_turkish_on_empty_or_ambiguous():
 
 # -- Kabul kriteri: iki dilde ayni komut, ayni CommandIntent -------------- #
 
+
 def test_add_floor_same_intent_both_languages():
     parser = IntentParser()
     tr_result = parser.parse("bir kat ekle")
@@ -106,7 +108,11 @@ def test_change_roof_english_matches_turkish_semantics():
     en_result = parser.parse("change the roof to flat")
     assert tr_result.intents[0].action == IntentAction.CHANGE_ROOF
     assert en_result.intents[0].action == IntentAction.CHANGE_ROOF
-    assert tr_result.intents[0].parameters["roof_type"] == en_result.intents[0].parameters["roof_type"] == "flat"
+    assert (
+        tr_result.intents[0].parameters["roof_type"]
+        == en_result.intents[0].parameters["roof_type"]
+        == "flat"
+    )
 
 
 def test_change_facade_english():
@@ -166,8 +172,13 @@ def test_turkish_rules_still_take_priority_and_are_unaffected():
 
 if __name__ == "__main__":
     import inspect
+
     mod = sys.modules[__name__]
-    tests = [obj for name, obj in vars(mod).items() if name.startswith("test_") and inspect.isfunction(obj)]
+    tests = [
+        obj
+        for name, obj in vars(mod).items()
+        if name.startswith("test_") and inspect.isfunction(obj)
+    ]
     passed = failed = 0
     for fn in tests:
         try:

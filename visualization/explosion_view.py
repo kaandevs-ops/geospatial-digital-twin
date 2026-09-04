@@ -11,7 +11,7 @@ Z ekseninde aralıklı ötelenmiş bir sahne.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from ..mesh_engine import Mesh3D, Vertex3D
 
@@ -19,6 +19,7 @@ from ..mesh_engine import Mesh3D, Vertex3D
 @dataclass(slots=True)
 class FloorBand:
     """Bir katın mesh'te kapladığı Z aralığı [z_min, z_max)."""
+
     level: int
     z_min: float
     z_max: float

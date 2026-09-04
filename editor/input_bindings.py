@@ -28,12 +28,12 @@ Blender-tarzı mod kısayolları, W/E/R gibi Unity-tarzı gizmo seçimi).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Callable
 
 from .commands import EditorCommand, FunctionCommand, UndoRedoStack
-from .gizmo import AXES, RotateGizmo, ScaleGizmo, TranslateGizmo, Ray
+from .gizmo import AXES, Ray, RotateGizmo, ScaleGizmo, TranslateGizmo
 from .object_editor import SceneNode, Vec3
 
 
@@ -48,6 +48,7 @@ class GizmoMode(Enum):
 # ============================================================================ #
 # Mouse Event'leri (render/DOM-bağımsız soyutlama)
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class MouseDownEvent:
@@ -74,6 +75,7 @@ class MouseUpEvent:
 # GizmoInputSession
 # ============================================================================ #
 
+
 class GizmoInputSession:
     """Roadmap V3 / Faz D5 kabul kriteri (A8): "mouse down gizmo-x
     ekseni üstünde -> 5 birim sürükle -> mouse up" senaryosunda nesnenin
@@ -88,8 +90,9 @@ class GizmoInputSession:
         command = session.on_mouse_up(MouseUpEvent())     # tek undo adımı
     """
 
-    def __init__(self, node: SceneNode, mode: GizmoMode,
-                 undo_stack: UndoRedoStack | None = None) -> None:
+    def __init__(
+        self, node: SceneNode, mode: GizmoMode, undo_stack: UndoRedoStack | None = None
+    ) -> None:
         self.node = node
         self.mode = mode
         self.undo_stack = undo_stack
@@ -128,7 +131,10 @@ class GizmoInputSession:
 
         if self.mode is GizmoMode.TRANSLATE:
             delta_scalar = TranslateGizmo.axis_drag_delta(
-                self._gizmo_origin, self._axis, self._start_ray, event.ray,
+                self._gizmo_origin,
+                self._axis,
+                self._start_ray,
+                event.ray,
             )
             self.node.position = Vec3(
                 self._start_position.x + axis_vec[0] * delta_scalar,
@@ -137,7 +143,10 @@ class GizmoInputSession:
             )
         elif self.mode is GizmoMode.ROTATE:
             angle_deg = RotateGizmo.axis_drag_angle_deg(
-                self._gizmo_origin, self._axis, self._start_ray, event.ray,
+                self._gizmo_origin,
+                self._axis,
+                self._start_ray,
+                event.ray,
             )
             self.node.rotation_deg = Vec3(
                 self._start_rotation.x + axis_vec[0] * angle_deg,
@@ -146,13 +155,14 @@ class GizmoInputSession:
             )
         else:  # SCALE
             factor = ScaleGizmo.axis_drag_factor(
-                self._gizmo_origin, self._axis, self._start_ray, event.ray,
+                self._gizmo_origin,
+                self._axis,
+                self._start_ray,
+                event.ray,
             )
             # Yalnızca seçilen eksen ölçeklenir; diğer eksenler 1.0 çarpanı
             # alır (tek-eksenli scale handle davranışı - standart DCC).
-            per_axis_factor = tuple(
-                1.0 + (factor - 1.0) * axis_vec[i] for i in range(3)
-            )
+            per_axis_factor = tuple(1.0 + (factor - 1.0) * axis_vec[i] for i in range(3))
             self.node.scale = Vec3(
                 self._start_scale.x * per_axis_factor[0],
                 self._start_scale.y * per_axis_factor[1],
@@ -216,6 +226,7 @@ class GizmoInputSession:
 # Klavye Kısayolları
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class KeyBindingRegistry:
     """Basit, genişletilebilir klavye kısayolu -> eylem eşlemesi.
@@ -245,7 +256,7 @@ class KeyBindingRegistry:
         cls,
         set_mode: Callable[[GizmoMode], None],
         undo_stack: UndoRedoStack,
-    ) -> "KeyBindingRegistry":
+    ) -> KeyBindingRegistry:
         registry = cls()
         registry.bind("g", lambda: set_mode(GizmoMode.TRANSLATE))
         registry.bind("r", lambda: set_mode(GizmoMode.ROTATE))

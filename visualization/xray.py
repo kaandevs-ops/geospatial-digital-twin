@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ..mesh_engine import Mesh3D, Vertex3D
+from ..mesh_engine import Mesh3D
 
 
 @dataclass(slots=True)
@@ -48,14 +48,18 @@ def occlusion_ratio(mesh: Mesh3D, view_point: tuple[float, float, float]) -> flo
     cx = sum(v.x for v in mesh.vertices) / len(mesh.vertices)
     cy = sum(v.y for v in mesh.vertices) / len(mesh.vertices)
     cz = sum(v.z for v in mesh.vertices) / len(mesh.vertices)
-    center_dist = ((view_point[0] - cx) ** 2 + (view_point[1] - cy) ** 2 + (view_point[2] - cz) ** 2) ** 0.5
+    center_dist = (
+        (view_point[0] - cx) ** 2 + (view_point[1] - cy) ** 2 + (view_point[2] - cz) ** 2
+    ) ** 0.5
 
     closer = 0
     for tri in mesh.triangles:
         tx = sum(mesh.vertices[i].x for i in tri) / 3
         ty = sum(mesh.vertices[i].y for i in tri) / 3
         tz = sum(mesh.vertices[i].z for i in tri) / 3
-        d = ((view_point[0] - tx) ** 2 + (view_point[1] - ty) ** 2 + (view_point[2] - tz) ** 2) ** 0.5
+        d = (
+            (view_point[0] - tx) ** 2 + (view_point[1] - ty) ** 2 + (view_point[2] - tz) ** 2
+        ) ** 0.5
         if d < center_dist:
             closer += 1
     return closer / len(mesh.triangles)

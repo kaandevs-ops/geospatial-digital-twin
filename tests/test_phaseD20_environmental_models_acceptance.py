@@ -9,6 +9,7 @@ izlenebilir bir test dosyasıyla karşılar. Ayrıca D4'ün tam SPA'sıyla gölg
 izdüşümü entegrasyonunu (güneş açısı -> `ShadowProjection`) ayrı bir
 doğrulamayla kapatır.
 """
+
 from __future__ import annotations
 
 import math
@@ -16,7 +17,6 @@ from datetime import datetime, timezone
 
 from harita.analysis_engine.environmental_sim import (
     GaussianPlumeSimulation,
-    PasquillGiffordStability,
 )
 from harita.analysis_engine.sun_simulation import ShadowProjection
 from harita.core_engine.coordinate_systems import GeoPoint
@@ -33,7 +33,7 @@ def _analytic_ground_level_centerline(
     elle yazılmış hâli. `GaussianPlumeSimulation`'ın herhangi bir iç
     metoduna atıfta bulunmaz - iki bağımsız kod yolu karşılaştırılır.
     """
-    return (Q / (math.pi * u * sigma_y * sigma_z)) * math.exp(-(H ** 2) / (2.0 * sigma_z ** 2))
+    return (Q / (math.pi * u * sigma_y * sigma_z)) * math.exp(-(H**2) / (2.0 * sigma_z**2))
 
 
 class TestD20GaussianPlumeAnalyticAcceptance:
@@ -48,11 +48,16 @@ class TestD20GaussianPlumeAnalyticAcceptance:
         x = 1000.0  # m downwind
 
         sigma_y, sigma_z = GaussianPlumeSimulation.dispersion_coefficients(x, stability)
-        analytic = _analytic_ground_level_centerline(Q=Q, u=u, H=H, sigma_y=sigma_y, sigma_z=sigma_z)
+        analytic = _analytic_ground_level_centerline(
+            Q=Q, u=u, H=H, sigma_y=sigma_y, sigma_z=sigma_z
+        )
 
         model = GaussianPlumeSimulation.ground_level_centerline_concentration(
-            emission_rate=Q, wind_speed_mps=u, stack_height_m=H,
-            stability_class=stability, downwind_x_m=x,
+            emission_rate=Q,
+            wind_speed_mps=u,
+            stack_height_m=H,
+            stability_class=stability,
+            downwind_x_m=x,
         )
 
         rel_error = abs(model - analytic) / analytic
@@ -77,13 +82,20 @@ class TestD20GaussianPlumeAnalyticAcceptance:
         Q, u, H, stability, x = 80.0, 3.5, 25.0, "C", 500.0
 
         general = GaussianPlumeSimulation.concentration_at(
-            emission_rate=Q, wind_speed_mps=u, stack_height_m=H,
-            stability_class=stability, downwind_x_m=x,
-            crosswind_y_m=0.0, receptor_height_m=0.0,
+            emission_rate=Q,
+            wind_speed_mps=u,
+            stack_height_m=H,
+            stability_class=stability,
+            downwind_x_m=x,
+            crosswind_y_m=0.0,
+            receptor_height_m=0.0,
         )
         shortcut = GaussianPlumeSimulation.ground_level_centerline_concentration(
-            emission_rate=Q, wind_speed_mps=u, stack_height_m=H,
-            stability_class=stability, downwind_x_m=x,
+            emission_rate=Q,
+            wind_speed_mps=u,
+            stack_height_m=H,
+            stability_class=stability,
+            downwind_x_m=x,
         )
         rel_error = abs(general.concentration - shortcut) / shortcut
         assert rel_error < 1e-9
@@ -92,8 +104,12 @@ class TestD20GaussianPlumeAnalyticAcceptance:
         """Fiziksel makullük: rüzgara dik mesafe arttıkça konsantrasyon
         azalmalı (Gaussian dağılımın merkez-tepe özelliği)."""
         common = dict(
-            emission_rate=100.0, wind_speed_mps=5.0, stack_height_m=20.0,
-            stability_class="D", downwind_x_m=800.0, receptor_height_m=0.0,
+            emission_rate=100.0,
+            wind_speed_mps=5.0,
+            stack_height_m=20.0,
+            stability_class="D",
+            downwind_x_m=800.0,
+            receptor_height_m=0.0,
         )
         c0 = GaussianPlumeSimulation.concentration_at(crosswind_y_m=0.0, **common).concentration
         c50 = GaussianPlumeSimulation.concentration_at(crosswind_y_m=50.0, **common).concentration
@@ -105,10 +121,14 @@ class TestD20GaussianPlumeAnalyticAcceptance:
         girdi (rüzgar hızı <= 0) sessizce yanlış/sonsuz bir sayı üretmez,
         açık hata fırlatır."""
         import pytest
+
         with pytest.raises(ValueError):
             GaussianPlumeSimulation.ground_level_centerline_concentration(
-                emission_rate=10.0, wind_speed_mps=0.0, stack_height_m=20.0,
-                stability_class="D", downwind_x_m=500.0,
+                emission_rate=10.0,
+                wind_speed_mps=0.0,
+                stack_height_m=20.0,
+                stability_class="D",
+                downwind_x_m=500.0,
             )
 
 
@@ -121,9 +141,14 @@ class TestD4SolarPositionShadowProjectionIntegration:
         gölge poligonunun merkezi de tutarlı biçimde kayar - gölgenin
         güneşin tam karşı yönüne düştüğü fiziksel ilkesi doğrulanır."""
         ankara = GeoPoint(lat=39.9334, lon=32.8597)
-        footprint = Polygon(points=[
-            Point2D(0, 0), Point2D(10, 0), Point2D(10, 10), Point2D(0, 10),
-        ])
+        footprint = Polygon(
+            points=[
+                Point2D(0, 0),
+                Point2D(10, 0),
+                Point2D(10, 10),
+                Point2D(0, 10),
+            ]
+        )
         building_height = 20.0
 
         # Sabah ve öğleden sonra - güneş azimutu belirgin şekilde farklı,
@@ -135,7 +160,9 @@ class TestD4SolarPositionShadowProjectionIntegration:
         sun_afternoon = SolarPositionCalculator.compute(ankara, afternoon)
 
         shadow_morning = ShadowProjection.project_footprint(footprint, building_height, sun_morning)
-        shadow_afternoon = ShadowProjection.project_footprint(footprint, building_height, sun_afternoon)
+        shadow_afternoon = ShadowProjection.project_footprint(
+            footprint, building_height, sun_afternoon
+        )
 
         assert shadow_morning is not None and shadow_afternoon is not None
 
@@ -161,9 +188,14 @@ class TestD4SolarPositionShadowProjectionIntegration:
         """Gece (güneş ufkun altında) gölge tanımsızdır - D4 SPA'nın
         `is_daylight` bayrağı ShadowProjection'a doğru aktarılıyor mu?"""
         ankara = GeoPoint(lat=39.9334, lon=32.8597)
-        footprint = Polygon(points=[
-            Point2D(0, 0), Point2D(5, 0), Point2D(5, 5), Point2D(0, 5),
-        ])
+        footprint = Polygon(
+            points=[
+                Point2D(0, 0),
+                Point2D(5, 0),
+                Point2D(5, 5),
+                Point2D(0, 5),
+            ]
+        )
         midnight = datetime(2026, 1, 15, 0, 0, tzinfo=timezone.utc)
         sun = SolarPositionCalculator.compute(ankara, midnight)
         assert not sun.is_daylight

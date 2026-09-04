@@ -9,6 +9,7 @@ render yok) — amaçladığı şey aynıdır: geometri üretim kodundaki bir
 regresyonu (kayıp üçgen, yeni non-manifold kenar, kat hizalama kayması)
 görsel/fark testi hiç çalıştırmadan yakalamak.
 """
+
 from __future__ import annotations
 
 import json
@@ -36,15 +37,22 @@ def test_gecerli_geometri_baseline_ile_uyusuyor():
     current = build_signature()
     problems = compare(current, baseline)
     assert not problems, (
-        "Görsel/yapısal regresyon tespit edildi:\n" + "\n".join(problems) +
-        "\n\nBeklenen bir değişiklikse: python3 scripts/visual_regression.py --update-baseline"
+        "Görsel/yapısal regresyon tespit edildi:\n"
+        + "\n".join(problems)
+        + "\n\nBeklenen bir değişiklikse: python3 scripts/visual_regression.py --update-baseline"
     )
 
 
-@pytest.mark.parametrize("case_name", [
-    "dikdortgen_apartman", "l_sekli_ofis", "u_sekli_okul",
-    "duzensiz_villa", "kare_depo",
-])
+@pytest.mark.parametrize(
+    "case_name",
+    [
+        "dikdortgen_apartman",
+        "l_sekli_ofis",
+        "u_sekli_okul",
+        "duzensiz_villa",
+        "kare_depo",
+    ],
+)
 def test_demo_case_watertight_ve_manifold_degil_beklenen_durumda(case_name):
     """Her demo case'in en azından manifold olduğunu tek tek doğrular —
     toplu karşılaştırma testinden bağımsız, daha okunabilir bir hata

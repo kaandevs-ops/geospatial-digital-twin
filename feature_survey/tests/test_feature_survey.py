@@ -1,13 +1,16 @@
 import csv
 
 import pytest
-
+from harita.core_engine.coordinate_systems import GeoPoint
+from harita.feature_survey.bridge import session_to_geofeatures, session_to_wgs84_geofeatures
 from harita.feature_survey.codes import FeatureCategory, FeatureCode
 from harita.feature_survey.field_point import FieldPoint, FieldSurveySession
 from harita.feature_survey.io_import import PENZDImportError, import_penzd_csv
-from harita.core_engine.coordinate_systems import GeoPoint
-from harita.feature_survey.bridge import session_to_geofeatures, session_to_wgs84_geofeatures
-from harita.feature_survey.pipeline import MeshroomPipeline, WebODMPipeline, ExternalToolNotAvailableError
+from harita.feature_survey.pipeline import (
+    ExternalToolNotAvailableError,
+    MeshroomPipeline,
+    WebODMPipeline,
+)
 
 
 def test_feature_code_category_and_geometry_hint():
@@ -85,9 +88,7 @@ def test_meshroom_not_available_raises():
 def test_webodm_build_multipart_contains_fields_and_files(tmp_path):
     img = tmp_path / "photo1.jpg"
     img.write_bytes(b"\xff\xd8\xff\xe0fakejpegdata")
-    body, content_type = WebODMPipeline._build_multipart(
-        {"name": "demo"}, [("images", img)]
-    )
+    body, content_type = WebODMPipeline._build_multipart({"name": "demo"}, [("images", img)])
     assert content_type.startswith("multipart/form-data; boundary=")
     boundary = content_type.split("boundary=")[1]
     assert boundary.encode() in body

@@ -4,22 +4,23 @@
 (heatmap->sahne bağlantısı) -> 5.4 (günlük rutin görsel etiketi) -> 5.5
 (trafik sahne karesi) -> 5.6 (ses/işitsel katman) kapsar.
 """
+
 from __future__ import annotations
 
 from harita.core_engine.geometry_engine import Point2D
 from harita.hazard_data.fire_spread import FireSpreadModel
+from harita.mobility.crowd_simulation.agent_visuals import CrowdPressureLevel
 from harita.mobility.emergency_response import (
     DispatchResult,
     EmergencyStation,
     EmergencyUnitType,
 )
 from harita.mobility.pathfinding import NavGraph, PathResult
-from harita.mobility.traffic_simulation import TrafficAgent, VehicleType, GreenshieldsModel
-from harita.mobility.crowd_simulation.agent_visuals import CrowdPressureLevel
+from harita.mobility.traffic_simulation import GreenshieldsModel, TrafficAgent, VehicleType
 from harita.population.synthetic_population import DailyRoutineType
 from harita.render_engine.scene_bridge import Scene
+from harita.visualization.heatmap_overlay import crowd_heatmap_overlay
 from harita.visualization.scenario_visual_bridge import (
-    FacadeFireSprite,
     FireSpriteKind,
     RoutineVisualState,
     VehicleSpeedTint,
@@ -29,11 +30,10 @@ from harita.visualization.scenario_visual_bridge import (
     fire_facade_overlay,
     traffic_vehicle_scene_frame,
 )
-from harita.visualization.heatmap_overlay import crowd_heatmap_overlay
 from harita.visualization.spatial_audio import (
+    SCENARIO_SOUND_SIGNATURE,
     CrowdAmbienceLayer,
     PositionalAudioSource,
-    SCENARIO_SOUND_SIGNATURE,
     ScenarioKind,
     SoundEffectId,
     crowd_ambience_mix,
@@ -41,10 +41,10 @@ from harita.visualization.spatial_audio import (
     trigger_event_sound,
 )
 
-
 # --------------------------------------------------------------------------- #
 # 5.1 — Yangın -> cephe overlay
 # --------------------------------------------------------------------------- #
+
 
 class TestFaz5_1FireFacadeOverlay:
     def _model(self) -> FireSpreadModel:
@@ -53,7 +53,9 @@ class TestFaz5_1FireFacadeOverlay:
     def test_clear_cells_produce_no_sprite(self):
         model = self._model()
         sprites = fire_facade_overlay(
-            model, "b1", cell_to_world=lambda c: Point2D(c[0], c[1]),
+            model,
+            "b1",
+            cell_to_world=lambda c: Point2D(c[0], c[1]),
         )
         # yalnızca ignition hücresi (FIRE) sprite üretir, geri kalan CLEAR
         assert len(sprites) == 1
@@ -63,7 +65,9 @@ class TestFaz5_1FireFacadeOverlay:
         model = self._model()
         model.run(duration_s=6.0, dt=1.0)
         sprites = fire_facade_overlay(
-            model, "b1", cell_to_world=lambda c: Point2D(c[0], c[1]),
+            model,
+            "b1",
+            cell_to_world=lambda c: Point2D(c[0], c[1]),
         )
         kinds = {s.kind for s in sprites}
         assert FireSpriteKind.FLAME in kinds
@@ -72,8 +76,11 @@ class TestFaz5_1FireFacadeOverlay:
     def test_floor_mapping_sets_height(self):
         model = self._model()
         sprites = fire_facade_overlay(
-            model, "b1", cell_to_world=lambda c: Point2D(c[0], c[1]),
-            floor_height_m=3.0, cell_to_floor=lambda c: 2,
+            model,
+            "b1",
+            cell_to_world=lambda c: Point2D(c[0], c[1]),
+            floor_height_m=3.0,
+            cell_to_floor=lambda c: 2,
         )
         assert all(s.height_m == 6.0 for s in sprites)
 
@@ -86,6 +93,7 @@ class TestFaz5_1FireFacadeOverlay:
 # --------------------------------------------------------------------------- #
 # 5.2 — Acil müdahale -> ikon + rota
 # --------------------------------------------------------------------------- #
+
 
 class TestFaz5_2EmergencyVehicleFrame:
     def _graph(self) -> NavGraph:
@@ -100,14 +108,20 @@ class TestFaz5_2EmergencyVehicleFrame:
     def test_found_dispatch_produces_polyline(self):
         graph = self._graph()
         station = EmergencyStation(
-            station_id="s1", node_id="station", position=Point2D(0.0, 0.0),
+            station_id="s1",
+            node_id="station",
+            position=Point2D(0.0, 0.0),
             unit_types=frozenset({EmergencyUnitType.FIRE_TRUCK}),
         )
-        path_result = PathResult(path=["station", "mid", "incident"], cost=10.0,
-                                  expanded_nodes=3, found=True)
+        path_result = PathResult(
+            path=["station", "mid", "incident"], cost=10.0, expanded_nodes=3, found=True
+        )
         dispatch = DispatchResult(
-            station=station, unit_type=EmergencyUnitType.FIRE_TRUCK,
-            path_result=path_result, estimated_response_seconds=42.0, found=True,
+            station=station,
+            unit_type=EmergencyUnitType.FIRE_TRUCK,
+            path_result=path_result,
+            estimated_response_seconds=42.0,
+            found=True,
         )
         frame = emergency_vehicle_icon_frame(dispatch, node_to_world=lambda n: graph.positions[n])
         assert frame.found is True
@@ -116,13 +130,18 @@ class TestFaz5_2EmergencyVehicleFrame:
 
     def test_not_found_dispatch_produces_empty_polyline(self):
         station = EmergencyStation(
-            station_id="s1", node_id="station", position=Point2D(0.0, 0.0),
+            station_id="s1",
+            node_id="station",
+            position=Point2D(0.0, 0.0),
             unit_types=frozenset({EmergencyUnitType.AMBULANCE}),
         )
         path_result = PathResult(path=[], cost=0.0, expanded_nodes=0, found=False)
         dispatch = DispatchResult(
-            station=station, unit_type=EmergencyUnitType.AMBULANCE,
-            path_result=path_result, estimated_response_seconds=float("inf"), found=False,
+            station=station,
+            unit_type=EmergencyUnitType.AMBULANCE,
+            path_result=path_result,
+            estimated_response_seconds=float("inf"),
+            found=False,
         )
         frame = emergency_vehicle_icon_frame(dispatch, node_to_world=lambda n: Point2D(0.0, 0.0))
         assert frame.found is False
@@ -132,6 +151,7 @@ class TestFaz5_2EmergencyVehicleFrame:
 # --------------------------------------------------------------------------- #
 # 5.3 — Heatmap -> sahne bağlantısı
 # --------------------------------------------------------------------------- #
+
 
 class TestFaz5_3HeatmapSceneBinding:
     def test_empty_heatmap_produces_empty_layer(self):
@@ -160,32 +180,50 @@ class TestFaz5_3HeatmapSceneBinding:
 # 5.4 — Sentetik nüfus günlük rutini -> görsel etiket
 # --------------------------------------------------------------------------- #
 
+
 class TestFaz5_4DailyRoutineVisualTag:
     def test_office_worker_commutes_in_morning(self):
-        assert daily_routine_visual_tag(DailyRoutineType.WORKER_OFFICE, 8) == RoutineVisualState.COMMUTING
+        assert (
+            daily_routine_visual_tag(DailyRoutineType.WORKER_OFFICE, 8)
+            == RoutineVisualState.COMMUTING
+        )
 
     def test_office_worker_at_work_midday(self):
-        assert daily_routine_visual_tag(DailyRoutineType.WORKER_OFFICE, 12) == RoutineVisualState.AT_WORK_OR_SCHOOL
+        assert (
+            daily_routine_visual_tag(DailyRoutineType.WORKER_OFFICE, 12)
+            == RoutineVisualState.AT_WORK_OR_SCHOOL
+        )
 
     def test_office_worker_at_home_at_night(self):
-        assert daily_routine_visual_tag(DailyRoutineType.WORKER_OFFICE, 23) == RoutineVisualState.AT_HOME
+        assert (
+            daily_routine_visual_tag(DailyRoutineType.WORKER_OFFICE, 23)
+            == RoutineVisualState.AT_HOME
+        )
 
     def test_retired_always_at_home(self):
         for hour in (8, 12, 18, 2):
-            assert daily_routine_visual_tag(DailyRoutineType.RETIRED, hour) == RoutineVisualState.AT_HOME
+            assert (
+                daily_routine_visual_tag(DailyRoutineType.RETIRED, hour)
+                == RoutineVisualState.AT_HOME
+            )
 
     def test_hour_wraps_modulo_24(self):
-        assert daily_routine_visual_tag(DailyRoutineType.WORKER_OFFICE, 8 + 24) == RoutineVisualState.COMMUTING
+        assert (
+            daily_routine_visual_tag(DailyRoutineType.WORKER_OFFICE, 8 + 24)
+            == RoutineVisualState.COMMUTING
+        )
 
 
 # --------------------------------------------------------------------------- #
 # 5.5 — Trafik/araç sahne karesi
 # --------------------------------------------------------------------------- #
 
+
 class TestFaz5_5TrafficVehicleSceneFrame:
     def _agent(self, speed: float) -> TrafficAgent:
         agent = TrafficAgent(
-            agent_id=1, vehicle_type=VehicleType.ARAC,
+            agent_id=1,
+            vehicle_type=VehicleType.ARAC,
             route_nodes=["a", "b"],
             route_positions=[Point2D(0.0, 0.0), Point2D(10.0, 0.0)],
         )
@@ -217,6 +255,7 @@ class TestFaz5_5TrafficVehicleSceneFrame:
 # --------------------------------------------------------------------------- #
 # 5.6 — Ses/işitsel katman
 # --------------------------------------------------------------------------- #
+
 
 class TestFaz5_6SpatialAudio:
     def test_no_events_when_nothing_triggered(self):
@@ -278,10 +317,12 @@ class TestFaz5_6SpatialAudio:
         source = PositionalAudioSource(position=(1.0, 2.0, 3.0))
         events = trigger_event_sound(shake_intensity=0.6, source=source)
         for e in events:
-            scene.push_audio_event({
-                "effect": e.effect.value,
-                "source": list(e.source.position) if e.source else None,
-                "intensity": e.intensity,
-            })
+            scene.push_audio_event(
+                {
+                    "effect": e.effect.value,
+                    "source": list(e.source.position) if e.source else None,
+                    "intensity": e.intensity,
+                }
+            )
         as_dict = scene.to_dict()
         assert len(as_dict["audio_events"]) == len(events)

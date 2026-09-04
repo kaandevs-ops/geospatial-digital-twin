@@ -31,11 +31,11 @@ tam gerçekçi bir tahmin için `TrafficSimulator.step()` ile gerçek zamanlı
 simülasyon gerekir (bu modül yalnızca **hızlı, planlama-amaçlı** bir kaba
 tahmin sağlar, kesin bir varış süresi taahhüdü değildir).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 from ..core_engine.geometry_engine import Point2D
 from .adaptive_signal import AdaptiveSignalParams
@@ -93,7 +93,7 @@ class DispatchResult:
     found: bool
 
 
-def _speed_for(unit_type: EmergencyUnitType, *, speed_override_mps: Optional[float] = None) -> float:
+def _speed_for(unit_type: EmergencyUnitType, *, speed_override_mps: float | None = None) -> float:
     if speed_override_mps is not None:
         return speed_override_mps
     base = VEHICLE_IDM_DEFAULTS[VehicleType.ARAC].desired_speed
@@ -106,8 +106,8 @@ def dispatch_nearest_unit(
     graph: NavGraph,
     *,
     unit_type: EmergencyUnitType,
-    speed_override_mps: Optional[float] = None,
-) -> Optional[DispatchResult]:
+    speed_override_mps: float | None = None,
+) -> DispatchResult | None:
     """`unit_type`'ı barındıran istasyonlar arasından, `graph` üzerindeki
     A* rota **maliyetine** göre en yakın olanı seçer (kuş uçuşu mesafe
     değil - roadmap'in "en yakın istasyon" ifadesi ağ-üzerindeki gerçek
@@ -119,7 +119,7 @@ def dispatch_nearest_unit(
     if not candidates:
         return None
 
-    best: Optional[DispatchResult] = None
+    best: DispatchResult | None = None
     speed = _speed_for(unit_type, speed_override_mps=speed_override_mps)
     for station in candidates:
         result = AStar.find_path(graph, station.node_id, incident_node)
@@ -128,14 +128,17 @@ def dispatch_nearest_unit(
         eta = result.cost / speed if speed > 0 else float("inf")
         if best is None or eta < best.estimated_response_seconds:
             best = DispatchResult(
-                station=station, unit_type=unit_type, path_result=result,
-                estimated_response_seconds=eta, found=True,
+                station=station,
+                unit_type=unit_type,
+                path_result=result,
+                estimated_response_seconds=eta,
+                found=True,
             )
     return best
 
 
 def emergency_signal_priority_params(
-    base: Optional[AdaptiveSignalParams] = None,
+    base: AdaptiveSignalParams | None = None,
 ) -> AdaptiveSignalParams:
     """Katman 3.3 madde 2'nin (`adaptive_signal.AdaptiveSignalParams`)
     acil-durum profili - roadmap'in "trafik ışığı önceliklendirme
@@ -160,21 +163,27 @@ class EmergencyDispatcher:
     tutar (roadmap ilkesi #5 - kara kutu değil, her karar izlenebilir)."""
 
     stations: list[EmergencyStation] = field(default_factory=list)
-    graph: Optional[NavGraph] = None
+    graph: NavGraph | None = None
     log: list[DispatchResult] = field(default_factory=list)
 
     def register_station(self, station: EmergencyStation) -> None:
         self.stations.append(station)
 
     def dispatch(
-        self, incident_node: NodeId, *, unit_type: EmergencyUnitType,
-        speed_override_mps: Optional[float] = None,
-    ) -> Optional[DispatchResult]:
+        self,
+        incident_node: NodeId,
+        *,
+        unit_type: EmergencyUnitType,
+        speed_override_mps: float | None = None,
+    ) -> DispatchResult | None:
         if self.graph is None:
             raise ValueError("EmergencyDispatcher.graph atanmadan dispatch() çağrılamaz.")
         result = dispatch_nearest_unit(
-            self.stations, incident_node, self.graph,
-            unit_type=unit_type, speed_override_mps=speed_override_mps,
+            self.stations,
+            incident_node,
+            self.graph,
+            unit_type=unit_type,
+            speed_override_mps=speed_override_mps,
         )
         if result is not None:
             self.log.append(result)

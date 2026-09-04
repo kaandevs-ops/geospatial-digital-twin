@@ -7,12 +7,11 @@ tezgah grid'i, restoran/kafe (Point + `outdoor_seating=yes`) -> masa-
 sandalye seti, ilgisiz/eksik-tag durumların sessizce atlanması, ve
 uçtan uca `generate_commerce_props_for_collection`.
 """
+
 from __future__ import annotations
 
 import unittest
 
-from harita.core_engine.gis_core import GeoFeature, GeoFeatureCollection
-from harita.core_engine.gis_core.osm_client import DEFAULT_CATEGORIES
 from harita.commerce_props import (
     CommercePropsGenerator,
     MarketStallLayout,
@@ -20,6 +19,8 @@ from harita.commerce_props import (
     commerce_prop_from_feature,
     generate_commerce_props_for_collection,
 )
+from harita.core_engine.gis_core import GeoFeature, GeoFeatureCollection
+from harita.core_engine.gis_core.osm_client import DEFAULT_CATEGORIES
 
 
 def _marketplace_feature(ring=None):
@@ -47,9 +48,19 @@ class TestDefaultCategoriesRegistered(unittest.TestCase):
     def test_existing_categories_untouched(self) -> None:
         # Önceki dilimlerde eklenen tüm kategoriler bozulmamalı (regresyon).
         for key in (
-            "roads", "trees", "forest", "wood", "water_area", "waterway",
-            "street_lamp", "power_pole", "waste_basket", "bench",
-            "bus_stop", "bus_station", "place_of_worship",
+            "roads",
+            "trees",
+            "forest",
+            "wood",
+            "water_area",
+            "waterway",
+            "street_lamp",
+            "power_pole",
+            "waste_basket",
+            "bench",
+            "bus_stop",
+            "bus_station",
+            "place_of_worship",
         ):
             self.assertIn(key, DEFAULT_CATEGORIES)
 
@@ -72,8 +83,11 @@ class TestMarketplaceLayout(unittest.TestCase):
         self.assertIsInstance(result, MarketStallLayout)  # boş olabilir, hata olmamalı
 
     def test_non_polygon_marketplace_returns_none(self) -> None:
-        bad = GeoFeature(geometry_type="Point", coordinates=[0.0, 0.0],
-                          properties={"__category__": "marketplace"})
+        bad = GeoFeature(
+            geometry_type="Point",
+            coordinates=[0.0, 0.0],
+            properties={"__category__": "marketplace"},
+        )
         self.assertIsNone(commerce_prop_from_feature(bad))
 
 
@@ -96,20 +110,23 @@ class TestOutdoorSeating(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_unrelated_category_returns_none(self) -> None:
-        f = GeoFeature(geometry_type="Point", coordinates=[1.0, 1.0],
-                        properties={"__category__": "bench"})
+        f = GeoFeature(
+            geometry_type="Point", coordinates=[1.0, 1.0], properties={"__category__": "bench"}
+        )
         self.assertIsNone(commerce_prop_from_feature(f))
 
 
 class TestMeshGeneration(unittest.TestCase):
     def test_market_stall_mesh_is_non_degenerate(self) -> None:
         from harita.core_engine.geometry_engine import Point2D
+
         mesh = CommercePropsGenerator.market_stall(Point2D(0.0, 0.0))
         self.assertGreater(len(mesh.vertices), 0)
         self.assertGreater(len(mesh.triangles), 0)
 
     def test_outdoor_seating_set_mesh_scales_with_table_count(self) -> None:
         from harita.core_engine.geometry_engine import Point2D
+
         item = OutdoorSeatingItem(position=Point2D(0.0, 0.0), table_count=3)
         mesh = CommercePropsGenerator.outdoor_seating_set(item)
         self.assertGreater(len(mesh.vertices), 0)
@@ -127,21 +144,28 @@ class TestMeshGeneration(unittest.TestCase):
 
 class TestEndToEndCollection(unittest.TestCase):
     def test_mixed_collection_yields_market_and_seating_props(self) -> None:
-        collection = GeoFeatureCollection(features=[
-            _marketplace_feature(),
-            _restaurant_feature(),
-            _restaurant_feature(category="cafe", x=8.0, y=1.0),
-            _restaurant_feature(outdoor_seating="no"),  # atlanmalı
-            GeoFeature(geometry_type="Point", coordinates=[0.0, 0.0],
-                       properties={"__category__": "trees"}),  # ilgisiz, atlanmalı
-        ])
+        collection = GeoFeatureCollection(
+            features=[
+                _marketplace_feature(),
+                _restaurant_feature(),
+                _restaurant_feature(category="cafe", x=8.0, y=1.0),
+                _restaurant_feature(outdoor_seating="no"),  # atlanmalı
+                GeoFeature(
+                    geometry_type="Point",
+                    coordinates=[0.0, 0.0],
+                    properties={"__category__": "trees"},
+                ),  # ilgisiz, atlanmalı
+            ]
+        )
         props = generate_commerce_props_for_collection(collection)
         self.assertEqual(len(props), 3)
         self.assertEqual(sum(1 for p in props if isinstance(p, MarketStallLayout)), 1)
         self.assertEqual(sum(1 for p in props if isinstance(p, OutdoorSeatingItem)), 2)
 
     def test_empty_collection_returns_empty_list(self) -> None:
-        self.assertEqual(generate_commerce_props_for_collection(GeoFeatureCollection(features=[])), [])
+        self.assertEqual(
+            generate_commerce_props_for_collection(GeoFeatureCollection(features=[])), []
+        )
 
 
 if __name__ == "__main__":

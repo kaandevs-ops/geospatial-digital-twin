@@ -3,35 +3,33 @@
 from __future__ import annotations
 
 import json
-import os
 import struct
 
 import pytest
-
-from harita.mesh_engine import Mesh3D, Vertex3D, NormalGenerator, UVGenerator
-from harita.material_engine import PBRMaterial
 from harita.export import (
-    OBJExporter,
-    STLExporter,
-    PLYExporter,
+    CSVReportExporter,
+    DWGExporter,
+    DXFExporter,
+    FBXExporter,
+    FloorPlanSVGExporter,
     GLTFExporter,
     GLTFImporter,
     GLTFParseError,
-    DXFExporter,
-    DWGExporter,
-    FBXExporter,
-    USDExporter,
-    UnsupportedFormatError,
-    SVGCanvas,
-    FloorPlanSVGExporter,
-    PDFExporter,
     JSONReportExporter,
-    CSVReportExporter,
-    XMLReportExporter,
     MarkdownReportExporter,
-    ReportSection,
+    OBJExporter,
+    PDFExporter,
+    PLYExporter,
     ReportBuilder,
+    ReportSection,
+    STLExporter,
+    SVGCanvas,
+    UnsupportedFormatError,
+    USDExporter,
+    XMLReportExporter,
 )
+from harita.material_engine import PBRMaterial
+from harita.mesh_engine import Mesh3D, NormalGenerator, UVGenerator, Vertex3D
 
 
 def _make_tetrahedron() -> Mesh3D:
@@ -51,6 +49,7 @@ def _make_tetrahedron() -> Mesh3D:
 # ------------------------------------------------------------------ #
 # OBJ
 # ------------------------------------------------------------------ #
+
 
 def test_obj_export_basic(tmp_path):
     mesh = _make_tetrahedron()
@@ -96,6 +95,7 @@ def test_obj_export_with_normals_and_uvs(tmp_path):
 # STL
 # ------------------------------------------------------------------ #
 
+
 def test_stl_ascii_export(tmp_path):
     mesh = _make_tetrahedron()
     path = tmp_path / "tetra.stl"
@@ -129,6 +129,7 @@ def test_stl_binary_vs_ascii_same_triangle_count(tmp_path):
 # PLY
 # ------------------------------------------------------------------ #
 
+
 def test_ply_export_ascii_structure(tmp_path):
     mesh = _make_tetrahedron()
     path = tmp_path / "tetra.ply"
@@ -153,6 +154,7 @@ def test_ply_with_normals_adds_properties(tmp_path):
 # ------------------------------------------------------------------ #
 # GLTF / GLB
 # ------------------------------------------------------------------ #
+
 
 def test_gltf_export_valid_json_and_bin(tmp_path):
     mesh = _make_tetrahedron()
@@ -185,7 +187,7 @@ def test_glb_json_chunk_parses(tmp_path):
     data = path.read_bytes()
     json_len, json_type = struct.unpack_from("<II", data, 12)
     assert json_type == 0x4E4F534A  # 'JSON'
-    json_bytes = data[20:20 + json_len]
+    json_bytes = data[20 : 20 + json_len]
     gltf = json.loads(json_bytes.decode("utf-8"))
     assert "meshes" in gltf
 
@@ -193,6 +195,7 @@ def test_glb_json_chunk_parses(tmp_path):
 # ------------------------------------------------------------------ #
 # GLTF / GLB — Importer (A1: FBX/GLB okuyucu, GLB kısmı)
 # ------------------------------------------------------------------ #
+
 
 def _mesh_with_normals_uvs() -> Mesh3D:
     mesh = _make_tetrahedron()
@@ -266,6 +269,7 @@ def test_glb_truncated_file_raises(tmp_path):
 
 def test_glb_missing_position_raises(tmp_path):
     import struct as _struct
+
     gltf = {
         "asset": {"version": "2.0"},
         "meshes": [{"primitives": [{"attributes": {}}]}],
@@ -298,6 +302,7 @@ def test_gltf_missing_bin_file_raises(tmp_path):
 # ------------------------------------------------------------------ #
 # DXF / DWG / FBX / USD
 # ------------------------------------------------------------------ #
+
 
 def test_dxf_export_entity_count(tmp_path):
     mesh = _make_tetrahedron()
@@ -339,6 +344,7 @@ def test_usda_ascii_export_works(tmp_path):
 # ------------------------------------------------------------------ #
 # SVG / Floor Plan
 # ------------------------------------------------------------------ #
+
 
 def test_svg_canvas_basic_shapes(tmp_path):
     canvas = SVGCanvas(width=200, height=100)
@@ -387,6 +393,7 @@ def test_floorplan_svg_exporter(tmp_path):
 # PDF (minimal, bağımlılıksız yol garanti edilmeli)
 # ------------------------------------------------------------------ #
 
+
 def test_pdf_minimal_export_produces_valid_header(tmp_path):
     path = tmp_path / "report.pdf"
     result = PDFExporter.export_text_report("Test Raporu", ["satır 1", "satır 2"], str(path))
@@ -399,6 +406,7 @@ def test_pdf_minimal_export_produces_valid_header(tmp_path):
 # ------------------------------------------------------------------ #
 # Reports: JSON / CSV / XML / Markdown / ReportBuilder
 # ------------------------------------------------------------------ #
+
 
 def test_json_report_export(tmp_path):
     data = {"building": "A1", "floors": 5, "rooms": ["salon", "mutfak"]}
@@ -489,8 +497,10 @@ def test_report_builder_csv_without_table_raises(tmp_path):
 # Top-level harita re-export sanity
 # ------------------------------------------------------------------ #
 
+
 def test_top_level_reexports_available():
     import harita
+
     assert hasattr(harita, "OBJExporter")
     assert hasattr(harita, "GLTFExporter")
     assert hasattr(harita, "ReportBuilder")

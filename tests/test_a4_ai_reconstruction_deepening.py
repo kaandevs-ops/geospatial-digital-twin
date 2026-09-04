@@ -18,15 +18,19 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
-from harita.core_engine.geometry_engine import Point2D, Polygon
-from harita.building_reconstruction import Footprint
 from harita.ai_reconstruction import (
-    AIBuildingAnalyzer, HeuristicPredictor,
-    HeightRegressionModel, ModelNotTrainedError, MLAssistedHeightPredictor,
-    generate_synthetic_training_set, train_default_height_model,
-    benchmark_height_predictors, HeightBenchmarkReport,
+    AIBuildingAnalyzer,
+    HeightBenchmarkReport,
+    HeightRegressionModel,
+    HeuristicPredictor,
+    MLAssistedHeightPredictor,
+    ModelNotTrainedError,
+    benchmark_height_predictors,
+    generate_synthetic_training_set,
+    train_default_height_model,
 )
+from harita.building_reconstruction import Footprint
+from harita.core_engine.geometry_engine import Point2D, Polygon
 
 
 def _rect_footprint(w: float, d: float, building_type: str = "apartments") -> Footprint:
@@ -40,6 +44,7 @@ def _rect_footprint(w: float, d: float, building_type: str = "apartments") -> Fo
 # HeightRegressionModel — gerçekten "eğitiliyor" mu?
 # ------------------------------------------------------------------ #
 
+
 def test_untrained_model_raises_on_predict():
     model = HeightRegressionModel()
     assert model.is_trained is False
@@ -49,7 +54,9 @@ def test_untrained_model_raises_on_predict():
 
 def test_fit_requires_minimum_samples():
     with pytest.raises(ValueError):
-        HeightRegressionModel.fit([{"area_m2": 1.0, "perimeter_m": 1.0, "aspect_ratio": 1.0}], [3.0])
+        HeightRegressionModel.fit(
+            [{"area_m2": 1.0, "perimeter_m": 1.0, "aspect_ratio": 1.0}], [3.0]
+        )
 
 
 def test_fit_learns_monotonic_relationship():
@@ -59,7 +66,9 @@ def test_fit_learns_monotonic_relationship():
     samples = []
     targets = []
     for area in range(50, 500, 10):
-        samples.append({"area_m2": float(area), "perimeter_m": float(area) ** 0.5 * 4, "aspect_ratio": 1.0})
+        samples.append(
+            {"area_m2": float(area), "perimeter_m": float(area) ** 0.5 * 4, "aspect_ratio": 1.0}
+        )
         targets.append(3.0 + area * 0.05)
 
     model = HeightRegressionModel.fit(samples, targets)
@@ -71,7 +80,10 @@ def test_fit_learns_monotonic_relationship():
 
 
 def test_fit_residual_std_near_zero_for_noiseless_linear_data():
-    samples = [{"area_m2": float(a), "perimeter_m": float(a) * 0.4, "aspect_ratio": 1.0} for a in range(10, 200, 5)]
+    samples = [
+        {"area_m2": float(a), "perimeter_m": float(a) * 0.4, "aspect_ratio": 1.0}
+        for a in range(10, 200, 5)
+    ]
     targets = [5.0 + a * 0.1 for a in range(10, 200, 5)]
     model = HeightRegressionModel.fit(samples, targets)
     assert model.residual_std < 0.5  # gürültüsüz veri -> neredeyse sıfır kalıntı
@@ -80,6 +92,7 @@ def test_fit_residual_std_near_zero_for_noiseless_linear_data():
 # ------------------------------------------------------------------ #
 # MLAssistedHeightPredictor - fallback garantisi
 # ------------------------------------------------------------------ #
+
 
 def test_fallback_with_none_model_matches_pure_heuristic():
     fp = _rect_footprint(20, 15)
@@ -106,6 +119,7 @@ def test_fallback_with_untrained_model_matches_pure_heuristic():
 # ------------------------------------------------------------------ #
 # Uçtan uca: eğitilmiş model + AIBuildingAnalyzer
 # ------------------------------------------------------------------ #
+
 
 def test_trained_model_end_to_end_via_analyzer():
     model = train_default_height_model(n_samples=200, seed=1)
@@ -134,6 +148,7 @@ def test_confidence_calibration_never_below_heuristic_baseline():
 # ------------------------------------------------------------------ #
 # Kabul kriteri: MAE karşılaştırma raporu
 # ------------------------------------------------------------------ #
+
 
 def test_synthetic_training_set_shapes_match():
     samples, targets = generate_synthetic_training_set(n_samples=50, seed=9)

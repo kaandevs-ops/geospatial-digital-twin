@@ -4,6 +4,7 @@ vegetation.types - Temel veri tipleri
 
 Roadmap V4 - Faz E18.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -21,15 +22,15 @@ class TreeSpecies(str, Enum):
     gorsel olarak ayirt edilebilir alt tipe genisletildi."""
 
     GENERIC = "generic"
-    CONIFER = "conifer"       # ince, sivri, kozalakli (genel igne yaprakli)
-    DECIDUOUS = "deciduous"   # genis, yuvarlak tac (genel yaprakli)
-    SHRUB = "shrub"           # kisa, calilik
-    PALM = "palm"             # palmiye - cizgili ince govde + tepe yelpaze yapraklar
-    CYPRESS = "cypress"       # servi - dar, dikey, sutun-siluet
-    OLIVE = "olive"           # zeytin - dusuk govde, genis/duzensiz basik tac
-    PINE = "pine"             # cam - conifer'dan ayristirilmis, sisman katmanli tac
-    OAK = "oak"               # mese - genis, yuvarlak, kalin govdeli
-    PLANE = "plane"           # cinar - cok genis yayilan tac, yuksek govde
+    CONIFER = "conifer"  # ince, sivri, kozalakli (genel igne yaprakli)
+    DECIDUOUS = "deciduous"  # genis, yuvarlak tac (genel yaprakli)
+    SHRUB = "shrub"  # kisa, calilik
+    PALM = "palm"  # palmiye - cizgili ince govde + tepe yelpaze yapraklar
+    CYPRESS = "cypress"  # servi - dar, dikey, sutun-siluet
+    OLIVE = "olive"  # zeytin - dusuk govde, genis/duzensiz basik tac
+    PINE = "pine"  # cam - conifer'dan ayristirilmis, sisman katmanli tac
+    OAK = "oak"  # mese - genis, yuvarlak, kalin govdeli
+    PLANE = "plane"  # cinar - cok genis yayilan tac, yuksek govde
 
 
 @dataclass(slots=True)

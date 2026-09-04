@@ -23,6 +23,7 @@ birebir kopyasıdır; yalnız `bus_stop` (OSM `highway=bus_stop`) ve
 `bus_station` (OSM `amenity=bus_station`) ayrık tag'lere sahip olduğundan
 açıkça yazılır.
 """
+
 from __future__ import annotations
 
 from ..core_engine.geometry_engine import Point2D

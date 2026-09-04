@@ -15,9 +15,10 @@ from __future__ import annotations
 
 import math
 import random
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from ...core_engine.geometry_engine import Point2D
 from ...performance.simulation_lod import SimulationLODManager, SimulationLODMode
@@ -51,8 +52,8 @@ class MobilityProfile(str, Enum):
     çarpanı/erişim kısıtı için bir *gösterge* etikettir - gerçek bireysel
     tıbbi/mobilite verisi taşımaz (sentetik nüfus ilkesi, roadmap 2.1)."""
 
-    WALKING = "walking"                 # yürüyen (varsayılan)
-    WHEELCHAIR = "wheelchair"           # tekerlekli sandalye - yalnızca rampa/asansör
+    WALKING = "walking"  # yürüyen (varsayılan)
+    WHEELCHAIR = "wheelchair"  # tekerlekli sandalye - yalnızca rampa/asansör
     VISUALLY_IMPAIRED = "visually_impaired"
     HEARING_IMPAIRED = "hearing_impaired"
     CHILD_OR_ELDERLY = "child_or_elderly"
@@ -68,15 +69,17 @@ MOBILITY_PROFILE_SPEED_MULTIPLIER: dict[MobilityProfile, float] = {
     MobilityProfile.WALKING: 1.0,
     MobilityProfile.WHEELCHAIR: 0.75,
     MobilityProfile.VISUALLY_IMPAIRED: 0.70,
-    MobilityProfile.HEARING_IMPAIRED: 1.0,       # hız etkilenmez, uyarı algılama gecikir (reaction_time_s'e yansır)
+    MobilityProfile.HEARING_IMPAIRED: 1.0,  # hız etkilenmez, uyarı algılama gecikir (reaction_time_s'e yansır)
     MobilityProfile.CHILD_OR_ELDERLY: 0.65,
 }
 
 # Yalnızca merdivenle değil, asansör/rampa ile dikey erişimi zorunlu olan
 # profiller - Katman 2.4 madde 2 çelişki uyarısının doğrudan girdisi.
-MOBILITY_PROFILE_REQUIRES_ELEVATOR_OR_RAMP: frozenset = frozenset({
-    MobilityProfile.WHEELCHAIR,
-})
+MOBILITY_PROFILE_REQUIRES_ELEVATOR_OR_RAMP: frozenset = frozenset(
+    {
+        MobilityProfile.WHEELCHAIR,
+    }
+)
 
 DEFAULT_MOBILITY_PROFILE_DISTRIBUTION: dict[MobilityProfile, float] = {
     # Roadmap 2.1: "%5 tekerlekli sandalye, %10 yaşlı/çocuk gibi gerçekçi
@@ -107,7 +110,7 @@ class Agent:
     goal: Point2D
     height_m: float = 1.7
     radius_m: float = 0.25
-    desired_speed: float = 1.34          # ortalama yaya hızı (m/s)
+    desired_speed: float = 1.34  # ortalama yaya hızı (m/s)
     behavior: AgentBehavior = AgentBehavior.NORMAL
     velocity: Point2D = field(default_factory=lambda: Point2D(0.0, 0.0))
     waiting: bool = False
@@ -153,7 +156,7 @@ class Agent:
     # gelir (dürüst varsayılan, sahte bir sıkışma göstermez).
     crowd_pressure: float = 0.0
 
-    def sync_vertical_state_from_path(self, building_graph: "BuildingNavGraph") -> None:
+    def sync_vertical_state_from_path(self, building_graph: BuildingNavGraph) -> None:
         """Roadmap V10 / Faz 1.2: `path_index`'in şu an işaret ettiği
         `path_nodes` düğümünden `floor_index`/`room_id`/`z_m`'i günceller.
         Yalnızca `assign_building_exit_paths` ile rota atanmış (yani
@@ -197,9 +200,9 @@ class Agent:
 class SocialForceParams:
     """Sosyal-kuvvet modelinin klasik parametreleri."""
 
-    relaxation_time: float = 0.5      # hedefe yönelme tepki süresi (s)
-    agent_repulsion_a: float = 2.0    # ajan-ajan itme kuvveti genliği
-    agent_repulsion_b: float = 0.3    # ajan-ajan itme etki menzili (m)
+    relaxation_time: float = 0.5  # hedefe yönelme tepki süresi (s)
+    agent_repulsion_a: float = 2.0  # ajan-ajan itme kuvveti genliği
+    agent_repulsion_b: float = 0.3  # ajan-ajan itme etki menzili (m)
     obstacle_repulsion_a: float = 5.0
     obstacle_repulsion_b: float = 0.2
     panic_repulsion_multiplier: float = 1.6  # panik halinde itme artışı
@@ -211,8 +214,8 @@ class SocialForceParams:
     # değil, "grup fazla dağılırsa hafifçe toparlansın" - roadmap'in
     # "en yavaş üyeye göre hız ayarlanır" kabul kriteriyle tutarlı, sert
     # bir manyetik çekim değil.
-    group_cohesion_distance_m: float = 3.0   # bu mesafeyi aşınca çekim başlar
-    group_cohesion_strength: float = 0.8     # çekim kuvveti genliği
+    group_cohesion_distance_m: float = 3.0  # bu mesafeyi aşınca çekim başlar
+    group_cohesion_strength: float = 0.8  # çekim kuvveti genliği
 
 
 class SocialForceModel:
@@ -316,8 +319,13 @@ class SocialForceModel:
 
     # -- adım -------------------------------------------------------------- #
 
-    def step(self, agents: list[Agent], obstacles: list[Point2D] | None = None,
-              dt: float = 0.1, arrival_radius: float = 0.3) -> None:
+    def step(
+        self,
+        agents: list[Agent],
+        obstacles: list[Point2D] | None = None,
+        dt: float = 0.1,
+        arrival_radius: float = 0.3,
+    ) -> None:
         obstacles = obstacles or []
         forces: dict[int, Point2D] = {}
 
@@ -347,8 +355,7 @@ class SocialForceModel:
             if speed > max_speed and speed > 1e-9:
                 new_vx, new_vy = new_vx / speed * max_speed, new_vy / speed * max_speed
             agent.velocity = Point2D(new_vx, new_vy)
-            agent.position = Point2D(agent.position.x + new_vx * dt,
-                                      agent.position.y + new_vy * dt)
+            agent.position = Point2D(agent.position.x + new_vx * dt, agent.position.y + new_vy * dt)
 
             target = agent.current_target()
             if agent.position.distance_to(target) <= arrival_radius:
@@ -358,8 +365,7 @@ class SocialForceModel:
                     agent.evacuated = True
 
 
-def _aggregate_kinematic_step(agents: list[Agent], dt: float,
-                                arrival_radius: float = 0.3) -> None:
+def _aggregate_kinematic_step(agents: list[Agent], dt: float, arrival_radius: float = 0.3) -> None:
     """Roadmap V10 / Faz 1.4: `SimulationLODMode.AGGREGATE` agent'ları
     için ucuz hareket güncellemesi.
 
@@ -396,6 +402,7 @@ def _aggregate_kinematic_step(agents: list[Agent], dt: float,
 # Tahliye modelleme (Roadmap Phase 6: "Tahliye Modelleme")
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class EvacuationResult:
     total_agents: int
@@ -421,8 +428,9 @@ class EvacuationSimulator:
         self.model = model or SocialForceModel()
 
     @staticmethod
-    def assign_nearest_exit_paths(agents: list[Agent], graph: NavGraph,
-                                    exits: list, node_of_agent) -> None:
+    def assign_nearest_exit_paths(
+        agents: list[Agent], graph: NavGraph, exits: list, node_of_agent
+    ) -> None:
         """Her agent için en yakın çıkışa A* rotası hesaplar ve
         `agent.path`'i doldurur. `node_of_agent(agent)` agent konumunu graf
         düğüm kimliğine eşleyen bir callable'dır (indoor_navigation ile
@@ -442,8 +450,9 @@ class EvacuationSimulator:
                 agent.goal = best_path[-1]
 
     @staticmethod
-    def assign_building_exit_paths(agents: list[Agent], building_graph: BuildingNavGraph,
-                                     exits: list[FloorNodeId]) -> None:
+    def assign_building_exit_paths(
+        agents: list[Agent], building_graph: BuildingNavGraph, exits: list[FloorNodeId]
+    ) -> None:
         """Roadmap V10 / Faz 1.2 ("SocialForceModel <-> BuildingNavGraph
         gerçek entegrasyonu") + Faz 1.3 ("MobilityProfile gerçek rota
         kısıtı").
@@ -470,11 +479,14 @@ class EvacuationSimulator:
         graph = building_graph.graph
         for agent in agents:
             start_node = IndoorNavigationBuilder.nearest_node(
-                building_graph, agent.floor_index, agent.position)
+                building_graph, agent.floor_index, agent.position
+            )
             if start_node is None:
                 continue
 
-            needs_stairs_blocked = agent.requires_elevator_or_ramp() and not building_graph.stairs_blocked
+            needs_stairs_blocked = (
+                agent.requires_elevator_or_ramp() and not building_graph.stairs_blocked
+            )
             if needs_stairs_blocked:
                 building_graph.block_stairs()
             try:
@@ -502,15 +514,20 @@ class EvacuationSimulator:
             # (ör. realism_audit / UI) `agent.path_nodes` ile önceki hedefe
             # ulaşamadığını tespit edebilmesi için sessizce gizlenmez.
 
-    def run(self, agents: list[Agent], obstacles: list[Point2D] | None = None,
-            dt: float = 0.1, max_time_s: float = 600.0,
-            recorder: "SimulationRecorder | None" = None,
-            on_step: "Callable[[float, list[Agent]], None] | None" = None,
-            seed: int | None = None,
-            scenario_id: str | None = None,
-            building_graph: "BuildingNavGraph | None" = None,
-            lod_manager: "SimulationLODManager | None" = None,
-            camera_position: "tuple[float, float] | None" = None) -> EvacuationResult:
+    def run(
+        self,
+        agents: list[Agent],
+        obstacles: list[Point2D] | None = None,
+        dt: float = 0.1,
+        max_time_s: float = 600.0,
+        recorder: SimulationRecorder | None = None,
+        on_step: Callable[[float, list[Agent]], None] | None = None,
+        seed: int | None = None,
+        scenario_id: str | None = None,
+        building_graph: BuildingNavGraph | None = None,
+        lod_manager: SimulationLODManager | None = None,
+        camera_position: tuple[float, float] | None = None,
+    ) -> EvacuationResult:
         """`recorder` verilirse (Roadmap V9 / OMURGA / O.1), her adımda
         `recorder.maybe_record()` çağrılarak ara kareler keyframe olarak
         kaydedilir — animasyon (O.2) ve darboğaz zaman serisi (Katman 2.4
@@ -562,8 +579,11 @@ class EvacuationSimulator:
         per_agent_time: dict[int, float] = {}
         if recorder is not None:
             recorder.set_run_metadata(
-                seed=seed, dt=dt, max_time_s=max_time_s,
-                agent_count=len(agents), scenario_id=scenario_id,
+                seed=seed,
+                dt=dt,
+                max_time_s=max_time_s,
+                agent_count=len(agents),
+                scenario_id=scenario_id,
             )
             recorder.record_frame(elapsed, agents)
         while elapsed < max_time_s:
@@ -581,7 +601,11 @@ class EvacuationSimulator:
             for agent in agents:
                 if agent.reaction_time_s > 0.0 and elapsed < agent.reaction_time_s:
                     agent.waiting = True
-                elif agent.waiting and agent.reaction_time_s > 0.0 and elapsed >= agent.reaction_time_s:
+                elif (
+                    agent.waiting
+                    and agent.reaction_time_s > 0.0
+                    and elapsed >= agent.reaction_time_s
+                ):
                     agent.waiting = False
 
             if lod_manager is not None and camera_position is not None:
@@ -591,7 +615,8 @@ class EvacuationSimulator:
                     if agent.waiting or agent.evacuated:
                         continue
                     mode = lod_manager.select_for_position(
-                        camera_position, (agent.position.x, agent.position.y))
+                        camera_position, (agent.position.x, agent.position.y)
+                    )
                     if mode == SimulationLODMode.CULLED:
                         continue
                     elif mode == SimulationLODMode.AGGREGATE:
@@ -649,6 +674,7 @@ class EvacuationSimulator:
 # Yoğunluk / heatmap (Roadmap Phase 6: "İnsan Akışı & Yoğunluk")
 # ============================================================================ #
 
+
 class OccupancyHeatmap:
     """Ajan pozisyonlarından basit ızgara-tabanlı yoğunluk (occupancy)
     heatmap'i üretir."""
@@ -673,6 +699,7 @@ class OccupancyHeatmap:
 # Roadmap V3 - Faz D6: Referans tahliye senaryosuyla doğrulama
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class ReferenceEvacuationScenario:
     """Literatürde bilinen, tek-çıkışlı dikdörtgen bir odadan N kişilik
@@ -694,9 +721,9 @@ class ReferenceEvacuationScenario:
 
     agent_count: int
     exit_width_m: float
-    room_depth_m: float = 10.0          # en uzak agent'ın çıkışa mesafesi (yaklaşık)
-    walking_speed_ms: float = 1.34      # ortalama serbest yürüme hızı
-    specific_flow_rate: float = 1.3     # kişi / (m * s) - SFPE/Predtechenskii-Milinskii
+    room_depth_m: float = 10.0  # en uzak agent'ın çıkışa mesafesi (yaklaşık)
+    walking_speed_ms: float = 1.34  # ortalama serbest yürüme hızı
+    specific_flow_rate: float = 1.3  # kişi / (m * s) - SFPE/Predtechenskii-Milinskii
 
     def expected_evacuation_time_s(self) -> float:
         bottleneck_time = self.agent_count / (self.specific_flow_rate * self.exit_width_m)
@@ -715,9 +742,13 @@ class EvacuationBenchmark:
     yayınlanmış darboğaz-akış formülüyle karşılaştıran regresyon aracı."""
 
     @staticmethod
-    def build_single_exit_room(agent_count: int, room_width_m: float,
-                                 room_depth_m: float, exit_width_m: float,
-                                 seed: int | None = 42) -> tuple[list[Agent], Point2D]:
+    def build_single_exit_room(
+        agent_count: int,
+        room_width_m: float,
+        room_depth_m: float,
+        exit_width_m: float,
+        seed: int | None = 42,
+    ) -> tuple[list[Agent], Point2D]:
         """Basit bir dikdörtgen oda: agent'lar odanın arka yarısına
         rastgele dağıtılır, tek çıkış odanın ön-orta noktasındadır."""
         exit_point = Point2D(room_width_m / 2.0, 0.0)
@@ -727,12 +758,17 @@ class EvacuationBenchmark:
         return agents, exit_point
 
     @staticmethod
-    def run_and_compare(agent_count: int = 40, room_width_m: float = 12.0,
-                          room_depth_m: float = 10.0, exit_width_m: float = 1.2,
-                          dt: float = 0.1, max_time_s: float = 300.0,
-                          seed: int | None = 42,
-                          specific_flow_rate: float = 1.3,
-                          arrival_radius: float = 0.5) -> dict:
+    def run_and_compare(
+        agent_count: int = 40,
+        room_width_m: float = 12.0,
+        room_depth_m: float = 10.0,
+        exit_width_m: float = 1.2,
+        dt: float = 0.1,
+        max_time_s: float = 300.0,
+        seed: int | None = 42,
+        specific_flow_rate: float = 1.3,
+        arrival_radius: float = 0.5,
+    ) -> dict:
         """`SocialForceModel` ile agent'ları çıkışa doğru hareket ettirir;
         çıkış darboğazının kendisi (kapı/dar geçit fiziği yerine) doğrudan
         **SFPE/Predtechenskii-Milinskii özgül akış hızı formülüyle**
@@ -753,7 +789,8 @@ class EvacuationBenchmark:
         `within_tolerance` (bool, %20 kabul kriteri).
         """
         agents, exit_point = EvacuationBenchmark.build_single_exit_room(
-            agent_count, room_width_m, room_depth_m, exit_width_m, seed=seed)
+            agent_count, room_width_m, room_depth_m, exit_width_m, seed=seed
+        )
         for agent in agents:
             agent.goal = exit_point
 
@@ -793,8 +830,7 @@ class EvacuationBenchmark:
             # Kapıya ulaşmış (waiting) ama henüz gate tarafından serbest
             # bırakılmamış ajanları, kapasite bütçesi izin verdiği ölçüde
             # serbest bırak (FIFO - en erken varanlar önce).
-            queued = [a for a in agents
-                      if a.waiting and a.agent_id not in gate_cleared_ids]
+            queued = [a for a in agents if a.waiting and a.agent_id not in gate_cleared_ids]
             queued.sort(key=lambda a: per_agent_time.get(a.agent_id, math.inf))
             while gate_budget >= 1.0 and queued:
                 released = queued.pop(0)
@@ -812,14 +848,18 @@ class EvacuationBenchmark:
         evacuated = [a for a in agents if a.evacuated]
         timed_out = len(evacuated) < len(agents)
         result = EvacuationResult(
-            total_agents=len(agents), evacuated_count=len(evacuated),
-            evacuation_time_s=elapsed, per_agent_time_s=per_agent_time,
+            total_agents=len(agents),
+            evacuated_count=len(evacuated),
+            evacuation_time_s=elapsed,
+            per_agent_time_s=per_agent_time,
             timed_out=timed_out,
         )
 
         scenario = ReferenceEvacuationScenario(
-            agent_count=agent_count, exit_width_m=exit_width_m,
-            room_depth_m=room_depth_m, specific_flow_rate=specific_flow_rate,
+            agent_count=agent_count,
+            exit_width_m=exit_width_m,
+            room_depth_m=room_depth_m,
+            specific_flow_rate=specific_flow_rate,
         )
         expected = scenario.expected_evacuation_time_s()
         simulated = result.evacuation_time_s
@@ -837,10 +877,15 @@ class EvacuationBenchmark:
         }
 
 
-def spawn_random_agents(count: int, area_min: Point2D, area_max: Point2D,
-                          goal: Point2D, seed: int | None = None,
-                          profile_distribution: "dict[MobilityProfile, float] | None" = None,
-                          reaction_time_range_s: tuple[float, float] | None = None) -> list[Agent]:
+def spawn_random_agents(
+    count: int,
+    area_min: Point2D,
+    area_max: Point2D,
+    goal: Point2D,
+    seed: int | None = None,
+    profile_distribution: dict[MobilityProfile, float] | None = None,
+    reaction_time_range_s: tuple[float, float] | None = None,
+) -> list[Agent]:
     """Test/demo amaçlı: bir dikdörtgen alan içine rastgele agent'lar dağıtır.
 
     Roadmap V9 / Katman 2.1 (Faz III) genişlemesi: `profile_distribution`
@@ -852,17 +897,27 @@ def spawn_random_agents(count: int, area_min: Point2D, area_max: Point2D,
     eskisiyle aynıdır (geriye dönük uyumlu)."""
     rng = random.Random(seed)
     agents: list[Agent] = []
-    profiles: list[MobilityProfile] = list(profile_distribution.keys()) if profile_distribution else []
+    profiles: list[MobilityProfile] = (
+        list(profile_distribution.keys()) if profile_distribution else []
+    )
     weights: list[float] = list(profile_distribution.values()) if profile_distribution else []
     for i in range(count):
         pos = Point2D(rng.uniform(area_min.x, area_max.x), rng.uniform(area_min.y, area_max.y))
-        profile = rng.choices(profiles, weights=weights, k=1)[0] if profiles else MobilityProfile.WALKING
+        profile = (
+            rng.choices(profiles, weights=weights, k=1)[0] if profiles else MobilityProfile.WALKING
+        )
         reaction_time = (
             rng.uniform(reaction_time_range_s[0], reaction_time_range_s[1])
-            if reaction_time_range_s is not None else 0.0
+            if reaction_time_range_s is not None
+            else 0.0
         )
-        agents.append(Agent(
-            agent_id=i, position=pos, goal=goal,
-            mobility_profile=profile, reaction_time_s=reaction_time,
-        ))
+        agents.append(
+            Agent(
+                agent_id=i,
+                position=pos,
+                goal=goal,
+                mobility_profile=profile,
+                reaction_time_s=reaction_time,
+            )
+        )
     return agents

@@ -33,7 +33,13 @@ def _fixture_overpass_response() -> dict:
         "generator": "Overpass API (fixture)",
         "elements": [
             # Tekil ağaç
-            {"type": "node", "id": 100, "lat": 39.9205, "lon": 32.8543, "tags": {"natural": "tree"}},
+            {
+                "type": "node",
+                "id": 100,
+                "lat": 39.9205,
+                "lon": 32.8543,
+                "tags": {"natural": "tree"},
+            },
             # Yol (LineString)
             {"type": "node", "id": 1, "lat": 39.9200, "lon": 32.8541},
             {"type": "node", "id": 2, "lat": 39.9201, "lon": 32.8546},
@@ -43,7 +49,12 @@ def _fixture_overpass_response() -> dict:
             {"type": "node", "id": 12, "lat": 39.9210, "lon": 32.8555},
             {"type": "node", "id": 13, "lat": 39.9213, "lon": 32.8555},
             {"type": "node", "id": 14, "lat": 39.9213, "lon": 32.8551},
-            {"type": "way", "id": 2002, "nodes": [11, 12, 13, 14, 11], "tags": {"natural": "water"}},
+            {
+                "type": "way",
+                "id": 2002,
+                "nodes": [11, 12, 13, 14, 11],
+                "tags": {"natural": "water"},
+            },
         ],
     }
 
@@ -55,7 +66,7 @@ class _FakeHTTPResponse:
     def read(self) -> bytes:
         return self._buf.read()
 
-    def __enter__(self) -> "_FakeHTTPResponse":
+    def __enter__(self) -> _FakeHTTPResponse:
         return self
 
     def __exit__(self, *exc: object) -> None:
@@ -80,7 +91,9 @@ class TestOsmCategorySummarySessionLevel(unittest.TestCase):
     def test_summary_counts_all_default_categories(self) -> None:
         session, project_id = self._new_session_with_project()
         try:
-            with mock.patch("harita.core_engine.gis_core.osm_client.urllib.request.urlopen", _patched_urlopen):
+            with mock.patch(
+                "harita.core_engine.gis_core.osm_client.urllib.request.urlopen", _patched_urlopen
+            ):
                 result = session.osm_category_summary(project_id, **ANKARA_BBOX)
             self.assertEqual(result["counts"]["trees"], 1)
             self.assertEqual(result["counts"]["roads"], 1)
@@ -94,8 +107,12 @@ class TestOsmCategorySummarySessionLevel(unittest.TestCase):
     def test_summary_respects_category_filter(self) -> None:
         session, project_id = self._new_session_with_project()
         try:
-            with mock.patch("harita.core_engine.gis_core.osm_client.urllib.request.urlopen", _patched_urlopen):
-                result = session.osm_category_summary(project_id, **ANKARA_BBOX, categories=["trees"])
+            with mock.patch(
+                "harita.core_engine.gis_core.osm_client.urllib.request.urlopen", _patched_urlopen
+            ):
+                result = session.osm_category_summary(
+                    project_id, **ANKARA_BBOX, categories=["trees"]
+                )
             self.assertEqual(set(result["counts"].keys()), {"trees"})
         finally:
             session.close()
@@ -137,9 +154,13 @@ class TestOsmCategorySummaryApiLevel(unittest.TestCase):
     def test_post_category_summary_returns_counts(self) -> None:
         router, session, project_id = self._router_with_project()
         try:
-            with mock.patch("harita.core_engine.gis_core.osm_client.urllib.request.urlopen", _patched_urlopen):
+            with mock.patch(
+                "harita.core_engine.gis_core.osm_client.urllib.request.urlopen", _patched_urlopen
+            ):
                 response = router.dispatch(
-                    "POST", f"/api/projects/{project_id}/osm/category-summary", body=ANKARA_BBOX,
+                    "POST",
+                    f"/api/projects/{project_id}/osm/category-summary",
+                    body=ANKARA_BBOX,
                 )
             self.assertEqual(response.status, 200)
             self.assertEqual(response.body["counts"]["trees"], 1)
@@ -150,7 +171,9 @@ class TestOsmCategorySummaryApiLevel(unittest.TestCase):
         router, session, project_id = self._router_with_project()
         try:
             response = router.dispatch(
-                "POST", f"/api/projects/{project_id}/osm/category-summary", body={"south": 1.0},
+                "POST",
+                f"/api/projects/{project_id}/osm/category-summary",
+                body={"south": 1.0},
             )
             self.assertEqual(response.status, 422)
         finally:
@@ -162,7 +185,9 @@ class TestOsmCategorySummaryApiLevel(unittest.TestCase):
             body = dict(ANKARA_BBOX)
             body["categories"] = "roads"
             response = router.dispatch(
-                "POST", f"/api/projects/{project_id}/osm/category-summary", body=body,
+                "POST",
+                f"/api/projects/{project_id}/osm/category-summary",
+                body=body,
             )
             self.assertEqual(response.status, 422)
         finally:

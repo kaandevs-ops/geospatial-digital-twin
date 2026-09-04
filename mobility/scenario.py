@@ -27,7 +27,7 @@ import json
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover - yalnızca tip kontrolü, döngüsel import yok
     from ..persistence.db_backend import ProjectDatabase
@@ -86,7 +86,7 @@ class BuildingSource:
         return {"building_ref": self.building_ref, "floor_ids": list(self.floor_ids)}
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "BuildingSource":
+    def from_dict(cls, data: dict[str, Any]) -> BuildingSource:
         if "building_ref" not in data or not data["building_ref"]:
             raise ScenarioValidationError("BuildingSource.building_ref zorunlu ve boş olamaz")
         return cls(
@@ -113,9 +113,7 @@ class AgentProfileMix:
     """
 
     count: int
-    behavior_distribution: dict[str, float] = field(
-        default_factory=lambda: {"normal": 1.0}
-    )
+    behavior_distribution: dict[str, float] = field(default_factory=lambda: {"normal": 1.0})
     # Katman 2.1 ön-tanımı (henüz motor tarafında tüketilmiyor, yalnızca
     # senaryo dosyasında taşınıyor - motor hazır olduğunda buradan okunacak).
     profile_distribution: dict[str, float] = field(default_factory=dict)
@@ -130,7 +128,7 @@ class AgentProfileMix:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AgentProfileMix":
+    def from_dict(cls, data: dict[str, Any]) -> AgentProfileMix:
         if "count" not in data:
             raise ScenarioValidationError("AgentProfileMix.count zorunlu")
         count = int(data["count"])
@@ -217,7 +215,7 @@ class SimulationScenario:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "SimulationScenario":
+    def from_dict(cls, data: dict[str, Any]) -> SimulationScenario:
         try:
             hazard_raw = data.get("hazard", HazardType.NONE.value)
             hazard = HazardType(hazard_raw)
@@ -244,7 +242,7 @@ class SimulationScenario:
         return json.dumps(self.to_dict(), indent=indent, ensure_ascii=False)
 
     @classmethod
-    def from_json(cls, text: str) -> "SimulationScenario":
+    def from_json(cls, text: str) -> SimulationScenario:
         try:
             data = json.loads(text)
         except json.JSONDecodeError as exc:
@@ -261,14 +259,14 @@ class SimulationScenario:
 _SCENARIO_KIND = "scenario"
 
 
-def save_scenario(db: "ProjectDatabase", scenario: SimulationScenario) -> None:
+def save_scenario(db: ProjectDatabase, scenario: SimulationScenario) -> None:
     """Senaryoyu doğrulayıp `db`'ye kaydeder (`scenario.scenario_id`
     anahtarıyla — üzerine yazma davranışı `save_object`'inkiyle aynı)."""
     scenario.validate()
     db.save_object(scenario.scenario_id, _SCENARIO_KIND, scenario.to_dict())
 
 
-def load_scenario(db: "ProjectDatabase", scenario_id: str) -> SimulationScenario | None:
+def load_scenario(db: ProjectDatabase, scenario_id: str) -> SimulationScenario | None:
     """`scenario_id` ile kayıtlı senaryoyu yükler; yoksa `None`."""
     record = db.load_object(scenario_id)
     if record is None or record.kind != _SCENARIO_KIND:
@@ -276,11 +274,11 @@ def load_scenario(db: "ProjectDatabase", scenario_id: str) -> SimulationScenario
     return SimulationScenario.from_dict(record.data)
 
 
-def list_scenarios(db: "ProjectDatabase") -> list[str]:
+def list_scenarios(db: ProjectDatabase) -> list[str]:
     """Projedeki tüm senaryo kimliklerini döner (`kind="scenario"` filtreli
     — `list_objects` zaten bunu destekliyor, tekrar kod yazılmadı)."""
     return db.list_objects(kind=_SCENARIO_KIND)
 
 
-def delete_scenario(db: "ProjectDatabase", scenario_id: str) -> bool:
+def delete_scenario(db: ProjectDatabase, scenario_id: str) -> bool:
     return db.delete_object(scenario_id)

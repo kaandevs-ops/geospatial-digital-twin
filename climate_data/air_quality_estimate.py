@@ -24,10 +24,11 @@ onlarca değişken burada yoktur). Sonuç bir hava kalitesi izleme istasyonu
 ölçümü DEĞİLDİR, yalnızca "bu yol kesiminde trafik kaynaklı kirlilik
 göreli olarak nerede daha yüksek" sorusuna kaba bir işaret verir.
 """
+
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
 DISCLAIMER = (
     "Gösterge niteliğindedir; ortalama bir Avrupa filo karışımı için kaba "
@@ -93,10 +94,7 @@ def estimate_segment_air_quality(segment: RoadSegmentTraffic) -> AirQualitySegme
     # normalize edilmiş payının en büyüğü (limit-faktörü mantığı - resmi
     # AQI hesaplarında da "en kötü kirletici belirleyicidir" ilkesi
     # yaygındır, ama burada resmi bir AQI formülü uygulanmamaktadır).
-    ratios = [
-        min(1.0, emissions[p] / _INDEX_REFERENCE_G_PER_HOUR[p])
-        for p in emissions
-    ]
+    ratios = [min(1.0, emissions[p] / _INDEX_REFERENCE_G_PER_HOUR[p]) for p in emissions]
     index = max(ratios) * 100.0 if ratios else 0.0
 
     return AirQualitySegmentReport(

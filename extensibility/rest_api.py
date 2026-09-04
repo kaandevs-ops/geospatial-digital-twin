@@ -21,8 +21,9 @@ from __future__ import annotations
 import inspect
 import json
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 Handler = Callable[..., Any]
@@ -36,14 +37,14 @@ class Route:
     pattern: str
     handler: Handler
     regex: re.Pattern = field(init=False)
-    param_names: List[str] = field(init=False, default_factory=list)
+    param_names: list[str] = field(init=False, default_factory=list)
 
     def __post_init__(self) -> None:
         self.param_names = _PARAM_RE.findall(self.pattern)
         escaped = re.sub(_PARAM_RE, r"(?P<\1>[^/]+)", self.pattern)
         self.regex = re.compile(f"^{escaped}$")
 
-    def match(self, path: str) -> Optional[Dict[str, str]]:
+    def match(self, path: str) -> dict[str, str] | None:
         m = self.regex.match(path)
         return m.groupdict() if m else None
 
@@ -68,7 +69,7 @@ class Route:
 class RestResponse:
     status: int
     body: Any = None
-    headers: Dict[str, str] = field(default_factory=lambda: {"Content-Type": "application/json"})
+    headers: dict[str, str] = field(default_factory=lambda: {"Content-Type": "application/json"})
 
     def to_json(self) -> str:
         return json.dumps(self.body, ensure_ascii=False, default=str)
@@ -82,8 +83,8 @@ class RestRouter:
     """Framework-agnostic route kayıt/dispatch motoru."""
 
     def __init__(self) -> None:
-        self._routes: List[Route] = []
-        self._middlewares: List[Callable[[str, str, dict], Optional[RestResponse]]] = []
+        self._routes: list[Route] = []
+        self._middlewares: list[Callable[[str, str, dict], RestResponse | None]] = []
 
     # -- kayıt yardımcıları --------------------------------------------------
     def route(self, method: str, pattern: str) -> Callable[[Handler], Handler]:
@@ -105,9 +106,7 @@ class RestRouter:
     def delete(self, pattern: str) -> Callable[[Handler], Handler]:
         return self.route("DELETE", pattern)
 
-    def add_middleware(
-        self, middleware: Callable[[str, str, dict], Optional[RestResponse]]
-    ) -> None:
+    def add_middleware(self, middleware: Callable[[str, str, dict], RestResponse | None]) -> None:
         """Middleware `(method, path, query) -> RestResponse | None` imzasında.
 
         `RestResponse` dönerse istek kısa devre yapılır (örn. auth reddi);
@@ -121,7 +120,7 @@ class RestRouter:
         method: str,
         path: str,
         body: Any = None,
-        query: Optional[Dict[str, Any]] = None,
+        query: dict[str, Any] | None = None,
     ) -> RestResponse:
         method = method.upper()
         parsed = urlparse(path)
@@ -169,25 +168,25 @@ class RestRouter:
 
         raise RestNotFoundError(f"{method} {clean_path} için route bulunamadı")
 
-    def routes(self) -> List[Tuple[str, str]]:
+    def routes(self) -> list[tuple[str, str]]:
         return [(r.method, r.pattern) for r in self._routes]
 
 
-def build_default_router(digital_twin_registry: Optional[Dict[str, Any]] = None) -> RestRouter:
+def build_default_router(digital_twin_registry: dict[str, Any] | None = None) -> RestRouter:
     """`DigitalTwin` nesneleri üzerinde CRUD benzeri örnek bir API kurar.
 
     Ana projeye entegrasyon örneği: `harita/api` katmanı bu fonksiyonu
     genişleterek gerçek route'ları ekleyebilir.
     """
-    registry: Dict[str, Any] = digital_twin_registry if digital_twin_registry is not None else {}
+    registry: dict[str, Any] = digital_twin_registry if digital_twin_registry is not None else {}
     router = RestRouter()
 
     @router.get("/health")
-    def _health(**_: Any) -> Dict[str, str]:
+    def _health(**_: Any) -> dict[str, str]:
         return {"status": "ok"}
 
     @router.get("/buildings")
-    def _list_buildings(**_: Any) -> Dict[str, Any]:
+    def _list_buildings(**_: Any) -> dict[str, Any]:
         return {"buildings": list(registry.keys())}
 
     @router.get("/buildings/<id>")
@@ -197,7 +196,7 @@ def build_default_router(digital_twin_registry: Optional[Dict[str, Any]] = None)
         return RestResponse(status=200, body={"id": id, "data": registry[id]})
 
     @router.post("/buildings/<id>")
-    def _upsert_building(id: str, body: Any = None, **_: Any) -> Dict[str, Any]:  # noqa: A002
+    def _upsert_building(id: str, body: Any = None, **_: Any) -> dict[str, Any]:  # noqa: A002
         registry[id] = body
         return {"id": id, "stored": True}
 

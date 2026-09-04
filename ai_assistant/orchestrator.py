@@ -18,9 +18,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from ..building_reconstruction.facade_generator import FacadeMaterial
 from ..building_reconstruction.procedural_generator import Building
 from ..building_reconstruction.roof_generator import RoofType
-from ..building_reconstruction.facade_generator import FacadeMaterial
 from ..editor.building_editor import BuildingEditor
 from ..editor.commands import EditorCommand, UndoRedoStack
 from .intent import CommandIntent, IntentAction, ParseResult
@@ -110,17 +110,23 @@ class AssistantOrchestrator:
                     return IntentExecution(intent, False, f"Bilinmeyen çatı tipi: {roof_type_str}")
                 cmd = BuildingEditor.change_roof(self.building, roof_type)
                 self.undo_stack.execute(cmd)
-                return IntentExecution(intent, True, f"Çatı '{roof_type.value}' olarak değiştirildi.", cmd)
+                return IntentExecution(
+                    intent, True, f"Çatı '{roof_type.value}' olarak değiştirildi.", cmd
+                )
 
             if intent.action is IntentAction.CHANGE_FACADE:
                 material_str = intent.parameters.get("material")
                 try:
                     material = FacadeMaterial(material_str)
                 except ValueError:
-                    return IntentExecution(intent, False, f"Bilinmeyen cephe malzemesi: {material_str}")
+                    return IntentExecution(
+                        intent, False, f"Bilinmeyen cephe malzemesi: {material_str}"
+                    )
                 cmd = BuildingEditor.change_facade(self.building, material=material)
                 self.undo_stack.execute(cmd)
-                return IntentExecution(intent, True, f"Cephe '{material.value}' olarak değiştirildi.", cmd)
+                return IntentExecution(
+                    intent, True, f"Cephe '{material.value}' olarak değiştirildi.", cmd
+                )
 
             if intent.action is IntentAction.ANALYZE_BUILDING:
                 summary = self._analyze()

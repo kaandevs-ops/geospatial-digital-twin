@@ -32,7 +32,7 @@ yeniden kullanılabilir hale gelir (E3'ün de bağımlı olabileceği bir temel)
 from __future__ import annotations
 
 import struct
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO
 
@@ -98,15 +98,17 @@ class PointCloud:
             ("gps_time", self.gps_time),
         ):
             if seq is not None and len(seq) != n:
-                raise LASParseError(f"'{name}' uzunluğu ({len(seq)}) nokta sayısıyla ({n}) eşleşmeli.")
+                raise LASParseError(
+                    f"'{name}' uzunluğu ({len(seq)}) nokta sayısıyla ({n}) eşleşmeli."
+                )
 
     def to_heightmap_grid(
         self,
         resolution_m: float,
-        origin: "GeoPoint | None" = None,
+        origin: GeoPoint | None = None,
         aggregation: str = "max",
         fill_value: float | None = None,
-    ) -> "object":
+    ) -> object:
         """E4 hedefi: nokta bulutundan `terrain_engine.HeightmapGrid`
         üretir (basit binning/gridleme — regular-grid rasterizasyon).
 
@@ -304,8 +306,9 @@ class LASPointCloudParser:
                 rgb_values.append((r, g, b))
                 cursor += cls._RGB_STRUCT.size
 
-        bounds = PointCloudBounds(min_x=min_x, min_y=min_y, min_z=min_z,
-                                   max_x=max_x, max_y=max_y, max_z=max_z)
+        bounds = PointCloudBounds(
+            min_x=min_x, min_y=min_y, min_z=min_z, max_x=max_x, max_y=max_y, max_z=max_z
+        )
 
         return PointCloud(
             points=points,
@@ -347,8 +350,14 @@ class LASPointCloudParser:
         ys = las.y.tolist()
         zs = las.z.tolist()
         points = list(zip(xs, ys, zs))
-        classifications = [int(c) for c in las.classification.tolist()] if hasattr(las, "classification") else None
-        intensities = [int(v) for v in las.intensity.tolist()] if hasattr(las, "intensity") else None
+        classifications = (
+            [int(c) for c in las.classification.tolist()]
+            if hasattr(las, "classification")
+            else None
+        )
+        intensities = (
+            [int(v) for v in las.intensity.tolist()] if hasattr(las, "intensity") else None
+        )
 
         rgb_values = None
         if hasattr(las, "red") and hasattr(las, "green") and hasattr(las, "blue"):
@@ -357,8 +366,12 @@ class LASPointCloudParser:
 
         header = las.header
         bounds = PointCloudBounds(
-            min_x=header.mins[0], min_y=header.mins[1], min_z=header.mins[2],
-            max_x=header.maxs[0], max_y=header.maxs[1], max_z=header.maxs[2],
+            min_x=header.mins[0],
+            min_y=header.mins[1],
+            min_z=header.mins[2],
+            max_x=header.maxs[0],
+            max_y=header.maxs[1],
+            max_z=header.maxs[2],
         )
         cloud = PointCloud(
             points=points,

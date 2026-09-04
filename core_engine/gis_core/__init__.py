@@ -38,7 +38,6 @@ to_heightmap_grid()` ile nokta bulutundan `terrain_engine.HeightmapGrid`'e
 gridleme köprüsü sağlanır (bkz. `point_cloud.py` modül docstring'i).
 """
 
-
 from __future__ import annotations
 
 import base64
@@ -54,7 +53,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from ..geometry_engine import Point2D, Polygon, LineString
+from ..geometry_engine import LineString, Point2D, Polygon
 from . import tiff_lzw as _tiff_lzw
 
 
@@ -85,6 +84,7 @@ def _reraise_as_parse_error(exc: Exception, context: str) -> None:
 # ======================================================================== #
 # Ortak veri modeli
 # ======================================================================== #
+
 
 @dataclass
 class GeoFeature:
@@ -122,11 +122,10 @@ class GeoFeatureCollection:
     def __iter__(self):
         return iter(self.features)
 
-    def filter(self, **props) -> "GeoFeatureCollection":
+    def filter(self, **props) -> GeoFeatureCollection:
         """properties eşleşmesine göre filtreleme (ör. filter(bina_tipi='ofis'))."""
         matched = [
-            f for f in self.features
-            if all(f.properties.get(k) == v for k, v in props.items())
+            f for f in self.features if all(f.properties.get(k) == v for k, v in props.items())
         ]
         return GeoFeatureCollection(matched, crs=self.crs)
 
@@ -134,6 +133,7 @@ class GeoFeatureCollection:
 # ======================================================================== #
 # GeoJSON Parser (tam uygulama)
 # ======================================================================== #
+
 
 class GeoJSONParser:
     """RFC 7946 uyumlu temel GeoJSON okuyucu/yazıcı."""
@@ -148,7 +148,7 @@ class GeoJSONParser:
 
     @staticmethod
     def parse_file(path: str) -> GeoFeatureCollection:
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             return GeoJSONParser.parse(fh.read())
 
     @staticmethod
@@ -161,11 +161,18 @@ class GeoJSONParser:
                 features.append(GeoJSONParser._parse_feature(feat))
         elif gtype == "Feature":
             features.append(GeoJSONParser._parse_feature(data))
-        elif gtype in ("Point", "LineString", "Polygon", "MultiPoint",
-                       "MultiLineString", "MultiPolygon", "GeometryCollection"):
-            features.append(GeoFeature(geometry_type=gtype,
-                                        coordinates=data.get("coordinates"),
-                                        properties={}))
+        elif gtype in (
+            "Point",
+            "LineString",
+            "Polygon",
+            "MultiPoint",
+            "MultiLineString",
+            "MultiPolygon",
+            "GeometryCollection",
+        ):
+            features.append(
+                GeoFeature(geometry_type=gtype, coordinates=data.get("coordinates"), properties={})
+            )
         else:
             raise ValueError(f"Desteklenmeyen/eksik GeoJSON 'type': {gtype!r}")
 
@@ -186,32 +193,36 @@ class GeoJSONParser:
 
     @staticmethod
     def to_geojson(collection: GeoFeatureCollection) -> str:
-        return json.dumps({
-            "type": "FeatureCollection",
-            "features": [
-                {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": f.geometry_type,
-                        "coordinates": f.coordinates,
-                    },
-                    "properties": f.properties,
-                }
-                for f in collection.features
-            ],
-        }, ensure_ascii=False, indent=2)
+        return json.dumps(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": f.geometry_type,
+                            "coordinates": f.coordinates,
+                        },
+                        "properties": f.properties,
+                    }
+                    for f in collection.features
+                ],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
 
 
 # ======================================================================== #
 # Ortak format arayüzü + diğer format iskeletleri (Faz-1 spesifikasyonu)
 # ======================================================================== #
 
+
 class FormatParser(ABC):
     """Tüm GIS/3D format parser'larının uyacağı ortak arayüz."""
 
     @abstractmethod
-    def parse_file(self, path: str) -> GeoFeatureCollection:
-        ...
+    def parse_file(self, path: str) -> GeoFeatureCollection: ...
 
 
 class ShapefileParser(FormatParser):
@@ -257,7 +268,7 @@ class ShapefileParser(FormatParser):
         offset = 100
         n = len(data)
         while offset < n - 8:
-            rec_number, content_len = struct.unpack(">ii", data[offset:offset + 8])
+            rec_number, content_len = struct.unpack(">ii", data[offset : offset + 8])
             if content_len < 0:
                 raise GISParseError(f"Geçersiz negatif record uzunluğu: {content_len}")
             content_start = offset + 8
@@ -298,7 +309,7 @@ class ShapefileParser(FormatParser):
             pts = []
             base = 40
             for i in range(num_points):
-                x, y = struct.unpack("<dd", content[base:base + 16])
+                x, y = struct.unpack("<dd", content[base : base + 16])
                 pts.append([x, y])
                 base += 16
             return "MultiPoint", pts
@@ -326,12 +337,14 @@ class ShapefileParser(FormatParser):
                     f"Geçersiz/aşırı büyük num_points beyanı: {num_points} "
                     f"(kalan veri yalnızca {remaining - 4 * num_parts} byte)"
                 )
-            parts = list(struct.unpack(f"<{num_parts}i", content[parts_start:parts_start + 4 * num_parts]))
+            parts = list(
+                struct.unpack(f"<{num_parts}i", content[parts_start : parts_start + 4 * num_parts])
+            )
             points_start = parts_start + 4 * num_parts
             all_points = []
             base = points_start
             for _ in range(num_points):
-                x, y = struct.unpack("<dd", content[base:base + 16])
+                x, y = struct.unpack("<dd", content[base : base + 16])
                 all_points.append([x, y])
                 base += 16
 
@@ -362,7 +375,7 @@ class ShapefileParser(FormatParser):
             field_area = fh.read(header_len - 32)
             fields = []
             for i in range(0, len(field_area) - 1, 32):
-                chunk = field_area[i:i + 32]
+                chunk = field_area[i : i + 32]
                 if not chunk or chunk[0:1] == b"\r":
                     break
                 name = chunk[0:11].split(b"\x00")[0].decode("ascii", errors="replace")
@@ -379,7 +392,7 @@ class ShapefileParser(FormatParser):
                 row: dict[str, Any] = {}
                 pos = 1  # ilk byte: silinme bayrağı
                 for name, ftype, flen in fields:
-                    raw_val = raw[pos:pos + flen].decode("ascii", errors="replace").strip()
+                    raw_val = raw[pos : pos + flen].decode("ascii", errors="replace").strip()
                     pos += flen
                     if ftype in ("N", "F"):
                         try:
@@ -420,15 +433,22 @@ class KMLParser(FormatParser):
         features: list[GeoFeature] = []
         for placemark in self._findall_any_ns(root, "Placemark"):
             props = self._extract_properties(placemark)
-            for tag, gtype in (("Point", "Point"), ("LineString", "LineString"),
-                                ("Polygon", "Polygon"), ("Track", "LineString")):
+            for tag, gtype in (
+                ("Point", "Point"),
+                ("LineString", "LineString"),
+                ("Polygon", "Polygon"),
+                ("Track", "LineString"),
+            ):
                 for geom_el in self._findall_any_ns(placemark, tag):
                     coords = self._parse_geometry(geom_el, tag)
                     if coords is not None:
                         features.append(GeoFeature(gtype, coords, dict(props)))
             for multi in self._findall_any_ns(placemark, "MultiGeometry"):
-                for tag, gtype in (("Point", "Point"), ("LineString", "LineString"),
-                                    ("Polygon", "Polygon")):
+                for tag, gtype in (
+                    ("Point", "Point"),
+                    ("LineString", "LineString"),
+                    ("Polygon", "Polygon"),
+                ):
                     for geom_el in self._findall_any_ns(multi, tag):
                         coords = self._parse_geometry(geom_el, tag)
                         if coords is not None:
@@ -549,8 +569,12 @@ class GeoPackageParser(FormatParser):
     """
 
     _WKB_TYPE_NAMES = {
-        1: "Point", 2: "LineString", 3: "Polygon",
-        4: "MultiPoint", 5: "MultiLineString", 6: "MultiPolygon",
+        1: "Point",
+        2: "LineString",
+        3: "Polygon",
+        4: "MultiPoint",
+        5: "MultiLineString",
+        6: "MultiPolygon",
     }
 
     def parse_file(self, path: str) -> GeoFeatureCollection:
@@ -558,17 +582,14 @@ class GeoPackageParser(FormatParser):
         try:
             try:
                 return self._parse_file_impl(conn)
-            except (ValueError, TypeError, KeyError, IndexError,
-                    struct.error, sqlite3.Error) as e:
+            except (ValueError, TypeError, KeyError, IndexError, struct.error, sqlite3.Error) as e:
                 _reraise_as_parse_error(e, f"Bozuk GeoPackage ({path})")
         finally:
             conn.close()
 
     def _parse_file_impl(self, conn: sqlite3.Connection) -> GeoFeatureCollection:
         cur = conn.cursor()
-        cur.execute(
-            "SELECT table_name, column_name FROM gpkg_geometry_columns"
-        )
+        cur.execute("SELECT table_name, column_name FROM gpkg_geometry_columns")
         geom_columns = cur.fetchall()
         if not geom_columns:
             raise ValueError("GPKG içinde gpkg_geometry_columns kaydı bulunamadı.")
@@ -589,11 +610,7 @@ class GeoPackageParser(FormatParser):
                 gtype, coords = self._parse_gpb(blob)
                 if gtype is None:
                     continue
-                props = {
-                    col_names[i]: row[i]
-                    for i in range(len(row))
-                    if i != geom_idx
-                }
+                props = {col_names[i]: row[i] for i in range(len(row)) if i != geom_idx}
                 features.append(GeoFeature(gtype, coords, props))
         return GeoFeatureCollection(features, crs="EPSG:4326")
 
@@ -623,7 +640,7 @@ class GeoPackageParser(FormatParser):
 
         def read_point():
             nonlocal pos
-            vals = struct.unpack(byte_order + "d" * dim, wkb[pos:pos + 8 * dim])
+            vals = struct.unpack(byte_order + "d" * dim, wkb[pos : pos + 8 * dim])
             pos += 8 * dim
             return list(vals)
 
@@ -643,7 +660,7 @@ class GeoPackageParser(FormatParser):
 
         def read_ring():
             nonlocal pos
-            (count,) = struct.unpack(byte_order + "I", wkb[pos:pos + 4])
+            (count,) = struct.unpack(byte_order + "I", wkb[pos : pos + 4])
             pos += 4
             _check_count(count, 8 * dim)
             return [read_point() for _ in range(count)]
@@ -653,12 +670,12 @@ class GeoPackageParser(FormatParser):
         if base_type == 2:  # LineString
             return gtype, read_ring()
         if base_type == 3:  # Polygon
-            (num_rings,) = struct.unpack(byte_order + "I", wkb[pos:pos + 4])
+            (num_rings,) = struct.unpack(byte_order + "I", wkb[pos : pos + 4])
             pos += 4
             _check_count(num_rings, 4)  # her ring en az kendi count'u (4 byte) kadar yer kaplar
             return gtype, [read_ring() for _ in range(num_rings)]
         if base_type == 4:  # MultiPoint
-            (count,) = struct.unpack(byte_order + "I", wkb[pos:pos + 4])
+            (count,) = struct.unpack(byte_order + "I", wkb[pos : pos + 4])
             pos += 4
             _check_count(count, 5 + 8 * dim)
             pts = []
@@ -667,7 +684,7 @@ class GeoPackageParser(FormatParser):
                 pts.append(read_point())
             return gtype, pts
         if base_type == 5:  # MultiLineString
-            (count,) = struct.unpack(byte_order + "I", wkb[pos:pos + 4])
+            (count,) = struct.unpack(byte_order + "I", wkb[pos : pos + 4])
             pos += 4
             _check_count(count, 5 + 4)
             lines = []
@@ -676,13 +693,13 @@ class GeoPackageParser(FormatParser):
                 lines.append(read_ring())
             return gtype, lines
         if base_type == 6:  # MultiPolygon
-            (count,) = struct.unpack(byte_order + "I", wkb[pos:pos + 4])
+            (count,) = struct.unpack(byte_order + "I", wkb[pos : pos + 4])
             pos += 4
             _check_count(count, 5 + 4)
             polys = []
             for _ in range(count):
                 pos += 5
-                (num_rings,) = struct.unpack(byte_order + "I", wkb[pos:pos + 4])
+                (num_rings,) = struct.unpack(byte_order + "I", wkb[pos : pos + 4])
                 pos += 4
                 _check_count(num_rings, 4)
                 polys.append([read_ring() for _ in range(num_rings)])
@@ -702,7 +719,7 @@ class DXFParser(FormatParser):
             _reraise_as_parse_error(e, f"Bozuk DXF ({path})")
 
     def _parse_file_impl(self, path: str) -> GeoFeatureCollection:
-        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        with open(path, encoding="utf-8", errors="replace") as fh:
             lines = [ln.rstrip("\r\n") for ln in fh]
         pairs = list(zip(lines[0::2], lines[1::2]))
         codes = [(int(c.strip()), v) for c, v in pairs if c.strip().lstrip("-").isdigit()]
@@ -792,17 +809,32 @@ class DXFParser(FormatParser):
                 return None
             if closed and points[0] != points[-1]:
                 points.append(points[0])
-            return GeoFeature("Polygon" if closed else "LineString",
-                               [points] if closed else points, props)
+            return GeoFeature(
+                "Polygon" if closed else "LineString", [points] if closed else points, props
+            )
 
         if etype == "3DFACE":
             # 3DFACE dört köşe (10/20/30, 11/21/31, 12/22/32, 13/23/33)
-            corners: dict[int, list[float]] = {0: [0.0, 0.0, 0.0], 1: [0.0, 0.0, 0.0],
-                                                 2: [0.0, 0.0, 0.0], 3: [0.0, 0.0, 0.0]}
-            code_to_corner = {10: (0, 0), 20: (0, 1), 30: (0, 2),
-                               11: (1, 0), 21: (1, 1), 31: (1, 2),
-                               12: (2, 0), 22: (2, 1), 32: (2, 2),
-                               13: (3, 0), 23: (3, 1), 33: (3, 2)}
+            corners: dict[int, list[float]] = {
+                0: [0.0, 0.0, 0.0],
+                1: [0.0, 0.0, 0.0],
+                2: [0.0, 0.0, 0.0],
+                3: [0.0, 0.0, 0.0],
+            }
+            code_to_corner = {
+                10: (0, 0),
+                20: (0, 1),
+                30: (0, 2),
+                11: (1, 0),
+                21: (1, 1),
+                31: (1, 2),
+                12: (2, 0),
+                22: (2, 1),
+                32: (2, 2),
+                13: (3, 0),
+                23: (3, 1),
+                33: (3, 2),
+            }
             for code, value in codes:
                 if code in code_to_corner:
                     ci, axis = code_to_corner[code]
@@ -839,14 +871,21 @@ class Mesh3DParser(FormatParser):
             if self.fmt == "STL":
                 return self._parse_stl(path)
             return self._parse_gltf(path)
-        except (ValueError, TypeError, KeyError, IndexError,
-                struct.error, json.JSONDecodeError, OSError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            IndexError,
+            struct.error,
+            json.JSONDecodeError,
+            OSError,
+        ) as e:
             _reraise_as_parse_error(e, f"Bozuk Mesh3D/{self.fmt} ({path})")
 
     def _parse_obj(self, path: str) -> GeoFeatureCollection:
         vertices: list[list[float]] = []
         faces: list[list[int]] = []
-        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        with open(path, encoding="utf-8", errors="replace") as fh:
             for line in fh:
                 line = line.strip()
                 if not line or line.startswith("#"):
@@ -888,7 +927,9 @@ class Mesh3DParser(FormatParser):
                     vertices.extend(current)
                     faces.append([base, base + 1, base + 2])
                 current = []
-        feature = GeoFeature("Mesh3D", {"vertices": vertices, "faces": faces}, {"format": "STL-ASCII"})
+        feature = GeoFeature(
+            "Mesh3D", {"vertices": vertices, "faces": faces}, {"format": "STL-ASCII"}
+        )
         return GeoFeatureCollection([feature], crs="LOCAL")
 
     def _parse_stl_binary(self, fh) -> GeoFeatureCollection:
@@ -906,11 +947,13 @@ class Mesh3DParser(FormatParser):
             base = len(vertices)
             vertices.extend(tri)
             faces.append([base, base + 1, base + 2])
-        feature = GeoFeature("Mesh3D", {"vertices": vertices, "faces": faces}, {"format": "STL-BINARY"})
+        feature = GeoFeature(
+            "Mesh3D", {"vertices": vertices, "faces": faces}, {"format": "STL-BINARY"}
+        )
         return GeoFeatureCollection([feature], crs="LOCAL")
 
     def _parse_gltf(self, path: str) -> GeoFeatureCollection:
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             doc = json.load(fh)
 
         buffers_raw: list[bytes] = []
@@ -943,7 +986,7 @@ class Mesh3DParser(FormatParser):
             stride = comp_size[comp_type] * n_comp
             out = []
             for i in range(count):
-                chunk = raw[offset + i * stride: offset + i * stride + stride]
+                chunk = raw[offset + i * stride : offset + i * stride + stride]
                 vals = struct.unpack(fmt, chunk)
                 out.append(list(vals) if n_comp > 1 else vals[0])
             return out
@@ -966,7 +1009,9 @@ class Mesh3DParser(FormatParser):
                     for k in range(0, len(positions) - 2, 3):
                         all_faces.append([base + k, base + k + 1, base + k + 2])
 
-        feature = GeoFeature("Mesh3D", {"vertices": all_vertices, "faces": all_faces}, {"format": "GLTF"})
+        feature = GeoFeature(
+            "Mesh3D", {"vertices": all_vertices, "faces": all_faces}, {"format": "GLTF"}
+        )
         return GeoFeatureCollection([feature], crs="LOCAL")
 
 
@@ -1008,19 +1053,34 @@ class HeightmapParser(FormatParser):
             if suffix in (".tif", ".tiff"):
                 return self._parse_geotiff(path)
             return self._parse_raw_binary(path)
-        except (ValueError, TypeError, KeyError, IndexError,
-                struct.error, json.JSONDecodeError, OSError,
-                zlib.error) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            IndexError,
+            struct.error,
+            json.JSONDecodeError,
+            OSError,
+            zlib.error,
+        ) as e:
             _reraise_as_parse_error(e, f"Bozuk Heightmap ({path})")
 
     def _parse_esri_ascii(self, path: str) -> GeoFeatureCollection:
-        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        with open(path, encoding="utf-8", errors="replace") as fh:
             lines = fh.readlines()
 
         header: dict[str, float] = {}
         data_start = 0
-        keys = {"ncols", "nrows", "xllcorner", "yllcorner", "xllcenter",
-                "yllcenter", "cellsize", "nodata_value"}
+        keys = {
+            "ncols",
+            "nrows",
+            "xllcorner",
+            "yllcorner",
+            "xllcenter",
+            "yllcenter",
+            "cellsize",
+            "nodata_value",
+        }
         for i, line in enumerate(lines):
             parts = line.strip().split()
             if len(parts) == 2 and parts[0].lower() in keys:
@@ -1037,7 +1097,7 @@ class HeightmapParser(FormatParser):
         origin_y = header.get("yllcorner", header.get("yllcenter", 0.0))
 
         elevations: list[list[float]] = []
-        for line in lines[data_start:data_start + nrows]:
+        for line in lines[data_start : data_start + nrows]:
             values = [float(v) for v in line.strip().split()]
             values = [None if v == nodata else v for v in values]
             elevations.append(values[:ncols])
@@ -1055,8 +1115,7 @@ class HeightmapParser(FormatParser):
     # ------------------------------------------------------------------ #
     # Roadmap V3 - D14: baseline TIFF 6.0 IFD ayrıştırıcısı + DEFLATE çözücü
     # ------------------------------------------------------------------ #
-    _TIFF_TYPE_SIZES = {1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1, 8: 2,
-                         9: 4, 10: 8, 11: 4, 12: 8}
+    _TIFF_TYPE_SIZES = {1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1, 8: 2, 9: 4, 10: 8, 11: 4, 12: 8}
 
     def _parse_geotiff(self, path: str) -> GeoFeatureCollection:
         with open(path, "rb") as fh:
@@ -1085,7 +1144,9 @@ class HeightmapParser(FormatParser):
         if width is None or height is None:
             raise GISParseError("TIFF: ImageWidth/ImageLength etiketi eksik.")
 
-        bits_per_sample = tags.get(258, [32])[0] if isinstance(tags.get(258), list) else tags.get(258, 32)
+        bits_per_sample = (
+            tags.get(258, [32])[0] if isinstance(tags.get(258), list) else tags.get(258, 32)
+        )
         compression = tags.get(259, 1)
         samples_per_pixel = tags.get(277, 1)
         rows_per_strip = tags.get(278, height)
@@ -1096,20 +1157,20 @@ class HeightmapParser(FormatParser):
         strip_offsets = tags.get(273)
         strip_byte_counts = tags.get(279)
         if strip_offsets is None or strip_byte_counts is None:
-            raise GISParseError("TIFF: StripOffsets/StripByteCounts etiketi eksik (tiled TIFF desteklenmiyor).")
+            raise GISParseError(
+                "TIFF: StripOffsets/StripByteCounts etiketi eksik (tiled TIFF desteklenmiyor)."
+            )
         if not isinstance(strip_offsets, list):
             strip_offsets = [strip_offsets]
         if not isinstance(strip_byte_counts, list):
             strip_byte_counts = [strip_byte_counts]
 
         if compression not in (1, 5, 8, 32946):
-            raise UnsupportedFormatError(
-                f"TIFF: desteklenmeyen sıkıştırma kodu {compression}."
-            )
+            raise UnsupportedFormatError(f"TIFF: desteklenmeyen sıkıştırma kodu {compression}.")
 
         raw_strips = []
         for off, cnt in zip(strip_offsets, strip_byte_counts):
-            chunk = data[off:off + cnt]
+            chunk = data[off : off + cnt]
             if compression in (8, 32946):
                 chunk = zlib.decompress(chunk)
             elif compression == 5:
@@ -1126,9 +1187,7 @@ class HeightmapParser(FormatParser):
 
         bytes_per_sample = bits_per_sample // 8
         if bytes_per_sample not in (1, 2, 4, 8):
-            raise UnsupportedFormatError(
-                f"TIFF: desteklenmeyen BitsPerSample={bits_per_sample}."
-            )
+            raise UnsupportedFormatError(f"TIFF: desteklenmeyen BitsPerSample={bits_per_sample}.")
 
         # Predictor=2 (horizontal differencing) geri alma: her satırda
         # değerler öncekine göre fark olarak kodlanmıştır, kümülatif
@@ -1142,16 +1201,22 @@ class HeightmapParser(FormatParser):
                 per_row = width * samples_per_pixel
                 for r in range(height):
                     start = r * row_stride
-                    row_vals = list(struct.unpack_from(
-                        f"{endian}{per_row}{code}", raw, start))
+                    row_vals = list(struct.unpack_from(f"{endian}{per_row}{code}", raw, start))
                     for i in range(samples_per_pixel, per_row):
-                        row_vals[i] = (row_vals[i] + row_vals[i - samples_per_pixel]) & ((1 << bits_per_sample) - 1)
+                        row_vals[i] = (row_vals[i] + row_vals[i - samples_per_pixel]) & (
+                            (1 << bits_per_sample) - 1
+                        )
                     struct.pack_into(f"{endian}{per_row}{code}", raw, start, *row_vals)
             raw = bytes(raw)
 
         elevations = self._decode_samples(
-            raw, width, height, samples_per_pixel, bytes_per_sample,
-            sample_format, endian,
+            raw,
+            width,
+            height,
+            samples_per_pixel,
+            bytes_per_sample,
+            sample_format,
+            endian,
         )
 
         # GeoTIFF geo-referans etiketleri (opsiyonel): ModelPixelScaleTag
@@ -1169,11 +1234,15 @@ class HeightmapParser(FormatParser):
             "origin": [origin_x, origin_y],
             "elevations": elevations,
         }
-        feature = GeoFeature("Heightmap", coords, {
-            "format": "GEOTIFF",
-            "compression": compression,
-            "predictor": predictor,
-        })
+        feature = GeoFeature(
+            "Heightmap",
+            coords,
+            {
+                "format": "GEOTIFF",
+                "compression": compression,
+                "predictor": predictor,
+            },
+        )
         return GeoFeatureCollection([feature], crs="EPSG:4326")
 
     def _read_ifd(self, data: bytes, offset: int, endian: str) -> dict[int, Any]:
@@ -1183,7 +1252,7 @@ class HeightmapParser(FormatParser):
         for i in range(entry_count):
             entry_off = entry_base + i * 12
             tag_id, field_type, count = struct.unpack_from(endian + "HHI", data, entry_off)
-            value_offset_bytes = data[entry_off + 8:entry_off + 12]
+            value_offset_bytes = data[entry_off + 8 : entry_off + 12]
             size = self._TIFF_TYPE_SIZES.get(field_type, 1)
             total_size = size * count
 
@@ -1191,7 +1260,9 @@ class HeightmapParser(FormatParser):
                 values = self._unpack_values(value_offset_bytes, field_type, count, endian)
             else:
                 value_offset = struct.unpack_from(endian + "I", value_offset_bytes, 0)[0]
-                values = self._unpack_values(data[value_offset:value_offset + total_size], field_type, count, endian)
+                values = self._unpack_values(
+                    data[value_offset : value_offset + total_size], field_type, count, endian
+                )
 
             tags[tag_id] = values[0] if count == 1 and field_type not in (2,) else values
         return tags
@@ -1212,18 +1283,29 @@ class HeightmapParser(FormatParser):
         return [struct.unpack_from(endian + code, buf, i * size)[0] for i in range(count)]
 
     @staticmethod
-    def _decode_samples(raw: bytes, width: int, height: int, samples_per_pixel: int,
-                         bytes_per_sample: int, sample_format: int, endian: str) -> list[list[float]]:
+    def _decode_samples(
+        raw: bytes,
+        width: int,
+        height: int,
+        samples_per_pixel: int,
+        bytes_per_sample: int,
+        sample_format: int,
+        endian: str,
+    ) -> list[list[float]]:
         if sample_format == 3:  # IEEE float
             code = {4: "f", 8: "d"}.get(bytes_per_sample)
             if code is None:
-                raise UnsupportedFormatError(f"Desteklenmeyen float BitsPerSample={bytes_per_sample * 8}")
+                raise UnsupportedFormatError(
+                    f"Desteklenmeyen float BitsPerSample={bytes_per_sample * 8}"
+                )
         else:  # unsigned/signed integer
             code = {1: "B", 2: "H", 4: "I"}.get(bytes_per_sample)
             if sample_format == 2:  # signed
                 code = {1: "b", 2: "h", 4: "i"}.get(bytes_per_sample)
             if code is None:
-                raise UnsupportedFormatError(f"Desteklenmeyen integer BitsPerSample={bytes_per_sample * 8}")
+                raise UnsupportedFormatError(
+                    f"Desteklenmeyen integer BitsPerSample={bytes_per_sample * 8}"
+                )
 
         per_row = width * samples_per_pixel
         row_stride = per_row * bytes_per_sample
@@ -1243,7 +1325,7 @@ class HeightmapParser(FormatParser):
             raise ValueError(
                 f"Ham binary heightmap için '{json_path}' sidecar header dosyası bulunamadı."
             )
-        with open(json_path, "r", encoding="utf-8") as fh:
+        with open(json_path, encoding="utf-8") as fh:
             meta = json.load(fh)
 
         width = int(meta["width"])
@@ -1259,7 +1341,7 @@ class HeightmapParser(FormatParser):
                 f"Binary heightmap boyutu header ile uyuşmuyor: {len(raw)} < {expected} byte."
             )
         flat = struct.unpack(f"<{width * height}f", raw[:expected])
-        elevations = [list(flat[r * width:(r + 1) * width]) for r in range(height)]
+        elevations = [list(flat[r * width : (r + 1) * width]) for r in range(height)]
 
         coords = {
             "width": width,

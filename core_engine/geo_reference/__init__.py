@@ -40,10 +40,10 @@ from dataclasses import dataclass, field
 
 from ..coordinate_systems import CoordinateConverter, GeoPoint
 
-
 # ======================================================================== #
 # Referans konum veri seti
 # ======================================================================== #
+
 
 @dataclass(frozen=True, slots=True)
 class ReferenceLocation:
@@ -137,6 +137,7 @@ REFERENCE_DISTANCES: tuple[ReferenceDistance, ...] = (
 # ======================================================================== #
 # Doğruluk raporu
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class AccuracyCheck:

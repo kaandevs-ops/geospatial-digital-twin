@@ -10,6 +10,7 @@ onun yerine sunucunun KENDİ önbelleğine doğrudan yazıp `offline_get_tile`/
 `/api/offline/tiles/<z>/<x>/<y>` uçlarının doğru okuduğu doğrulanıyor
 (ağ gerektirmeyen, ama uçtan uca gerçek entegrasyon testi).
 """
+
 from __future__ import annotations
 
 import sys
@@ -18,7 +19,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.app_shell import AppSession, build_app_router
 
 
@@ -38,6 +38,7 @@ def router(session):
 # --------------------------------------------------------------------------- #
 # AppSession dogrudan kullanim
 # --------------------------------------------------------------------------- #
+
 
 def test_offline_cache_created_next_to_registry(session, tmp_path):
     assert session._offline_cache.cache_dir.parent == tmp_path
@@ -88,7 +89,8 @@ def test_offline_place_index_persists_across_sessions(tmp_path):
     registry = tmp_path / "registry.hprojreg"
     with AppSession(registry) as s1:
         s1.offline_index_collection(
-            "p1", "cafe",
+            "p1",
+            "cafe",
             {
                 "features": [
                     {
@@ -106,6 +108,7 @@ def test_offline_place_index_persists_across_sessions(tmp_path):
 # --------------------------------------------------------------------------- #
 # RestRouter uzerinden
 # --------------------------------------------------------------------------- #
+
 
 def test_router_offline_stats_empty(router):
     resp = router.dispatch("GET", "/api/offline/stats")
@@ -145,8 +148,12 @@ def test_router_offline_download_executes_with_fake_url_template(router):
         "POST",
         "/api/offline/download",
         body={
-            "min_lat": 41.0, "min_lon": 29.0, "max_lat": 41.001, "max_lon": 29.001,
-            "zoom_min": 18, "zoom_max": 18,
+            "min_lat": 41.0,
+            "min_lon": 29.0,
+            "max_lat": 41.001,
+            "max_lon": 29.001,
+            "zoom_min": 18,
+            "zoom_max": 18,
             "url_template": "https://invalid.example.invalid/{z}/{x}/{y}.png",
         },
     )

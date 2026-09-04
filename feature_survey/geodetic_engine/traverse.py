@@ -41,9 +41,9 @@ class LinearClosure:
 
     delta_easting_sum_m: float
     delta_northing_sum_m: float
-    closure_distance_m: float          # sqrt(ΔE² + ΔN²)
+    closure_distance_m: float  # sqrt(ΔE² + ΔN²)
     perimeter_m: float
-    relative_precision: float          # closure_distance / perimeter (örn. 1/5000 biçiminde raporlanır)
+    relative_precision: float  # closure_distance / perimeter (örn. 1/5000 biçiminde raporlanır)
 
 
 @dataclass(slots=True)
@@ -111,7 +111,9 @@ def compute_linear_closure(legs: list[ReducedObservation]) -> LinearClosure:
     )
 
 
-def bowditch_adjustment(legs: list[ReducedObservation], closure: LinearClosure) -> list[BalancedLeg]:
+def bowditch_adjustment(
+    legs: list[ReducedObservation], closure: LinearClosure
+) -> list[BalancedLeg]:
     """Bowditch (compass rule) dengeleme: her kenara, kendi uzunluğunun
     çevreye oranında ters işaretli düzeltme uygulanır — böylece dengelenmiş
     ΔE/ΔN toplamları tam olarak sıfıra iner."""

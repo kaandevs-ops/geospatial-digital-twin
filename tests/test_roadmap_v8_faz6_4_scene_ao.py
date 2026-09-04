@@ -19,6 +19,7 @@ bulunan boşluk). Bu dosya üç şeyi doğrular:
    verilirse `ValueError` fırlatıyor (mevcut `attach_vertex_ao` ile aynı
    sözleşme).
 """
+
 from __future__ import annotations
 
 import math
@@ -58,7 +59,9 @@ class TestSpatialHashGridEquivalence:
             for pa, pb, pc in all_triangles:
                 centroid = tuple((pa[k] + pb[k] + pc[k]) / 3.0 for k in range(3))
                 radius = max(
-                    math.dist(centroid, pa), math.dist(centroid, pb), math.dist(centroid, pc),
+                    math.dist(centroid, pa),
+                    math.dist(centroid, pb),
+                    math.dist(centroid, pc),
                 )
                 if math.dist(query_point, centroid) - radius <= max_distance:
                     found.append((pa, pb, pc))
@@ -102,7 +105,9 @@ class TestSceneAOBakerInterBuildingShadowing:
         # Mesh-lokal (tek başına, komşudan habersiz) AO: her kutu kendi
         # başına dışbükey bir küp olduğu için occlusion neredeyse yok.
         local_ao_a = AmbientOcclusionBaker.bake_vertex_ao(
-            box_a, sample_count=10, max_distance=4.0,
+            box_a,
+            sample_count=10,
+            max_distance=4.0,
         )
         assert all(v >= 0.99 for v in local_ao_a), (
             "tek başına dışbükey kutuda kendi kendini gölgeleme olmamalı"
@@ -111,7 +116,9 @@ class TestSceneAOBakerInterBuildingShadowing:
         # Sahne-ölçeği AO: box_b artık grid'de var, box_a'nın box_b'ye
         # bakan köşesi onun tarafından kısmen kapatılmalı.
         scene_ao_a, scene_ao_b = SceneAOBaker.bake_scene_ao(
-            [box_a, box_b], sample_count=10, max_distance=4.0,
+            [box_a, box_b],
+            sample_count=10,
+            max_distance=4.0,
         )
         assert len(scene_ao_a) == box_a.vertex_count()
         assert len(scene_ao_b) == box_b.vertex_count()
@@ -128,10 +135,14 @@ class TestSceneAOBakerInterBuildingShadowing:
             v.x += 1000.0  # çok uzak - birbirini etkilememeli
 
         scene_ao_a, _ = SceneAOBaker.bake_scene_ao(
-            [box_a, box_b], sample_count=8, max_distance=4.0,
+            [box_a, box_b],
+            sample_count=8,
+            max_distance=4.0,
         )
         local_ao_a = AmbientOcclusionBaker.bake_vertex_ao(
-            box_a, sample_count=8, max_distance=4.0,
+            box_a,
+            sample_count=8,
+            max_distance=4.0,
         )
         for s, m in zip(scene_ao_a, local_ao_a):
             assert abs(s - m) < 1e-9
@@ -149,7 +160,9 @@ class TestSceneAOBakerInterBuildingShadowing:
         assert all(a == 1.0 for a in original_ao)
 
         clones = SceneAOBaker.apply_scene_ao(
-            [box_a, box_b], sample_count=8, max_distance=4.0,
+            [box_a, box_b],
+            sample_count=8,
+            max_distance=4.0,
         )
 
         assert all(v.ao == 1.0 for v in box_a.vertices), "girdi mutasyona uğramamalı"
@@ -207,7 +220,9 @@ class TestSceneAttachSceneVertexAO:
         scene = Scene()
         scene.add_mesh(_box("box_a"))
         scene.add_mesh(
-            _box("box_b"), translation=(1.7, 0.0, 1.7), rotation_deg=(0.0, 0.0, 45.0),
+            _box("box_b"),
+            translation=(1.7, 0.0, 1.7),
+            rotation_deg=(0.0, 0.0, 45.0),
         )
         result = scene.attach_scene_vertex_ao(sample_count=10, max_distance=4.0)
         assert any(v < 0.99 for v in result["box_a"])

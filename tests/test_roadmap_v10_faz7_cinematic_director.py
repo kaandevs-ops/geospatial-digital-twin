@@ -3,10 +3,10 @@
 7.1 (ilginç an tespiti) -> 7.2 (yumuşak kamera geçişi) -> 7.3 (kullanıcı
 kontrolü her zaman öncelikli) kapsar.
 """
+
 from __future__ import annotations
 
 import pytest
-
 from harita.visualization.camera_rig import Camera, CameraRig
 from harita.visualization.cinematic_director import (
     AutoCameraController,
@@ -16,15 +16,17 @@ from harita.visualization.cinematic_director import (
     build_transition_keyframes,
 )
 
-
 # --------------------------------------------------------------------------- #
 # 7.1 — Otomatik "ilginç an" tespiti
 # --------------------------------------------------------------------------- #
 
+
 class TestFaz7_1InterestScorer:
     def test_collapse_beats_ordinary_walk(self):
         scorer = InterestScorer()
-        collapse = SceneEvent(SceneEventKind.BUILDING_COLLAPSE_START, time_s=1.0, position=(0, 0, 0))
+        collapse = SceneEvent(
+            SceneEventKind.BUILDING_COLLAPSE_START, time_s=1.0, position=(0, 0, 0)
+        )
         walk = SceneEvent(SceneEventKind.ORDINARY_WALK, time_s=1.0, position=(0, 0, 0))
         best = scorer.most_interesting([walk, collapse])
         assert best is collapse
@@ -43,8 +45,12 @@ class TestFaz7_1InterestScorer:
 
     def test_magnitude_scales_score(self):
         scorer = InterestScorer()
-        weak = SceneEvent(SceneEventKind.CROWD_DENSITY_PEAK, time_s=0.0, position=(0, 0, 0), magnitude=0.1)
-        strong = SceneEvent(SceneEventKind.CROWD_DENSITY_PEAK, time_s=0.0, position=(0, 0, 0), magnitude=1.0)
+        weak = SceneEvent(
+            SceneEventKind.CROWD_DENSITY_PEAK, time_s=0.0, position=(0, 0, 0), magnitude=0.1
+        )
+        strong = SceneEvent(
+            SceneEventKind.CROWD_DENSITY_PEAK, time_s=0.0, position=(0, 0, 0), magnitude=1.0
+        )
         assert scorer.score(strong) > scorer.score(weak)
 
     def test_tie_break_prefers_newest_event(self):
@@ -57,6 +63,7 @@ class TestFaz7_1InterestScorer:
 # --------------------------------------------------------------------------- #
 # 7.2 — Kamera geçiş dili
 # --------------------------------------------------------------------------- #
+
 
 class TestFaz7_2TransitionKeyframes:
     def test_transition_ends_near_target_event(self):
@@ -83,7 +90,11 @@ class TestFaz7_2TransitionKeyframes:
         cam = Camera(position=(0, 0, 10), target=(0, 0, 0))
         event = SceneEvent(SceneEventKind.BUILDING_COLLAPSE_START, time_s=0.0, position=(50, 50, 0))
         keyframes = build_transition_keyframes(
-            cam, event, transition_duration_s=2.0, hold_duration_s=3.0, ease_samples=2,
+            cam,
+            event,
+            transition_duration_s=2.0,
+            hold_duration_s=3.0,
+            ease_samples=2,
         )
         assert keyframes[-1].time_s == pytest.approx(5.0)
 
@@ -100,6 +111,7 @@ class TestFaz7_2TransitionKeyframes:
 # --------------------------------------------------------------------------- #
 # 7.3 — Kullanıcı kontrolü her zaman öncelikli
 # --------------------------------------------------------------------------- #
+
 
 class TestFaz7_3AutoCameraController:
     def _controller(self) -> AutoCameraController:

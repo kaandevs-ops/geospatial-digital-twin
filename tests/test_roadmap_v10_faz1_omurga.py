@@ -40,8 +40,13 @@ def _run_reference_scenario(seed: int = 42):
     sim = EvacuationSimulator()
     recorder = SimulationRecorder(keyframe_interval_s=0.5)
     result = sim.run(
-        agents, obstacles=obstacles, dt=0.1, max_time_s=120.0,
-        recorder=recorder, seed=seed, scenario_id="ci_reference_room",
+        agents,
+        obstacles=obstacles,
+        dt=0.1,
+        max_time_s=120.0,
+        recorder=recorder,
+        seed=seed,
+        scenario_id="ci_reference_room",
     )
     return result, recorder, obstacles
 
@@ -117,9 +122,7 @@ class TestFaz1_6RealismAudit:
         } <= check_ids
 
     def test_audit_flags_missing_seed_as_warning_not_failure(self):
-        agents = spawn_random_agents(
-            10, Point2D(0, 0), Point2D(10, 10), Point2D(15, 5), seed=1
-        )
+        agents = spawn_random_agents(10, Point2D(0, 0), Point2D(10, 10), Point2D(15, 5), seed=1)
         sim = EvacuationSimulator()
         recorder = SimulationRecorder(keyframe_interval_s=0.5)
         result = sim.run(agents, dt=0.1, max_time_s=60.0, recorder=recorder)
@@ -138,7 +141,9 @@ class TestFaz1_6RealismAudit:
         fabricated_obstacle = [recorder.keyframes[1].agents[0]]
         obstacle_points = [Point2D(s.x, s.y) for s in fabricated_obstacle]
         report = run_realism_audit(
-            result, recorder=recorder, obstacles=obstacle_points,
+            result,
+            recorder=recorder,
+            obstacles=obstacle_points,
             agent_radius_m=5.0,  # abartılı yarıçap: penetrasyonu garantiler
             thresholds=EvacuationAuditThresholds(obstacle_penetration_tolerance_m=0.01),
         )

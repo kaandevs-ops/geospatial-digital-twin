@@ -21,7 +21,7 @@ tersi değil).
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from ..ai_assistant.llm_providers import LLMCallError, LLMProvider, ProviderUnavailableError
 
@@ -89,9 +89,7 @@ def _fallback_evacuation(result: Any) -> str:
     evacuated = getattr(result, "evacuated_count", 0)
     time_s = getattr(result, "evacuation_time_s", 0.0)
     timed_out = getattr(result, "timed_out", False)
-    parts = [
-        f"{total} kişilik senaryoda {evacuated} kişi {time_s:.0f} saniyede tahliye edildi."
-    ]
+    parts = [f"{total} kişilik senaryoda {evacuated} kişi {time_s:.0f} saniyede tahliye edildi."]
     if timed_out:
         parts.append("Simülasyon azami süre içinde tamamlanamadı (bazı ajanlar dışarı çıkamadı).")
     bottleneck = getattr(result, "bottleneck_peak_count", None)
@@ -137,7 +135,7 @@ def _fallback_scenario_comparison(comparisons: Any) -> str:
     return "Bu senaryoda " + ", ".join(sentences) + "."
 
 
-def _narrate(result: Any, fallback_fn, provider: Optional[LLMProvider]) -> str:
+def _narrate(result: Any, fallback_fn, provider: LLMProvider | None) -> str:
     fallback = fallback_fn(result)
     if provider is None:
         return fallback
@@ -149,27 +147,27 @@ def _narrate(result: Any, fallback_fn, provider: Optional[LLMProvider]) -> str:
     return text or fallback
 
 
-def narrate_solar_exposure(result: Any, provider: Optional[LLMProvider] = None) -> str:
+def narrate_solar_exposure(result: Any, provider: LLMProvider | None = None) -> str:
     """`SolarExposureResult`'ı doğal dilde kısa bir açıklamaya çevirir."""
     return _narrate(result, _fallback_solar_exposure, provider)
 
 
-def narrate_heat_island(result: Any, provider: Optional[LLMProvider] = None) -> str:
+def narrate_heat_island(result: Any, provider: LLMProvider | None = None) -> str:
     """`HeatIslandResult`'ı doğal dilde kısa bir açıklamaya çevirir."""
     return _narrate(result, _fallback_heat_island, provider)
 
 
-def narrate_noise(result: Any, provider: Optional[LLMProvider] = None) -> str:
+def narrate_noise(result: Any, provider: LLMProvider | None = None) -> str:
     """`NoiseResult`'ı doğal dilde kısa bir açıklamaya çevirir."""
     return _narrate(result, _fallback_noise, provider)
 
 
-def narrate_flood(result: Any, provider: Optional[LLMProvider] = None) -> str:
+def narrate_flood(result: Any, provider: LLMProvider | None = None) -> str:
     """`FloodResult`'ı doğal dilde kısa bir açıklamaya çevirir."""
     return _narrate(result, _fallback_flood, provider)
 
 
-def narrate_evacuation_result(result: Any, provider: Optional[LLMProvider] = None) -> str:
+def narrate_evacuation_result(result: Any, provider: LLMProvider | None = None) -> str:
     """ROADMAP_V9 Katman 9 madde 4: `mobility.crowd_simulation.
     EvacuationResult`'ı (duck-typing — döngüsel bağımlılık yaratmamak için
     tip doğrudan import edilmez, `analysis_engine/decision_support.py` ile
@@ -177,14 +175,15 @@ def narrate_evacuation_result(result: Any, provider: Optional[LLMProvider] = Non
     return _narrate(result, _fallback_evacuation, provider)
 
 
-def narrate_capacity_report(report: Any, provider: Optional[LLMProvider] = None) -> str:
+def narrate_capacity_report(report: Any, provider: LLMProvider | None = None) -> str:
     """`mobility.crowd_simulation.capacity_analysis.CapacityAnalysisReport`'ı
     doğal dilde özetler (duck-typing, bkz. `narrate_evacuation_result`)."""
     return _narrate(report, _fallback_capacity_report, provider)
 
 
 def narrate_scenario_comparison(
-    comparisons: Any, provider: Optional[LLMProvider] = None,
+    comparisons: Any,
+    provider: LLMProvider | None = None,
 ) -> str:
     """ROADMAP_V9 Katman 9 madde 1+4: `analysis_engine.decision_support.
     ScenarioComparison` listesini ("Bu senaryoda toplam tahliye süresi

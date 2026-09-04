@@ -19,19 +19,25 @@ Bu modülde:
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Union
 
-Geometry = Dict[str, Any]
+Geometry = dict[str, Any]
 Coordinates = Union[
-    Tuple[float, float],
-    Tuple[float, float, float],
-    List[Any],
+    tuple[float, float],
+    tuple[float, float, float],
+    list[Any],
 ]
 
 _VALID_GEOMETRY_TYPES = {
-    "Point", "MultiPoint", "LineString", "MultiLineString",
-    "Polygon", "MultiPolygon", "GeometryCollection",
+    "Point",
+    "MultiPoint",
+    "LineString",
+    "MultiLineString",
+    "Polygon",
+    "MultiPolygon",
+    "GeometryCollection",
 }
 
 
@@ -43,13 +49,14 @@ class GeoJSONParseError(ValueError):
 # VERİ MODELİ
 # ============================================================================
 
+
 @dataclass
 class Feature:
-    geometry: Optional[Geometry]
-    properties: Dict[str, Any] = field(default_factory=dict)
-    id: Optional[Union[str, int]] = None
+    geometry: Geometry | None
+    properties: dict[str, Any] = field(default_factory=dict)
+    id: str | int | None = None
 
-    def bbox(self) -> Optional[Tuple[float, float, float, float]]:
+    def bbox(self) -> tuple[float, float, float, float] | None:
         if self.geometry is None:
             return None
         coords = _flatten_coordinates(self.geometry)
@@ -59,8 +66,8 @@ class Feature:
         ys = [c[1] for c in coords]
         return (min(xs), min(ys), max(xs), max(ys))
 
-    def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "type": "Feature",
             "geometry": self.geometry,
             "properties": self.properties,
@@ -72,10 +79,10 @@ class Feature:
 
 @dataclass
 class FeatureCollection:
-    features: List[Feature] = field(default_factory=list)
+    features: list[Feature] = field(default_factory=list)
     crs_name: str = "EPSG:4326"
 
-    def bbox(self) -> Optional[Tuple[float, float, float, float]]:
+    def bbox(self) -> tuple[float, float, float, float] | None:
         boxes = [f.bbox() for f in self.features if f.bbox() is not None]
         if not boxes:
             return None
@@ -85,13 +92,13 @@ class FeatureCollection:
         ys_max = max(b[3] for b in boxes)
         return (xs_min, ys_min, xs_max, ys_max)
 
-    def filter(self, predicate: Callable[[Feature], bool]) -> "FeatureCollection":
+    def filter(self, predicate: Callable[[Feature], bool]) -> FeatureCollection:
         return FeatureCollection(
             features=[f for f in self.features if predicate(f)],
             crs_name=self.crs_name,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": "FeatureCollection",
             "features": [f.to_dict() for f in self.features],
@@ -101,6 +108,7 @@ class FeatureCollection:
 # ============================================================================
 # YARDIMCI: koordinat doğrulama / düzleştirme
 # ============================================================================
+
 
 def _validate_position(pos: Any) -> None:
     if not isinstance(pos, (list, tuple)) or len(pos) < 2:
@@ -142,7 +150,9 @@ def _validate_geometry(geom: Geometry) -> None:
         if gtype == "Polygon":
             for ring in coords:
                 if len(ring) < 4:
-                    raise GeoJSONParseError("Polygon ring en az 4 koordinat içermeli (kapalı halka)")
+                    raise GeoJSONParseError(
+                        "Polygon ring en az 4 koordinat içermeli (kapalı halka)"
+                    )
                 if ring[0] != ring[-1]:
                     raise GeoJSONParseError("Polygon ring kapalı olmalı (ilk == son nokta)")
     elif gtype == "MultiPolygon":
@@ -154,10 +164,10 @@ def _validate_geometry(geom: Geometry) -> None:
                     raise GeoJSONParseError("MultiPolygon ring geçersiz/kapalı değil")
 
 
-def _flatten_coordinates(geom: Geometry) -> List[Tuple[float, float]]:
+def _flatten_coordinates(geom: Geometry) -> list[tuple[float, float]]:
     gtype = geom.get("type")
     coords = geom.get("coordinates")
-    out: List[Tuple[float, float]] = []
+    out: list[tuple[float, float]] = []
 
     def _walk(node: Any) -> None:
         if (
@@ -185,7 +195,8 @@ def _flatten_coordinates(geom: Geometry) -> List[Tuple[float, float]]:
 # PARSE / WRITE
 # ============================================================================
 
-def parse_geojson(text_or_dict: Union[str, Dict[str, Any]]) -> FeatureCollection:
+
+def parse_geojson(text_or_dict: str | dict[str, Any]) -> FeatureCollection:
     """
     RFC 7946 GeoJSON metnini (veya zaten parse edilmiş dict'i) doğrulayıp
     `FeatureCollection`'a çevirir. Feature / bare Geometry girdilerini de
@@ -221,7 +232,7 @@ def parse_geojson(text_or_dict: Union[str, Dict[str, Any]]) -> FeatureCollection
     raise GeoJSONParseError(f"Desteklenmeyen kök type: {gtype!r}")
 
 
-def _parse_feature(raw: Dict[str, Any]) -> Feature:
+def _parse_feature(raw: dict[str, Any]) -> Feature:
     if raw.get("type") != "Feature":
         raise GeoJSONParseError(f"Feature.type 'Feature' olmalı, bulunan: {raw.get('type')!r}")
     geometry = raw.get("geometry")
@@ -233,7 +244,7 @@ def _parse_feature(raw: Dict[str, Any]) -> Feature:
     return Feature(geometry=geometry, properties=properties, id=raw.get("id"))
 
 
-def write_geojson(collection: FeatureCollection, *, indent: Optional[int] = None) -> str:
+def write_geojson(collection: FeatureCollection, *, indent: int | None = None) -> str:
     """FeatureCollection -> RFC 7946 uyumlu GeoJSON metni."""
     return json.dumps(collection.to_dict(), indent=indent, ensure_ascii=False)
 
@@ -253,9 +264,9 @@ class FormatNotImplementedError(NotImplementedError):
 @dataclass
 class FormatHandler:
     name: str
-    extensions: Tuple[str, ...]
-    reader: Optional[ReaderFn] = None
-    writer: Optional[WriterFn] = None
+    extensions: tuple[str, ...]
+    reader: ReaderFn | None = None
+    writer: WriterFn | None = None
     implemented: bool = False
 
 
@@ -271,7 +282,7 @@ class FormatRegistry:
     """
 
     def __init__(self) -> None:
-        self._handlers: Dict[str, FormatHandler] = {}
+        self._handlers: dict[str, FormatHandler] = {}
         self._register_geojson()
         self._register_placeholders()
 
@@ -301,9 +312,7 @@ class FormatRegistry:
             "heightmap": (".raw", ".r16", ".png"),
         }
         for name, exts in placeholder_formats.items():
-            self._handlers[name] = FormatHandler(
-                name=name, extensions=exts, implemented=False
-            )
+            self._handlers[name] = FormatHandler(name=name, extensions=exts, implemented=False)
 
     def register(self, key: str, handler: FormatHandler) -> None:
         self._handlers[key] = handler
@@ -332,8 +341,8 @@ class FormatRegistry:
             )
         return handler.writer(collection)
 
-    def supported_formats(self) -> List[str]:
+    def supported_formats(self) -> list[str]:
         return sorted(k for k, h in self._handlers.items() if h.implemented)
 
-    def planned_formats(self) -> List[str]:
+    def planned_formats(self) -> list[str]:
         return sorted(k for k, h in self._handlers.items() if not h.implemented)

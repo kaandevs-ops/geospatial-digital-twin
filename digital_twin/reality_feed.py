@@ -32,10 +32,9 @@ Tasarım ilkeleri (roadmap "Kritik Tasarım İlkeleri" bölümüyle tutarlı):
 from __future__ import annotations
 
 import threading
-import time
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Callable, Iterable, List, Optional, Sequence
 
 from ..climate_data.open_meteo_client import ClimateError, HourlyClimateSample, OpenMeteoClient
 from ..extensibility.city_events import CityEventType, emit_city_event
@@ -59,7 +58,7 @@ class RealityFeedRegion:
 @dataclass
 class RealityFeedConfig:
     regions: Sequence[RealityFeedRegion]
-    poll_interval_s: float = 300.0          # 5 dk — deprem kataloğu için makul varsayılan
+    poll_interval_s: float = 300.0  # 5 dk — deprem kataloğu için makul varsayılan
     quake_lookback: timedelta = field(default_factory=lambda: timedelta(hours=1))
     max_seen_ids: int = 2000
     fetch_weather: bool = True
@@ -79,13 +78,13 @@ class RealityFeed:
     def __init__(
         self,
         config: RealityFeedConfig,
-        bus: Optional[EventSystem] = None,
+        bus: EventSystem | None = None,
     ) -> None:
         self.config = config
         self.bus = bus if bus is not None else default_bus
-        self._seen_quake_ids: List[str] = []
+        self._seen_quake_ids: list[str] = []
         self._seen_quake_id_set: set[str] = set()
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._stop_flag = threading.Event()
 
     # ------------------------------------------------------------------ #
@@ -106,13 +105,17 @@ class RealityFeed:
     def _poll_region_earthquakes(
         self, region: RealityFeedRegion, *, start: datetime, end: datetime
     ) -> None:
-        quakes: List[AFADEarthquake] | List[USGSEarthquake]
+        quakes: list[AFADEarthquake] | list[USGSEarthquake]
         source_name = "afad"
         try:
             quakes = self.config.afad_client.fetch_earthquakes(
-                min_lat=region.min_lat, max_lat=region.max_lat,
-                min_lon=region.min_lon, max_lon=region.max_lon,
-                start=start, end=end, min_magnitude=region.min_magnitude,
+                min_lat=region.min_lat,
+                max_lat=region.max_lat,
+                min_lon=region.min_lon,
+                max_lon=region.max_lon,
+                start=start,
+                end=end,
+                min_magnitude=region.min_magnitude,
             )
         except HazardError as afad_exc:
             self._emit_source_error(region, "afad", afad_exc)
@@ -121,9 +124,13 @@ class RealityFeed:
             source_name = "usgs"
             try:
                 quakes = self.config.usgs_client.fetch_earthquakes(
-                    min_lat=region.min_lat, max_lat=region.max_lat,
-                    min_lon=region.min_lon, max_lon=region.max_lon,
-                    start=start, end=end, min_magnitude=region.min_magnitude,
+                    min_lat=region.min_lat,
+                    max_lat=region.max_lat,
+                    min_lon=region.min_lon,
+                    max_lon=region.max_lon,
+                    start=start,
+                    end=end,
+                    min_magnitude=region.min_magnitude,
                 )
             except HazardError as usgs_exc:
                 self._emit_source_error(region, "usgs", usgs_exc)
@@ -168,9 +175,11 @@ class RealityFeed:
         center_lon = (region.min_lon + region.max_lon) / 2.0
         today = datetime.now(timezone.utc).date()
         try:
-            samples: List[HourlyClimateSample] = self.config.open_meteo_client.fetch_hourly(
-                latitude=center_lat, longitude=center_lon,
-                start_date=today, end_date=today,
+            samples: list[HourlyClimateSample] = self.config.open_meteo_client.fetch_hourly(
+                latitude=center_lat,
+                longitude=center_lon,
+                start_date=today,
+                end_date=today,
             )
         except ClimateError as exc:
             self._emit_source_error(region, "open_meteo", exc)

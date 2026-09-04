@@ -46,8 +46,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from . import Mesh3D, MeshMerger, NormalGenerator, Vertex3D
 from ..performance.streaming import AtlasEntry, TextureAtlas
+from . import Mesh3D, MeshMerger, NormalGenerator
 
 
 class WorldScaleUVMapper:
@@ -56,7 +56,8 @@ class WorldScaleUVMapper:
 
     @staticmethod
     def box_mapping_world_scale(
-        mesh: Mesh3D, texture_size_m: float = 1.0,
+        mesh: Mesh3D,
+        texture_size_m: float = 1.0,
     ) -> Mesh3D:
         """`UVGenerator.box_mapping` ile aynı eksen-seçim mantığı (her
         üçgen için baskın normal eksenine göre en uygun düzlemsel
@@ -92,7 +93,8 @@ class WorldScaleUVMapper:
 
     @staticmethod
     def measure_texel_density(
-        mesh: Mesh3D, texture_size_m: float,
+        mesh: Mesh3D,
+        texture_size_m: float,
     ) -> float:
         """Doğrulama yardımcı fonksiyonu: mesh'teki bir kenarın dünya-
         uzayı uzunluğu / UV-uzayı uzunluğu oranını (metre/UV-birimi)
@@ -113,6 +115,7 @@ class WorldScaleUVMapper:
 # ============================================================================ #
 # Mesh-Seviyeli Doku Atlası
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class AtlasBakeResult:
@@ -199,7 +202,10 @@ class MeshUVAtlasBaker:
 
     @staticmethod
     def _remap_uvs(
-        mesh: Mesh3D, entry: AtlasEntry, atlas_width: int, atlas_height: int,
+        mesh: Mesh3D,
+        entry: AtlasEntry,
+        atlas_width: int,
+        atlas_height: int,
     ) -> Mesh3D:
         result = mesh.clone()
         u0 = entry.x / atlas_width

@@ -18,7 +18,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.app_shell import AppSession, AppSessionError, build_app_router
 
 
@@ -55,10 +54,16 @@ def test_pga_estimate_known_city(session, tmp_path):
 def test_building_risk_reads_floor_count_and_slenderness_from_scene(session, tmp_path):
     pid = _open_project(session, tmp_path)
     poly = [(0, 0), (20, 0), (20, 15), (0, 15)]
-    b = session.add_building(pid, poly, building_type="apartman", floor_count=8, height_m=24.0, seed=1)
+    b = session.add_building(
+        pid, poly, building_type="apartman", floor_count=8, height_m=24.0, seed=1
+    )
 
     report = session.hazard_building_risk(
-        pid, lat=41.01, lon=28.95, key=b["key"], construction_year=1985,
+        pid,
+        lat=41.01,
+        lon=28.95,
+        key=b["key"],
+        construction_year=1985,
     )
     assert report["key"] == b["key"]
     assert 0.0 <= report["risk_index_0_100"] <= 100.0
@@ -72,8 +77,12 @@ def test_building_risk_reads_floor_count_and_slenderness_from_scene(session, tmp
 
 def test_building_risk_pre_1999_scores_higher_than_post_2018(session, tmp_path):
     pid = _open_project(session, tmp_path)
-    old = session.hazard_building_risk(pid, lat=41.01, lon=28.95, construction_year=1990, floor_count=5)
-    new = session.hazard_building_risk(pid, lat=41.01, lon=28.95, construction_year=2021, floor_count=5)
+    old = session.hazard_building_risk(
+        pid, lat=41.01, lon=28.95, construction_year=1990, floor_count=5
+    )
+    new = session.hazard_building_risk(
+        pid, lat=41.01, lon=28.95, construction_year=2021, floor_count=5
+    )
     assert old["risk_index_0_100"] > new["risk_index_0_100"]
 
 
@@ -82,20 +91,38 @@ def test_evacuation_plan_orders_by_risk_and_finds_real_route(session, tmp_path):
     poly = [(0, 0), (10, 0), (10, 10), (0, 10)]
     risky = session.add_building(pid, poly, floor_count=12, height_m=36.0, seed=2)
     safe = session.add_building(
-        pid, [(50, 50), (60, 50), (60, 60), (50, 60)], floor_count=2, height_m=6.0, seed=3,
+        pid,
+        [(50, 50), (60, 50), (60, 60), (50, 60)],
+        floor_count=2,
+        height_m=6.0,
+        seed=3,
     )
 
     plan = session.hazard_evacuation_plan(
         pid,
         buildings=[
-            {"key": risky["key"], "lat": 37.57, "lon": 36.93, "construction_year": 1985, "occupant_estimate": 80},
-            {"key": safe["key"], "lat": 37.57, "lon": 36.93, "construction_year": 2022, "occupant_estimate": 5},
+            {
+                "key": risky["key"],
+                "lat": 37.57,
+                "lon": 36.93,
+                "construction_year": 1985,
+                "occupant_estimate": 80,
+            },
+            {
+                "key": safe["key"],
+                "lat": 37.57,
+                "lon": 36.93,
+                "construction_year": 2022,
+                "occupant_estimate": 5,
+            },
         ],
         safe_points=[{"name": "Meydan", "x": 100.0, "y": 100.0}],
     )
     ranks = {p["building_id"]: p["rank"] for p in plan["priorities"]}
     assert ranks[risky["key"]] == 1  # daha riskli bina önce
-    route = next(p["evacuation_route"] for p in plan["priorities"] if p["building_id"] == risky["key"])
+    route = next(
+        p["evacuation_route"] for p in plan["priorities"] if p["building_id"] == risky["key"]
+    )
     assert route["found"] is True
     assert route["cost_m"] > 0
     assert route["safe_point"] == "Meydan"
@@ -105,7 +132,9 @@ def test_evacuation_plan_requires_safe_points(session, tmp_path):
     pid = _open_project(session, tmp_path)
     with pytest.raises(AppSessionError):
         session.hazard_evacuation_plan(
-            pid, buildings=[{"lat": 41.0, "lon": 29.0}], safe_points=[],
+            pid,
+            buildings=[{"lat": 41.0, "lon": 29.0}],
+            safe_points=[],
         )
 
 
@@ -113,7 +142,12 @@ def test_earthquake_catalog_fails_openly_without_network(session, tmp_path):
     """`hazard_data` ilkesi: ağ yoksa sessizce sahte veri üretmez."""
     pid = _open_project(session, tmp_path)
     result = session.hazard_earthquake_catalog(
-        pid, min_lat=40.8, max_lat=41.3, min_lon=28.5, max_lon=29.5, source="usgs",
+        pid,
+        min_lat=40.8,
+        max_lat=41.3,
+        min_lon=28.5,
+        max_lon=29.5,
+        source="usgs",
     )
     assert result["events"] == []
     if result["is_live"] is False:
@@ -127,7 +161,9 @@ def test_earthquake_catalog_fails_openly_without_network(session, tmp_path):
 
 def test_rest_hazard_pga_endpoint(router, session, tmp_path):
     pid = _open_project(session, tmp_path)
-    r = router.dispatch("POST", f"/api/projects/{pid}/hazard/pga", body={"lat": 39.93, "lon": 32.86})
+    r = router.dispatch(
+        "POST", f"/api/projects/{pid}/hazard/pga", body={"lat": 39.93, "lon": 32.86}
+    )
     assert r.status == 200
     assert r.body["zone_name"] == "Ankara"
 
@@ -142,22 +178,39 @@ def test_rest_hazard_building_risk_and_evacuation_plan(router, session, tmp_path
     pid = _open_project(session, tmp_path)
     poly = [(0, 0), (20, 0), (20, 15), (0, 15)]
     r = router.dispatch(
-        "POST", f"/api/projects/{pid}/buildings",
-        body={"polygon": poly, "building_type": "apartman", "floor_count": 10, "height_m": 30, "seed": 1},
+        "POST",
+        f"/api/projects/{pid}/buildings",
+        body={
+            "polygon": poly,
+            "building_type": "apartman",
+            "floor_count": 10,
+            "height_m": 30,
+            "seed": 1,
+        },
     )
     key = r.body["key"]
 
     r = router.dispatch(
-        "POST", f"/api/projects/{pid}/hazard/building-risk",
+        "POST",
+        f"/api/projects/{pid}/hazard/building-risk",
         body={"lat": 38.42, "lon": 27.14, "key": key, "construction_year": 1980},
     )
     assert r.status == 200
     assert r.body["risk_level"] in ("dusuk", "orta", "yuksek", "cok_yuksek")
 
     r = router.dispatch(
-        "POST", f"/api/projects/{pid}/hazard/evacuation-plan",
+        "POST",
+        f"/api/projects/{pid}/hazard/evacuation-plan",
         body={
-            "buildings": [{"key": key, "lat": 38.42, "lon": 27.14, "construction_year": 1980, "occupant_estimate": 30}],
+            "buildings": [
+                {
+                    "key": key,
+                    "lat": 38.42,
+                    "lon": 27.14,
+                    "construction_year": 1980,
+                    "occupant_estimate": 30,
+                }
+            ],
             "safe_points": [{"name": "Park", "x": 80, "y": 80}],
         },
     )
@@ -168,7 +221,8 @@ def test_rest_hazard_building_risk_and_evacuation_plan(router, session, tmp_path
 def test_rest_hazard_evacuation_plan_requires_buildings(router, session, tmp_path):
     pid = _open_project(session, tmp_path)
     r = router.dispatch(
-        "POST", f"/api/projects/{pid}/hazard/evacuation-plan",
+        "POST",
+        f"/api/projects/{pid}/hazard/evacuation-plan",
         body={"buildings": [], "safe_points": [{"name": "Park", "x": 0, "y": 0}]},
     )
     assert r.status == 422

@@ -14,8 +14,8 @@ planlaması önce yapılmalı.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Optional, Sequence
 
 from .risk_scoring import BuildingRiskReport
 
@@ -27,14 +27,14 @@ class EvacuationPriority:
     building_id: str
     rank: int  # 1 = en yüksek öncelik (en riskli)
     risk_report: BuildingRiskReport
-    occupant_estimate: Optional[int]
+    occupant_estimate: int | None
     note: str
 
 
 def prioritize_evacuation(
     buildings: Sequence[tuple[str, BuildingRiskReport]],
     *,
-    occupant_estimates: Optional[dict[str, int]] = None,
+    occupant_estimates: dict[str, int] | None = None,
 ) -> list[EvacuationPriority]:
     """Birden fazla binayı risk indeksine göre azalan sırada sıralar.
 
@@ -57,12 +57,16 @@ def prioritize_evacuation(
     results: list[EvacuationPriority] = []
     for rank, (building_id, report) in enumerate(ordered, start=1):
         occ = occupant_estimates.get(building_id)
-        note = (
-            f"{report.risk_level.value} risk seviyesi"
-            + (f", tahmini {occ} kişi" if occ is not None else ", nüfus tahmini yok")
+        note = f"{report.risk_level.value} risk seviyesi" + (
+            f", tahmini {occ} kişi" if occ is not None else ", nüfus tahmini yok"
         )
-        results.append(EvacuationPriority(
-            building_id=building_id, rank=rank, risk_report=report,
-            occupant_estimate=occ, note=note,
-        ))
+        results.append(
+            EvacuationPriority(
+                building_id=building_id,
+                rank=rank,
+                risk_report=report,
+                occupant_estimate=occ,
+                note=note,
+            )
+        )
     return results

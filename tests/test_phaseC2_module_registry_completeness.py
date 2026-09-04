@@ -11,6 +11,7 @@ Bu test dosyası:
 2. Daha önce eksik olan 4 modülün gerçekten `enable()` + lazy-import ile
    çalıştığını kanıtlar.
 """
+
 from __future__ import annotations
 
 import os

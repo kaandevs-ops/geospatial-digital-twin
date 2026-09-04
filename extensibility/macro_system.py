@@ -15,8 +15,9 @@ yakalar; `Macro.play()` bunları sırayla yeniden uygular. Zamanlanmış
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, List, Optional
+from typing import Any
 
 from .event_system import Event, EventSystem
 
@@ -31,17 +32,17 @@ class MacroStep:
 class Macro:
     """Kaydedilmiş komut/eylem dizisi; tekrar tekrar `play()` edilebilir."""
 
-    def __init__(self, name: str, steps: Optional[List[MacroStep]] = None) -> None:
+    def __init__(self, name: str, steps: list[MacroStep] | None = None) -> None:
         self.name = name
-        self.steps: List[MacroStep] = list(steps) if steps else []
+        self.steps: list[MacroStep] = list(steps) if steps else []
         self.run_count = 0
-        self.last_run_error: Optional[str] = None
+        self.last_run_error: str | None = None
 
     def add_step(self, label: str, action: Callable[[], Any]) -> None:
         self.steps.append(MacroStep(label=label, action=action))
 
-    def play(self, stop_on_error: bool = True) -> List[Any]:
-        results: List[Any] = []
+    def play(self, stop_on_error: bool = True) -> list[Any]:
+        results: list[Any] = []
         self.last_run_error = None
         for step in self.steps:
             try:
@@ -63,7 +64,7 @@ class MacroRecorder:
 
     def __init__(self) -> None:
         self._recording = False
-        self._current: Optional[Macro] = None
+        self._current: Macro | None = None
 
     @property
     def is_recording(self) -> bool:
@@ -100,7 +101,7 @@ class AutomationRule:
     name: str
     event_pattern: str
     macro: Macro
-    condition: Optional[Callable[[Event], bool]] = None
+    condition: Callable[[Event], bool] | None = None
     enabled: bool = True
     trigger_count: int = 0
 
@@ -108,7 +109,7 @@ class AutomationRule:
 class AutomationEngine:
     """`EventSystem` üzerinden `AutomationRule`'ları dinleyip makroları tetikler."""
 
-    def __init__(self, event_system: Optional[EventSystem] = None) -> None:
+    def __init__(self, event_system: EventSystem | None = None) -> None:
         self.events = event_system or EventSystem()
         self._rules: dict[str, AutomationRule] = {}
         self._unsubscribers: dict[str, Callable[[], None]] = {}
@@ -136,7 +137,7 @@ class AutomationEngine:
             unsub()
         self._rules.pop(name, None)
 
-    def list_rules(self) -> List[str]:
+    def list_rules(self) -> list[str]:
         return list(self._rules.keys())
 
     def get_rule(self, name: str) -> AutomationRule:

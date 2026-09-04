@@ -48,6 +48,7 @@ düzeltilir (tek-tip olmayan ama ucuz bir görsel çeşitlilik yaklaşımı - ge
 oyun motorlarında da kullanılan "impostor bucketing" tekniği; B4'ün "mimari
 kesinlik iddiası taşımaz" ilkesiyle tutarlı).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -178,6 +179,7 @@ def _group_by_key(
 # Sokak mobilyası (street_furniture) - C3/3. dilim çıktısı
 # ============================================================================ #
 
+
 def instancing_groups_for_street_furniture(
     items: list[StreetFurnitureItem],
 ) -> dict[str, InstanceGroup]:
@@ -207,6 +209,7 @@ def instancing_groups_for_street_furniture(
 # Dini yapı ekleri (religious_structures) - C3/4. dilim çıktısı
 # ============================================================================ #
 
+
 def instancing_groups_for_religious_structures(
     items: list[ReligiousStructureItem],
 ) -> dict[str, InstanceGroup]:
@@ -235,6 +238,7 @@ def instancing_groups_for_religious_structures(
 # Oyun alanı (sport_recreation.PlaygroundItem) - C3/6. dilim çıktısı
 # ============================================================================ #
 
+
 def instancing_groups_for_playgrounds(
     items: list[PlaygroundItem],
 ) -> dict[str, InstanceGroup]:
@@ -260,6 +264,7 @@ def instancing_groups_for_playgrounds(
 # ============================================================================ #
 # Dış mekan oturma (commerce_props.OutdoorSeatingItem) - C3/5. dilim çıktısı
 # ============================================================================ #
+
 
 def instancing_groups_for_outdoor_seating(
     items: list[OutdoorSeatingItem],
@@ -290,6 +295,7 @@ def instancing_groups_for_outdoor_seating(
 # İletişim kulesi (power_infrastructure.CommunicationTowerItem) - C3/7. dilim
 # ============================================================================ #
 
+
 def instancing_groups_for_communication_towers(
     items: list[CommunicationTowerItem],
 ) -> dict[str, InstanceGroup]:
@@ -318,6 +324,7 @@ def instancing_groups_for_communication_towers(
 # ============================================================================ #
 # Ağaç (vegetation.VegetationInstance) - C3/1. dilim çıktısı
 # ============================================================================ #
+
 
 def instancing_groups_for_vegetation(
     instances: list[VegetationInstance],
@@ -366,6 +373,7 @@ def instancing_groups_for_vegetation(
 # ============================================================================ #
 # Sahne toplayıcı - tüm kategorileri tek `SceneInstancingResult`'a indirger
 # ============================================================================ #
+
 
 def build_scene_instancing_result(
     *,

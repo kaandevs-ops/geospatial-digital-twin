@@ -4,6 +4,7 @@ ROADMAP V5 - Track M / M1: Mesh Optimizasyon Katmanı testleri.
 M1.1 (LOD zinciri + hysteresis), M1.2 (static batching + instancing),
 M1.3 (topoloji onarımı - auto_repair) için kabul kriteri testleri.
 """
+
 from __future__ import annotations
 
 from harita.mesh_engine import Mesh3D, MeshRepair, Vertex3D
@@ -25,7 +26,12 @@ def _pyramid(n_base: int = 12) -> Mesh3D:
     ucgen iceren test mesh'i."""
     import math
 
-    verts = [Vertex3D(math.cos(2 * math.pi * i / n_base) * 5, math.sin(2 * math.pi * i / n_base) * 5, 0.0) for i in range(n_base)]
+    verts = [
+        Vertex3D(
+            math.cos(2 * math.pi * i / n_base) * 5, math.sin(2 * math.pi * i / n_base) * 5, 0.0
+        )
+        for i in range(n_base)
+    ]
     verts.append(Vertex3D(0.0, 0.0, 8.0))  # apex
     apex = n_base
     tris = []
@@ -41,9 +47,13 @@ def _pyramid(n_base: int = 12) -> Mesh3D:
 # M1.3 - Topoloji onarımı
 # --------------------------------------------------------------------- #
 
+
 def test_m13_auto_repair_removes_degenerate_and_duplicate_vertices():
     verts = [
-        Vertex3D(0, 0, 0), Vertex3D(1, 0, 0), Vertex3D(1, 1, 0), Vertex3D(0, 1, 0),
+        Vertex3D(0, 0, 0),
+        Vertex3D(1, 0, 0),
+        Vertex3D(1, 1, 0),
+        Vertex3D(0, 1, 0),
         Vertex3D(0.0000001, 0.0000001, 0.0),  # (0,0,0)'a çok yakın - weld ile birleşmeli
     ]
     tris = [(0, 1, 2), (0, 2, 3), (0, 0, 1)]  # son üçgen dejenere (0==0)
@@ -63,7 +73,13 @@ def test_m13_auto_repair_produces_watertight_pyramid():
 
 def test_m13_fix_non_manifold_edges_splits_shared_edge():
     # Bir kenari 3 ucgenin paylastigi bozuk (non-manifold) mesh.
-    verts = [Vertex3D(0, 0, 0), Vertex3D(1, 0, 0), Vertex3D(0.5, 1, 0), Vertex3D(0.5, -1, 0), Vertex3D(0.5, 0, 1)]
+    verts = [
+        Vertex3D(0, 0, 0),
+        Vertex3D(1, 0, 0),
+        Vertex3D(0.5, 1, 0),
+        Vertex3D(0.5, -1, 0),
+        Vertex3D(0.5, 0, 1),
+    ]
     tris = [(0, 1, 2), (0, 1, 3), (0, 1, 4)]  # (0,1) kenari 3 kez kullanildi
     m = Mesh3D(vertices=verts, triangles=tris, name="nm")
     assert not MeshRepair.is_manifold(m)
@@ -75,6 +91,7 @@ def test_m13_fix_non_manifold_edges_splits_shared_edge():
 # --------------------------------------------------------------------- #
 # M1.1 - LOD zinciri
 # --------------------------------------------------------------------- #
+
 
 def test_m11_lod_chain_reduces_triangle_count_progressively():
     mesh = _pyramid(n_base=40)
@@ -112,6 +129,7 @@ def test_m11_lod_chain_from_variants_fills_missing_levels():
 # M1.2 - Batching / Instancing
 # --------------------------------------------------------------------- #
 
+
 def test_m12_static_batching_reduces_draw_calls_by_at_least_60_percent():
     mesh = _pyramid(n_base=6)
     groups = {"beton": [mesh.clone() for _ in range(10)], "cam": [mesh.clone() for _ in range(5)]}
@@ -123,10 +141,16 @@ def test_m12_static_batching_reduces_draw_calls_by_at_least_60_percent():
 
 
 def test_m12_instance_baker_transforms_geometry_correctly():
-    base = Mesh3D(vertices=[Vertex3D(0, 0, 0), Vertex3D(1, 0, 0), Vertex3D(0, 1, 0)], triangles=[(0, 1, 2)], name="tri")
+    base = Mesh3D(
+        vertices=[Vertex3D(0, 0, 0), Vertex3D(1, 0, 0), Vertex3D(0, 1, 0)],
+        triangles=[(0, 1, 2)],
+        name="tri",
+    )
     baked = InstanceMeshBaker.bake_merged(base, [InstanceTransform((10.0, 0.0, 0.0))])
     assert baked.vertices[0].x == 10.0
-    instances = InstanceMeshBaker.bake_instances(base, [InstanceTransform((0, 0, 0)), InstanceTransform((5, 0, 0))])
+    instances = InstanceMeshBaker.bake_instances(
+        base, [InstanceTransform((0, 0, 0)), InstanceTransform((5, 0, 0))]
+    )
     assert len(instances) == 2
     assert instances[1].vertices[0].x == 5.0
 

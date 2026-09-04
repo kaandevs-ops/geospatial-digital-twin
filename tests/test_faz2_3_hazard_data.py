@@ -6,30 +6,37 @@ erişim yoksa açıkça `skip` edilir.
 """
 
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.hazard_data.afad_client import (
-    AFADClient, DEFAULT_AFAD_ENDPOINTS, DEFAULT_USER_AGENT as AFAD_UA,
-    HazardNetworkError, HazardParseError, parse_afad_response,
+    DEFAULT_AFAD_ENDPOINTS,
+    AFADClient,
+    HazardNetworkError,
+    HazardParseError,
+    parse_afad_response,
 )
-from harita.hazard_data.usgs_client import (
-    USGSClient, parse_usgs_geojson,
-)
-from harita.hazard_data.pga_estimate import RegionalPGAEstimate, PGAZone
-from harita.hazard_data.risk_scoring import (
-    RiskLevel, SoilType, score_building_risk,
+from harita.hazard_data.afad_client import (
+    DEFAULT_USER_AGENT as AFAD_UA,
 )
 from harita.hazard_data.evacuation import prioritize_evacuation
-
+from harita.hazard_data.pga_estimate import RegionalPGAEstimate
+from harita.hazard_data.risk_scoring import (
+    RiskLevel,
+    SoilType,
+    score_building_risk,
+)
+from harita.hazard_data.usgs_client import (
+    USGSClient,
+    parse_usgs_geojson,
+)
 
 # ---------------------------------------------------------------------------
 # AFAD parsing (offline, fixture veri)
 # ---------------------------------------------------------------------------
+
 
 class TestAFADParsing:
     def test_parse_list_response(self):
@@ -37,8 +44,11 @@ class TestAFADParsing:
             {
                 "eventID": "20260101000000",
                 "date": "2026-01-01 03:15:00",
-                "latitude": 39.93, "longitude": 32.86,
-                "depth": 7.2, "magnitude": 4.1, "magnitudeType": "ML",
+                "latitude": 39.93,
+                "longitude": 32.86,
+                "depth": 7.2,
+                "magnitude": 4.1,
+                "magnitudeType": "ML",
                 "location": "Ankara",
             }
         ]
@@ -51,11 +61,20 @@ class TestAFADParsing:
         assert ev.time_utc.tzinfo is not None
 
     def test_parse_dict_wrapped_response(self):
-        raw = {"result": [
-            {"id": "x1", "eventDate": "2026-02-02 10:00:00", "latitude": 38.42,
-             "longitude": 27.14, "depth": 10.0, "mag": 3.5, "magType": "Mw",
-             "place": "İzmir"},
-        ]}
+        raw = {
+            "result": [
+                {
+                    "id": "x1",
+                    "eventDate": "2026-02-02 10:00:00",
+                    "latitude": 38.42,
+                    "longitude": 27.14,
+                    "depth": 10.0,
+                    "mag": 3.5,
+                    "magType": "Mw",
+                    "place": "İzmir",
+                },
+            ]
+        }
         events = parse_afad_response(raw)
         assert len(events) == 1
         assert events[0].location_name == "İzmir"
@@ -78,6 +97,7 @@ class TestAFADParsing:
 # USGS parsing (offline, fixture GeoJSON)
 # ---------------------------------------------------------------------------
 
+
 class TestUSGSParsing:
     def test_parse_geojson_features(self):
         raw = {
@@ -85,8 +105,12 @@ class TestUSGSParsing:
             "features": [
                 {
                     "id": "us7000abcd",
-                    "properties": {"mag": 5.2, "magType": "mww", "place": "12km E of Van, Turkey",
-                                    "time": 1735689600000},
+                    "properties": {
+                        "mag": 5.2,
+                        "magType": "mww",
+                        "place": "12km E of Van, Turkey",
+                        "time": 1735689600000,
+                    },
                     "geometry": {"type": "Point", "coordinates": [43.38, 38.49, 10.0]},
                 }
             ],
@@ -107,6 +131,7 @@ class TestUSGSParsing:
 # ---------------------------------------------------------------------------
 # PGA tahmini (offline lookup)
 # ---------------------------------------------------------------------------
+
 
 class TestPGAEstimate:
     def test_nearest_zone_used_for_known_city(self):
@@ -144,11 +169,15 @@ class TestPGAEstimate:
 # Risk skorlama
 # ---------------------------------------------------------------------------
 
+
 class TestRiskScoring:
     def test_old_building_high_pga_is_high_risk(self):
         report = score_building_risk(
-            pga_g=0.55, construction_year=1985, floor_count=6,
-            slenderness_ratio=5.0, soil_type=SoilType.SOFT_SOIL,
+            pga_g=0.55,
+            construction_year=1985,
+            floor_count=6,
+            slenderness_ratio=5.0,
+            soil_type=SoilType.SOFT_SOIL,
         )
         assert report.risk_level in (RiskLevel.HIGH, RiskLevel.VERY_HIGH)
         # Disclaimer dili "gösterge" yerine daha doğru bir ifadeye
@@ -157,8 +186,11 @@ class TestRiskScoring:
 
     def test_new_building_low_pga_is_low_risk(self):
         report = score_building_risk(
-            pga_g=0.15, construction_year=2021, floor_count=2,
-            slenderness_ratio=1.5, soil_type=SoilType.ROCK,
+            pga_g=0.15,
+            construction_year=2021,
+            floor_count=2,
+            slenderness_ratio=1.5,
+            soil_type=SoilType.ROCK,
         )
         assert report.risk_level == RiskLevel.LOW
 
@@ -184,6 +216,7 @@ class TestRiskScoring:
 # ---------------------------------------------------------------------------
 # Tahliye önceliklendirme
 # ---------------------------------------------------------------------------
+
 
 class TestEvacuationPriority:
     def test_higher_risk_building_ranked_first(self):
@@ -213,12 +246,15 @@ class TestEvacuationPriority:
 # Canlı ağ testleri — yalnızca gerçek erişim varsa çalışır
 # ---------------------------------------------------------------------------
 
+
 def _afad_reachable() -> bool:
     import urllib.error
     import urllib.request
+
     try:
         request = urllib.request.Request(
-            DEFAULT_AFAD_ENDPOINTS[0], headers={"User-Agent": AFAD_UA},
+            DEFAULT_AFAD_ENDPOINTS[0],
+            headers={"User-Agent": AFAD_UA},
         )
         with urllib.request.urlopen(request, timeout=4.0) as response:
             return response.status < 400
@@ -229,6 +265,7 @@ def _afad_reachable() -> bool:
 def _usgs_reachable() -> bool:
     import urllib.error
     import urllib.request
+
     try:
         request = urllib.request.Request(
             "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&limit=1",
@@ -244,7 +281,11 @@ class TestLiveAFAD:
     def test_live_fetch(self):
         client = AFADClient()
         events = client.fetch_earthquakes(
-            min_lat=35.0, max_lat=43.0, min_lon=25.0, max_lon=45.0, min_magnitude=4.0,
+            min_lat=35.0,
+            max_lat=43.0,
+            min_lon=25.0,
+            max_lon=45.0,
+            min_magnitude=4.0,
         )
         assert isinstance(events, list)
 
@@ -254,6 +295,11 @@ class TestLiveUSGS:
     def test_live_fetch(self):
         client = USGSClient()
         events = client.fetch_earthquakes(
-            min_lat=35.0, max_lat=43.0, min_lon=25.0, max_lon=45.0, min_magnitude=4.0, limit=10,
+            min_lat=35.0,
+            max_lat=43.0,
+            min_lon=25.0,
+            max_lon=45.0,
+            min_magnitude=4.0,
+            limit=10,
         )
         assert isinstance(events, list)

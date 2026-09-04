@@ -47,6 +47,7 @@ Girdi olarak (vegetation/osm_bridge.py ile aynı önkoşul) zaten
 `osm_client.project_to_local_meters` ile metreye projekte edilmiş bir
 `GeoFeatureCollection` beklenir.
 """
+
 from __future__ import annotations
 
 import math
@@ -145,11 +146,19 @@ DEFAULT_AREA_CATEGORY_THICKNESS_FALLBACK_M = 0.05
 #: `vegetation` köprüsünde zaten kullanılan "kategori + extra metadata"
 #: deseniyle tutarlı (yeni bir mimari kavram eklenmez).
 ROAD_SURFACE_STYLE: dict[str, str] = {
-    "motorway": "asfalt", "trunk": "asfalt", "primary": "asfalt",
-    "secondary": "asfalt", "tertiary": "asfalt", "residential": "asfalt",
-    "living_street": "beton_parke", "service": "asfalt",
-    "pedestrian": "beton_parke", "footway": "beton_parke",
-    "path": "toprak", "cycleway": "beton_parke", "track": "toprak",
+    "motorway": "asfalt",
+    "trunk": "asfalt",
+    "primary": "asfalt",
+    "secondary": "asfalt",
+    "tertiary": "asfalt",
+    "residential": "asfalt",
+    "living_street": "beton_parke",
+    "service": "asfalt",
+    "pedestrian": "beton_parke",
+    "footway": "beton_parke",
+    "path": "toprak",
+    "cycleway": "beton_parke",
+    "track": "toprak",
     "steps": "beton_parke",
 }
 DEFAULT_ROAD_SURFACE_FALLBACK = "asfalt"
@@ -166,10 +175,16 @@ def _road_surface_material(tags: dict) -> str:
     `highway` tipine göre `ROAD_SURFACE_STYLE`'a düşer."""
     raw_surface = str(tags.get("surface", "")).lower()
     _OSM_SURFACE_TO_PRESET = {
-        "asphalt": "asfalt", "paved": "asfalt", "concrete": "beton_parke",
-        "paving_stones": "beton_parke", "sett": "beton_parke",
-        "gravel": "toprak", "dirt": "toprak", "ground": "toprak",
-        "sand": "kum", "unpaved": "toprak",
+        "asphalt": "asfalt",
+        "paved": "asfalt",
+        "concrete": "beton_parke",
+        "paving_stones": "beton_parke",
+        "sett": "beton_parke",
+        "gravel": "toprak",
+        "dirt": "toprak",
+        "ground": "toprak",
+        "sand": "kum",
+        "unpaved": "toprak",
     }
     if raw_surface in _OSM_SURFACE_TO_PRESET:
         return _OSM_SURFACE_TO_PRESET[raw_surface]
@@ -179,9 +194,7 @@ def _road_surface_material(tags: dict) -> str:
 
 def _linestring_points(feature: GeoFeature) -> list[Point2D]:
     if feature.geometry_type != "LineString":
-        raise ValueError(
-            f"LineString geometrisi beklenir, gelen: {feature.geometry_type!r}"
-        )
+        raise ValueError(f"LineString geometrisi beklenir, gelen: {feature.geometry_type!r}")
     return [Point2D(x, y) for x, y in feature.coordinates]
 
 
@@ -362,8 +375,12 @@ def _rotate_translate_mesh_xy(mesh: Mesh3D, angle_rad: float, cx: float, cy: flo
         if v.normal is not None:
             nx, ny = v.normal[0], v.normal[1]
             new_normal = (nx * cos_a - ny * sin_a, nx * sin_a + ny * cos_a, v.normal[2])
-        new_vertices.append(type(v)(cx + rx, cy + ry, v.z, normal=new_normal, tangent=v.tangent, uv=v.uv))
-    return Mesh3D(vertices=new_vertices, triangles=list(mesh.triangles), uvs=list(mesh.uvs), name=mesh.name)
+        new_vertices.append(
+            type(v)(cx + rx, cy + ry, v.z, normal=new_normal, tangent=v.tangent, uv=v.uv)
+        )
+    return Mesh3D(
+        vertices=new_vertices, triangles=list(mesh.triangles), uvs=list(mesh.uvs), name=mesh.name
+    )
 
 
 def lane_marking_for_road_feature(feature: GeoFeature) -> Mesh3D | None:
@@ -401,14 +418,19 @@ def lane_marking_for_road_feature(feature: GeoFeature) -> Mesh3D | None:
         mx, my = (p0.x + p1.x) / 2.0, (p0.y + p1.y) / 2.0
         angle = math.atan2(p1.y - p0.y, p1.x - p0.x)
         dash = MeshBuilder.build_box(
-            width=seg_len, depth=0.15, height=0.02,
-            center_x=0.0, center_y=0.0, base_z=_road_elevation_z(tags) + 0.01,
+            width=seg_len,
+            depth=0.15,
+            height=0.02,
+            center_x=0.0,
+            center_y=0.0,
+            base_z=_road_elevation_z(tags) + 0.01,
             name=f"osm_lane_marking_{osm_id}_{k}",
         )
         segments.append(_rotate_translate_mesh_xy(dash, angle, mx, my))
     if not segments:
         return None
     from ..mesh_engine import MeshMerger, UVGenerator
+
     merged = MeshMerger.merge(segments, name=f"osm_lane_marking_{osm_id}")
     return UVGenerator.box_mapping(merged)
 
@@ -427,9 +449,12 @@ def crosswalk_for_crossing_feature(feature: GeoFeature, road_width_m: float = 6.
         return None
     x, y = feature.coordinates[0], feature.coordinates[1]
     from ..street_furniture.infrastructure import LandscapeDetailGenerator
+
     osm_id = feature.properties.get("osm_id", "crossing")
     return LandscapeDetailGenerator.crosswalk_stripes(
-        center=Point2D(x, y), direction_deg=0.0, road_width_m=road_width_m,
+        center=Point2D(x, y),
+        direction_deg=0.0,
+        road_width_m=road_width_m,
         name_prefix=f"osm_crosswalk_{osm_id}",
     )
 
@@ -558,7 +583,9 @@ def mesh_for_water_area(
             f"gelen: {feature.geometry_type!r}"
         )
     if coastline_features:
-        feature = snap_water_area_to_coastline(feature, coastline_features, coastline_snap_tolerance_m)
+        feature = snap_water_area_to_coastline(
+            feature, coastline_features, coastline_snap_tolerance_m
+        )
     ring = feature.coordinates[0]
     polygon = Polygon([Point2D(x, y) for x, y in ring])
     osm_id = feature.properties.get("osm_id", "water_area")
@@ -718,7 +745,8 @@ def generate_infrastructure_for_collection(
     # su alanları koleksiyonda kıyı çizgisinden önce gelse bile doğru
     # çalışır — tek geçişli bir yaklaşımda bu garanti edilemezdi).
     coastline_features = [
-        f for f in collection.features
+        f
+        for f in collection.features
         if f.properties.get("__category__") == "coastline" and f.geometry_type == "LineString"
     ]
     for feature in collection.features:

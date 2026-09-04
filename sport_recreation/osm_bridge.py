@@ -9,6 +9,7 @@ gis_core.osm_client`'a önceki dilimlerle aynı desende bağlar.
 - `pitch`/`stadium`/`swimming_pool` (Polygon) -> `SportAreaItem`.
 - `playground` (Point) -> `PlaygroundItem`.
 """
+
 from __future__ import annotations
 
 from ..core_engine.geometry_engine import Point2D, Polygon

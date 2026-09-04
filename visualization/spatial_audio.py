@@ -34,9 +34,8 @@ Kapsanan roadmap maddeleri:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 from ..mobility.crowd_simulation.agent_visuals import CrowdPressureLevel
 
@@ -57,16 +56,17 @@ __all__ = [
 # 5.6.1 — Olay-tetiklemeli efektler
 # ======================================================================== #
 
+
 class SoundEffectId(str, Enum):
     """Sabit, önceden tanımlı efekt kütüphanesi kimlikleri - gerçek ses
     dosyası (.ogg/.wav) eşlemesi viewer tarafında yaşar, bu modül yalnızca
     "hangi efekt, ne zaman" kararını üretir."""
 
-    EARTHQUAKE_RUMBLE = "earthquake_rumble"      # deprem gürlemesi
-    STRUCTURE_CREAK = "structure_creak"          # sallanma (bina gıcırtısı)
-    FIRE_ALARM = "fire_alarm"                    # yangın alarmı
-    GLASS_SHATTER = "glass_shatter"               # cam kırılması
-    DEBRIS_IMPACT = "debris_impact"               # enkaz/çökme sesi
+    EARTHQUAKE_RUMBLE = "earthquake_rumble"  # deprem gürlemesi
+    STRUCTURE_CREAK = "structure_creak"  # sallanma (bina gıcırtısı)
+    FIRE_ALARM = "fire_alarm"  # yangın alarmı
+    GLASS_SHATTER = "glass_shatter"  # cam kırılması
+    DEBRIS_IMPACT = "debris_impact"  # enkaz/çökme sesi
 
 
 @dataclass(slots=True, frozen=True)
@@ -76,17 +76,17 @@ class SoundEffectEvent:
     sesi (ör. arayüz uyarısı) olarak yorumlanır."""
 
     effect: SoundEffectId
-    source: Optional["PositionalAudioSource"]
-    intensity: float = 1.0   # 0.0-1.0, oynatma hacmi/varyant seçimi için
+    source: PositionalAudioSource | None
+    intensity: float = 1.0  # 0.0-1.0, oynatma hacmi/varyant seçimi için
 
 
 def trigger_event_sound(
     *,
-    shake_intensity: Optional[float] = None,
+    shake_intensity: float | None = None,
     fire_alarm_active: bool = False,
     glass_shatter_triggered: bool = False,
     debris_impact_triggered: bool = False,
-    source: Optional["PositionalAudioSource"] = None,
+    source: PositionalAudioSource | None = None,
 ) -> list[SoundEffectEvent]:
     """Faz 3.A (`physics.building_shake`) ve Faz 4 (`physics.
     building_damage`) katmanlarının ürettiği durumdan doğrudan bir
@@ -96,11 +96,17 @@ def trigger_event_sound(
     devam - roadmap'in "gösterge niteliğinde" disipliniyle tutarlı)."""
     events: list[SoundEffectEvent] = []
     if shake_intensity is not None and shake_intensity > 0.0:
-        events.append(SoundEffectEvent(SoundEffectId.EARTHQUAKE_RUMBLE, source,
-                                        intensity=min(1.0, shake_intensity)))
+        events.append(
+            SoundEffectEvent(
+                SoundEffectId.EARTHQUAKE_RUMBLE, source, intensity=min(1.0, shake_intensity)
+            )
+        )
         if shake_intensity >= 0.4:
-            events.append(SoundEffectEvent(SoundEffectId.STRUCTURE_CREAK, source,
-                                            intensity=min(1.0, shake_intensity)))
+            events.append(
+                SoundEffectEvent(
+                    SoundEffectId.STRUCTURE_CREAK, source, intensity=min(1.0, shake_intensity)
+                )
+            )
     if fire_alarm_active:
         events.append(SoundEffectEvent(SoundEffectId.FIRE_ALARM, source, intensity=1.0))
     if glass_shatter_triggered:
@@ -114,6 +120,7 @@ def trigger_event_sound(
 # 5.6.2 — Kalabalık ambiyansı (crowd audio)
 # ======================================================================== #
 
+
 class CrowdAmbienceLayer(str, Enum):
     """Katmanlı kalabalık gürültüsü - roadmap'in "birden fazla ses
     katmanının crossfade ile karışımı, tek sabit ses dosyası değil"
@@ -121,9 +128,9 @@ class CrowdAmbienceLayer(str, Enum):
     birden çok katmanın ağırlıklı karışımına eşlenir (tek bir "kalabalık
     sesi" seçilmez)."""
 
-    LIGHT_CHATTER = "light_chatter"       # hafif konuşma uğultusu
-    DENSE_MURMUR = "dense_murmur"         # yoğun ama sakin uğultu
-    PANIC_SHOUTING = "panic_shouting"     # çığlık/koşuşturma sesi
+    LIGHT_CHATTER = "light_chatter"  # hafif konuşma uğultusu
+    DENSE_MURMUR = "dense_murmur"  # yoğun ama sakin uğultu
+    PANIC_SHOUTING = "panic_shouting"  # çığlık/koşuşturma sesi
 
 
 def crowd_ambience_mix(
@@ -180,7 +187,7 @@ class PositionalAudioSource:
     kendisi viewer tarafında kurulur."""
 
     position: Vec3
-    ref_distance_m: float = 5.0    # bu mesafede kazanç = max_gain
+    ref_distance_m: float = 5.0  # bu mesafede kazanç = max_gain
     max_distance_m: float = 200.0  # bu mesafenin ötesinde kazanç sabitlenir
     rolloff_factor: float = 1.0
 
@@ -210,6 +217,7 @@ def positional_gain(source: PositionalAudioSource, listener_position: Vec3) -> f
 # 5.6.4 — Senaryo türüne göre ayırt edilebilir ses imzası
 # ======================================================================== #
 
+
 class ScenarioKind(str, Enum):
     EARTHQUAKE = "earthquake"
     FIRE = "fire"
@@ -224,8 +232,11 @@ class ScenarioKind(str, Enum):
 #: doğru katmanları üretir, bu tablo yalnızca imzaların çakışmadığını
 #: test edilebilir kılar.
 SCENARIO_SOUND_SIGNATURE: dict[ScenarioKind, tuple[SoundEffectId, ...]] = {
-    ScenarioKind.EARTHQUAKE: (SoundEffectId.EARTHQUAKE_RUMBLE, SoundEffectId.STRUCTURE_CREAK,
-                               SoundEffectId.DEBRIS_IMPACT),
+    ScenarioKind.EARTHQUAKE: (
+        SoundEffectId.EARTHQUAKE_RUMBLE,
+        SoundEffectId.STRUCTURE_CREAK,
+        SoundEffectId.DEBRIS_IMPACT,
+    ),
     ScenarioKind.FIRE: (SoundEffectId.FIRE_ALARM, SoundEffectId.GLASS_SHATTER),
     ScenarioKind.CROWD_SURGE: (),  # yalnızca crowd_ambience_mix() katmanları, ek efekt yok
 }

@@ -25,11 +25,11 @@ türevi olabilir) - kesin bir bilimsel ölçüm birimi değildir, çağıran tar
 kendi alanının skorunu 0-1'e kendi normalize eder (burada sessizce bir
 dönüşüm icat edilmez).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 from ..core_engine.geometry_engine import Point2D
 
@@ -69,9 +69,9 @@ class HazardEvent:
     radius_m: float
     severity: float  # 0.0 (etkisiz) - 1.0 (şiddetli), gösterge niteliğinde
     started_at: float  # sahne/simülasyon zamanı (saniye), city_clock ile tutarlı birim
-    ended_at: Optional[float] = None
+    ended_at: float | None = None
     source: str = "unspecified"  # ör. "afad", "fire_spread_model", "terrain_hazard"
-    spread_fn: Optional[callable] = None
+    spread_fn: callable | None = None
     metadata: dict = field(default_factory=dict)
 
     def is_active(self, now: float) -> bool:
@@ -91,7 +91,7 @@ class HazardEvent:
         elapsed = max(0.0, now - self.started_at)
         return max(0.0, self.spread_fn(elapsed))
 
-    def affects_point(self, point: Point2D, *, now: Optional[float] = None) -> bool:
+    def affects_point(self, point: Point2D, *, now: float | None = None) -> bool:
         """Verilen noktanın (basit dairesel yaklaşımla) tehlike alanı
         içinde olup olmadığını döner. `now` verilmezse statik `radius_m`
         kullanılır (zaman-bağımsız bir "bu alan tehlikeli mi" sorgusu)."""

@@ -30,9 +30,10 @@ from __future__ import annotations
 import heapq
 import itertools
 import threading
+from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 
 @dataclass(order=False)
@@ -45,7 +46,7 @@ class _QueuedTask:
     future: Future = field(compare=False)
     label: str = field(default="task", compare=False)
 
-    def __lt__(self, other: "_QueuedTask") -> bool:
+    def __lt__(self, other: _QueuedTask) -> bool:
         # Düşük priority sayısı = yüksek öncelik (heapq min-heap).
         if self.priority != other.priority:
             return self.priority < other.priority
@@ -74,7 +75,12 @@ class TaskScheduler:
         self._active = 0
 
     def submit(
-        self, fn: Callable[..., Any], *args: Any, priority: int = 0, label: str = "task", **kwargs: Any
+        self,
+        fn: Callable[..., Any],
+        *args: Any,
+        priority: int = 0,
+        label: str = "task",
+        **kwargs: Any,
     ) -> Future:
         future: Future = Future()
         task = _QueuedTask(priority, next(self._counter), fn, args, kwargs, future, label)

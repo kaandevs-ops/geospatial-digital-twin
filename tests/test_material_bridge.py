@@ -9,6 +9,7 @@ ağ çağrısı yapmaz; `PBRMaterialLibrary.get()`'in kendi test dosyasıyla
 fırlatmadığı doğrulanır. Köprünün kendi sorumluluğu (tahmin sözlüğü ->
 `Scene.add_mesh` ile uyumlu materyal sözlüğü) buna ek olarak test edilir.
 """
+
 from __future__ import annotations
 
 from harita.ai_reconstruction.material_bridge import (
@@ -26,12 +27,15 @@ from harita.material_engine import PBRMaterial
 
 
 def _prediction(material: FacadeMaterial, confidence: float = 0.75) -> MaterialPrediction:
-    return MaterialPrediction(surface_class=SurfaceClass.DUVAR, material=material, confidence=confidence)
+    return MaterialPrediction(
+        surface_class=SurfaceClass.DUVAR, material=material, confidence=confidence
+    )
 
 
 def test_default_material_cache_dir_uses_dot_harita_convention():
-    assert str(DEFAULT_MATERIAL_CACHE_DIR).endswith(".harita/material_cache") \
-        or str(DEFAULT_MATERIAL_CACHE_DIR).endswith(".harita\\material_cache")
+    assert str(DEFAULT_MATERIAL_CACHE_DIR).endswith(".harita/material_cache") or str(
+        DEFAULT_MATERIAL_CACHE_DIR
+    ).endswith(".harita\\material_cache")
 
 
 def test_resolve_pbr_material_never_raises_offline(tmp_path):

@@ -23,16 +23,22 @@ from harita.building_reconstruction.building_elements import ElevatorCore, Stair
 from harita.building_reconstruction.room_generator import Room, RoomType
 from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.mobility.indoor_navigation import (
-    Floor, HazardScenarioRules, IndoorNavigationBuilder,
+    Floor,
+    HazardScenarioRules,
+    IndoorNavigationBuilder,
 )
 
 
 def _square_room(room_id: int, cx: float, cy: float, neighbors: list[int]) -> Room:
     half = 2.0
-    poly = Polygon(points=[
-        Point2D(cx - half, cy - half), Point2D(cx + half, cy - half),
-        Point2D(cx + half, cy + half), Point2D(cx - half, cy + half),
-    ])
+    poly = Polygon(
+        points=[
+            Point2D(cx - half, cy - half),
+            Point2D(cx + half, cy - half),
+            Point2D(cx + half, cy + half),
+            Point2D(cx - half, cy + half),
+        ]
+    )
     return Room(polygon=poly, room_type=RoomType.SALON.value, room_id=room_id, neighbors=neighbors)
 
 
@@ -45,15 +51,25 @@ def _two_floor_building_with_stair_and_elevator() -> list[Floor]:
     upper_stair_room = _square_room(0, -5.0, 0.0, neighbors=[1])
     upper_elev_room = _square_room(1, 5.0, 0.0, neighbors=[0])
 
-    stair = Stair(position=Point2D(-5.0, 0.0), width=1.2, run_length=3.0,
-                   step_count=16, step_height=0.18, step_depth=0.28)
-    elevator = ElevatorCore(position=Point2D(5.0, 0.0), width=1.5, depth=1.5,
-                             shaft_top_z=6.0, shaft_bottom_z=0.0)
+    stair = Stair(
+        position=Point2D(-5.0, 0.0),
+        width=1.2,
+        run_length=3.0,
+        step_count=16,
+        step_height=0.18,
+        step_depth=0.28,
+    )
+    elevator = ElevatorCore(
+        position=Point2D(5.0, 0.0), width=1.5, depth=1.5, shaft_top_z=6.0, shaft_bottom_z=0.0
+    )
 
-    ground = Floor(floor_index=0, rooms=[ground_stair_room, ground_elev_room],
-                    stairs=[stair], elevators=[elevator])
-    upper = Floor(floor_index=1, rooms=[upper_stair_room, upper_elev_room],
-                   stairs=[], elevators=[])
+    ground = Floor(
+        floor_index=0,
+        rooms=[ground_stair_room, ground_elev_room],
+        stairs=[stair],
+        elevators=[elevator],
+    )
+    upper = Floor(floor_index=1, rooms=[upper_stair_room, upper_elev_room], stairs=[], elevators=[])
     return [ground, upper]
 
 
@@ -63,8 +79,9 @@ def _two_floor_building_elevator_only() -> list[Floor]:
     gereken) örneği."""
     ground_room = _square_room(0, 0.0, 0.0, neighbors=[])
     upper_room = _square_room(0, 0.0, 0.0, neighbors=[])
-    elevator = ElevatorCore(position=Point2D(1.0, 1.0), width=1.5, depth=1.5,
-                             shaft_top_z=6.0, shaft_bottom_z=0.0)
+    elevator = ElevatorCore(
+        position=Point2D(1.0, 1.0), width=1.5, depth=1.5, shaft_top_z=6.0, shaft_bottom_z=0.0
+    )
     ground = Floor(floor_index=0, rooms=[ground_room], stairs=[], elevators=[elevator])
     upper = Floor(floor_index=1, rooms=[upper_room], stairs=[], elevators=[])
     return [ground, upper]
@@ -115,10 +132,7 @@ def test_stair_edge_unaffected_by_elevator_disable():
     # Merdiven üzerinden hâlâ 0->1 rotası bulunabilmeli (stair_edges bloke
     # edilmedi).
     reachable = bg.unreachable_rooms_without_elevator(ground_floor_index=0)
-    assert reachable == [], (
-        "Merdiven mevcutken asansör kapatılınca hiçbir oda erişilemez "
-        "olmamalı"
-    )
+    assert reachable == [], "Merdiven mevcutken asansör kapatılınca hiçbir oda erişilemez olmamalı"
 
 
 def test_unreachable_rooms_flags_elevator_only_building():

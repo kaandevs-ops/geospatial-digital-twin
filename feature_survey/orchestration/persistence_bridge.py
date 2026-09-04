@@ -71,9 +71,7 @@ def save_survey_result(
     return key
 
 
-def load_survey_result_payload(
-    db: ProjectDatabase, project_slug: str
-) -> dict:
+def load_survey_result_payload(db: ProjectDatabase, project_slug: str) -> dict:
     """Daha önce `save_survey_result` ile yazılmış payload'ı geri okur.
 
     Not: bu, `SurveyOrchestrationResult` nesnesini (dataclass'ları,

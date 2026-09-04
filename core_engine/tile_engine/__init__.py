@@ -20,17 +20,18 @@ import json
 import math
 import os
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 
 from ..coordinate_systems import GeoPoint
-
 
 # ======================================================================== #
 # Tile Coordinate ve dönüşümler (Multi Zoom Engine)
 # ======================================================================== #
+
 
 @dataclass(frozen=True, slots=True)
 class TileCoordinate:
@@ -44,9 +45,9 @@ class TileCoordinate:
         return f"{self.z}/{self.x}/{self.y}"
 
     @staticmethod
-    def from_geopoint(point: GeoPoint, zoom: int) -> "TileCoordinate":
+    def from_geopoint(point: GeoPoint, zoom: int) -> TileCoordinate:
         lat_rad = math.radians(point.lat)
-        n = 2 ** zoom
+        n = 2**zoom
         x = int((point.lon + 180.0) / 360.0 * n)
         y = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
         x = max(0, min(n - 1, x))
@@ -55,7 +56,7 @@ class TileCoordinate:
 
     def to_bounds(self) -> tuple[GeoPoint, GeoPoint]:
         """Tile'ın kapsadığı coğrafi sınır kutusu (NW, SE köşeleri)."""
-        n = 2 ** self.z
+        n = 2**self.z
 
         def _lat(y_tile: int) -> float:
             yy = math.pi * (1 - 2 * y_tile / n)
@@ -67,7 +68,7 @@ class TileCoordinate:
         lat_south = _lat(self.y + 1)
         return GeoPoint(lat_north, lon_west), GeoPoint(lat_south, lon_east)
 
-    def children(self) -> list["TileCoordinate"]:
+    def children(self) -> list[TileCoordinate]:
         """Bir üst zoom seviyesindeki 4 alt tile (quadtree)."""
         return [
             TileCoordinate(self.z + 1, self.x * 2, self.y * 2),
@@ -76,14 +77,14 @@ class TileCoordinate:
             TileCoordinate(self.z + 1, self.x * 2 + 1, self.y * 2 + 1),
         ]
 
-    def parent(self) -> Optional["TileCoordinate"]:
+    def parent(self) -> TileCoordinate | None:
         if self.z == 0:
             return None
         return TileCoordinate(self.z - 1, self.x // 2, self.y // 2)
 
-    def neighbors(self) -> list["TileCoordinate"]:
+    def neighbors(self) -> list[TileCoordinate]:
         """Infinite Scroll için 8 komşu tile."""
-        n = 2 ** self.z
+        n = 2**self.z
         result = []
         for dx in (-1, 0, 1):
             for dy in (-1, 0, 1):
@@ -107,12 +108,13 @@ class TileData:
 # Cache katmanları: Memory / Disk / Offline
 # ======================================================================== #
 
+
 class MemoryCache:
     """LRU tabanlı bellek içi tile önbelleği."""
 
     def __init__(self, capacity: int = 512):
         self.capacity = capacity
-        self._store: "dict[str, TileData]" = {}
+        self._store: dict[str, TileData] = {}
         self._order: list[str] = []
 
     def get(self, coord: TileCoordinate) -> TileData | None:
@@ -157,17 +159,24 @@ class DiskCache:
             return None
         content = path.read_bytes()
         meta = json.loads(meta_path.read_text())
-        return TileData(coord=coord, content=content,
-                         content_type=meta["content_type"],
-                         fetched_at=meta["fetched_at"])
+        return TileData(
+            coord=coord,
+            content=content,
+            content_type=meta["content_type"],
+            fetched_at=meta["fetched_at"],
+        )
 
     def put(self, tile: TileData) -> None:
         path = self._path_for(tile.coord)
         path.write_bytes(tile.content)
-        path.with_suffix(".meta").write_text(json.dumps({
-            "content_type": tile.content_type,
-            "fetched_at": tile.fetched_at,
-        }))
+        path.with_suffix(".meta").write_text(
+            json.dumps(
+                {
+                    "content_type": tile.content_type,
+                    "fetched_at": tile.fetched_at,
+                }
+            )
+        )
 
     def exists(self, coord: TileCoordinate) -> bool:
         return self._path_for(coord).exists()
@@ -262,7 +271,7 @@ class TileEngine:
         veren bir tile penceresi üretir (merkez + N halka komşu tile).
         """
         center_tile = TileCoordinate.from_geopoint(center, zoom)
-        n = 2 ** zoom
+        n = 2**zoom
         result = []
         for dx in range(-viewport_tiles_radius, viewport_tiles_radius + 1):
             for dy in range(-viewport_tiles_radius, viewport_tiles_radius + 1):

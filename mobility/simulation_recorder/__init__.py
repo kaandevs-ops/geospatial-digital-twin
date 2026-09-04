@@ -71,7 +71,7 @@ class AgentSnapshot:
     y: float
     state: AgentFrameState
     floor_index: int = 0
-    room_id: Optional[int] = None
+    room_id: int | None = None
     z_m: float = 0.0
 
 
@@ -124,7 +124,7 @@ class SimulationRecorder:
         self.keyframe_interval_s = keyframe_interval_s
         self.max_keyframes = max_keyframes
         self._keyframes: list[Keyframe] = []
-        self._last_recorded_t: Optional[float] = None
+        self._last_recorded_t: float | None = None
         # Roadmap V10 / Faz 1.5: koşu meta verisi (seed + parametreler).
         self.run_metadata: RunMetadata = RunMetadata()
 
@@ -132,9 +132,16 @@ class SimulationRecorder:
     def keyframes(self) -> list[Keyframe]:
         return self._keyframes
 
-    def set_run_metadata(self, *, seed: int | None = None, dt: float | None = None,
-                          max_time_s: float | None = None, agent_count: int | None = None,
-                          scenario_id: str | None = None, **extra_params) -> RunMetadata:
+    def set_run_metadata(
+        self,
+        *,
+        seed: int | None = None,
+        dt: float | None = None,
+        max_time_s: float | None = None,
+        agent_count: int | None = None,
+        scenario_id: str | None = None,
+        **extra_params,
+    ) -> RunMetadata:
         """Bu koşunun seed + parametrelerini kaydeder (Faz 1.5).
 
         `EvacuationSimulator.run(..., recorder=recorder, seed=42)` bu
@@ -142,8 +149,11 @@ class SimulationRecorder:
         ölçeği koşularda `scenario_id` ile etiketleme).
         """
         self.run_metadata = RunMetadata(
-            seed=seed, dt=dt, max_time_s=max_time_s,
-            agent_count=agent_count, scenario_id=scenario_id,
+            seed=seed,
+            dt=dt,
+            max_time_s=max_time_s,
+            agent_count=agent_count,
+            scenario_id=scenario_id,
             extra_params=dict(extra_params),
         )
         return self.run_metadata
@@ -200,7 +210,7 @@ class SimulationRecorder:
             del self._keyframes[:overflow]
         return kf
 
-    def maybe_record(self, t: float, agents: list) -> Optional[Keyframe]:
+    def maybe_record(self, t: float, agents: list) -> Keyframe | None:
         """Yalnızca son kayıttan bu yana `keyframe_interval_s` kadar zaman
         geçtiyse kaydeder (asıl bellek-tasarrufu mekanizması). İlk çağrıda
         (t=0 civarı) her zaman kaydeder."""
@@ -257,7 +267,9 @@ class SimulationRecorder:
                 result[agent_id] = snap_after
         return result
 
-    def bottleneck_over_time(self, cell_size: float = 1.0) -> list[tuple[float, tuple[int, int], int]]:
+    def bottleneck_over_time(
+        self, cell_size: float = 1.0
+    ) -> list[tuple[float, tuple[int, int], int]]:
         """Her keyframe için en yoğun hücreyi hesaplar — Katman 2.4 madde 3
         ("Darboğaz tespiti") burada karşılığını bulur: `OccupancyHeatmap`
         şu an yalnızca final durumda çalışıyordu, bu metod zaman serisi
@@ -279,7 +291,7 @@ class SimulationRecorder:
                 results.append((kf.t, peak_cell, peak_count))
         return results
 
-    def peak_bottleneck(self, cell_size: float = 1.0) -> Optional[tuple[float, tuple[int, int], int]]:
+    def peak_bottleneck(self, cell_size: float = 1.0) -> tuple[float, tuple[int, int], int] | None:
         """Tüm koşum boyunca en yoğun anı/hücreyi döner —
         `EvacuationResult.bottleneck_location` / `bottleneck_peak_time_s`
         alanlarını doldurmak için kullanılır (bkz. `crowd_simulation`

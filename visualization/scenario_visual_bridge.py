@@ -47,14 +47,14 @@ birebir tutarlı).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from collections.abc import Iterable
+from dataclasses import dataclass
 from enum import Enum
-from typing import Iterable, Optional
 
 from ..core_engine.geometry_engine import Point2D
-from ..hazard_data.fire_spread import FireCellState, FireSpreadModel, CellId
+from ..hazard_data.fire_spread import CellId, FireCellState, FireSpreadModel
 from ..mobility.emergency_response import DispatchResult, EmergencyUnitType
-from ..mobility.traffic_simulation import TrafficAgent, VehicleType, GreenshieldsModel
+from ..mobility.traffic_simulation import GreenshieldsModel, TrafficAgent, VehicleType
 from ..population.synthetic_population import DailyRoutineType
 from .heatmap_overlay import HeatmapCell
 
@@ -106,7 +106,7 @@ class FacadeFireSprite:
     world_position: Point2D
     height_m: float
     kind: FireSpriteKind
-    intensity: float          # 0.0-1.0, sprite opaklığı/ölçeği için
+    intensity: float  # 0.0-1.0, sprite opaklığı/ölçeği için
     honesty_note: str = FIRE_OVERLAY_HONESTY_NOTE
 
 
@@ -114,9 +114,9 @@ def fire_facade_overlay(
     model: FireSpreadModel,
     building_id: str,
     *,
-    cell_to_world: "callable[[CellId], Point2D]",
+    cell_to_world: callable[[CellId], Point2D],
     floor_height_m: float = 3.2,
-    cell_to_floor: Optional["callable[[CellId], int]"] = None,
+    cell_to_floor: callable[[CellId], int] | None = None,
 ) -> list[FacadeFireSprite]:
     """`FireSpreadModel.intensity`'yi (zaten var, roadmap 5.1'in tek girdisi)
     bir binanın cephesine bindirilecek `FacadeFireSprite` listesine çevirir.
@@ -135,19 +135,22 @@ def fire_facade_overlay(
         if state is FireCellState.CLEAR:
             continue
         floor_index = cell_to_floor(cell) if cell_to_floor is not None else 0
-        sprites.append(FacadeFireSprite(
-            building_id=building_id,
-            world_position=cell_to_world(cell),
-            height_m=floor_index * floor_height_m,
-            kind=FireSpriteKind.FLAME if state is FireCellState.FIRE else FireSpriteKind.SMOKE,
-            intensity=intensity,
-        ))
+        sprites.append(
+            FacadeFireSprite(
+                building_id=building_id,
+                world_position=cell_to_world(cell),
+                height_m=floor_index * floor_height_m,
+                kind=FireSpriteKind.FLAME if state is FireCellState.FIRE else FireSpriteKind.SMOKE,
+                intensity=intensity,
+            )
+        )
     return sprites
 
 
 # ======================================================================== #
 # 5.2 — Acil müdahale → gerçek araç ikonu + rota animasyonu
 # ======================================================================== #
+
 
 class EmergencyVehicleIcon(str, Enum):
     """`EmergencyUnitType`'ın render tarafındaki ikon karşılığı - 1:1
@@ -183,7 +186,7 @@ class EmergencyVehicleFrame:
 def emergency_vehicle_icon_frame(
     dispatch: DispatchResult,
     *,
-    node_to_world: "callable[[object], Point2D]",
+    node_to_world: callable[[object], Point2D],
 ) -> EmergencyVehicleFrame:
     """`DispatchResult.path_result.path`'i (A*'ın bulduğu düğüm dizisi,
     zaten var) `node_to_world` ile dünya koordinatlarına çevirip
@@ -213,6 +216,7 @@ def emergency_vehicle_icon_frame(
 # 5.3 — Bölgesel yığılma → heatmap overlay bağlanması
 # ======================================================================== #
 
+
 def bind_heatmap_to_scene_layer(cells: Iterable[HeatmapCell]) -> list[dict]:
     """`visualization.heatmap_overlay` (V9'dan beri var, hesaplama katmanı
     zaten tamamdı) çıktısını `render_engine.scene_bridge.Scene`'in
@@ -236,6 +240,7 @@ def bind_heatmap_to_scene_layer(cells: Iterable[HeatmapCell]) -> list[dict]:
 # ======================================================================== #
 # 5.4 — Sentetik nüfus → günlük rutin motorunun görsel tüketicisi
 # ======================================================================== #
+
 
 class RoutineVisualState(str, Enum):
     """`DailyRoutineType` + saat bilgisinden türeyen kaba görsel durum -
@@ -267,7 +272,9 @@ _AWAY_WINDOWS: dict[DailyRoutineType, tuple[int, int]] = {
 }
 
 
-def daily_routine_visual_tag(routine_type: DailyRoutineType, hour_of_day: int) -> RoutineVisualState:
+def daily_routine_visual_tag(
+    routine_type: DailyRoutineType, hour_of_day: int
+) -> RoutineVisualState:
     """`hour_of_day` (0-23) bir `_COMMUTE_WINDOWS` aralığına düşerse
     `COMMUTING`, `_AWAY_WINDOWS` aralığındaysa `AT_WORK_OR_SCHOOL`,
     aksi halde `AT_HOME` döner. `HOMEMAKER`/`RETIRED`/
@@ -291,6 +298,7 @@ def daily_routine_visual_tag(routine_type: DailyRoutineType, hour_of_day: int) -
 # ======================================================================== #
 # 5.5 — Trafik/araç simülasyonu entegrasyonu
 # ======================================================================== #
+
 
 class VehicleSpeedTint(str, Enum):
     """`GreenshieldsModel.is_congested()` (zaten var, Faz D6) çıktısının
@@ -318,6 +326,7 @@ def _heading_degrees(agent: TrafficAgent) -> float:
     """Rota üzerindeki mevcut segmentin yönünü derece cinsinden verir;
     ilerleme yoksa (henüz hareket etmemiş/tek noktalık rota) 0.0."""
     import math
+
     pos = agent.current_position()
     positions = agent.route_positions
     if len(positions) < 2:
@@ -338,8 +347,8 @@ def _heading_degrees(agent: TrafficAgent) -> float:
 def traffic_vehicle_scene_frame(
     agent: TrafficAgent,
     *,
-    density_veh_per_km: Optional[float] = None,
-    flow_model: Optional[GreenshieldsModel] = None,
+    density_veh_per_km: float | None = None,
+    flow_model: GreenshieldsModel | None = None,
 ) -> VehicleSceneFrame:
     """`TrafficAgent`'ı (zaten var, IDM ile hareket ettirilir) sahne
     karesine çevirir. `density_veh_per_km` + `flow_model` verilirse

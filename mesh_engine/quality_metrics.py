@@ -30,12 +30,12 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
-from . import Mesh3D, MeshRepair, _triangle_area, _triangle_normal
-
+from . import Mesh3D, _triangle_area, _triangle_normal
 
 # ======================================================================== #
 # Tekil mesh kalite raporu
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class MeshQualityReport:
@@ -74,13 +74,16 @@ class MeshQualityAnalyzer:
     HARD_EDGE_REFERENCE_ANGLES_DEG: tuple[float, ...] = (90.0, 180.0)
 
     @staticmethod
-    def analyze(mesh: Mesh3D, degenerate_min_area: float = 1e-9,
-                normal_angle_threshold_deg: float = 45.0,
-                hard_edge_tolerance_deg: float = 12.0) -> MeshQualityReport:
+    def analyze(
+        mesh: Mesh3D,
+        degenerate_min_area: float = 1e-9,
+        normal_angle_threshold_deg: float = 45.0,
+        hard_edge_tolerance_deg: float = 12.0,
+    ) -> MeshQualityReport:
         edge_count: dict[tuple[int, int], int] = {}
         edge_triangles: dict[tuple[int, int], list[int]] = {}
         for t_idx, (a, b, c) in enumerate(mesh.triangles):
-            for (i, j) in ((a, b), (b, c), (c, a)):
+            for i, j in ((a, b), (b, c), (c, a)):
                 key = (min(i, j), max(i, j))
                 edge_count[key] = edge_count.get(key, 0) + 1
                 edge_triangles.setdefault(key, []).append(t_idx)
@@ -132,9 +135,7 @@ class MeshQualityAnalyzer:
                 consistent_adjusted += 1
 
         normal_consistency_ratio = (consistent / compared) if compared else 1.0
-        normal_consistency_ratio_adjusted = (
-            (consistent_adjusted / compared) if compared else 1.0
-        )
+        normal_consistency_ratio_adjusted = (consistent_adjusted / compared) if compared else 1.0
         is_manifold = non_manifold == 0
         is_watertight = is_manifold and boundary == 0
 
@@ -156,6 +157,7 @@ class MeshQualityAnalyzer:
 # ======================================================================== #
 # Kat hizalama metrikleri (Faz 1.2 "katlar tam çıkmıyor" hatası için)
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class FloorAlignmentReport:
@@ -227,12 +229,18 @@ class FloorAlignmentAnalyzer:
             # aynı olup olmadığı - noktaların BİREBİR eşleşmesi değil.
             for i in range(len(actual_floor_meshes) - 1):
                 top_pts = [
-                    (v.x, v.y) for v in actual_floor_meshes[i].vertices
-                    if math.isclose(v.z, max(vv.z for vv in actual_floor_meshes[i].vertices), abs_tol=1e-6)
+                    (v.x, v.y)
+                    for v in actual_floor_meshes[i].vertices
+                    if math.isclose(
+                        v.z, max(vv.z for vv in actual_floor_meshes[i].vertices), abs_tol=1e-6
+                    )
                 ]
                 bottom_pts = [
-                    (v.x, v.y) for v in actual_floor_meshes[i + 1].vertices
-                    if math.isclose(v.z, min(vv.z for vv in actual_floor_meshes[i + 1].vertices), abs_tol=1e-6)
+                    (v.x, v.y)
+                    for v in actual_floor_meshes[i + 1].vertices
+                    if math.isclose(
+                        v.z, min(vv.z for vv in actual_floor_meshes[i + 1].vertices), abs_tol=1e-6
+                    )
                 ]
                 if not top_pts or not bottom_pts:
                     continue
@@ -241,8 +249,10 @@ class FloorAlignmentAnalyzer:
                 bot_minx, bot_maxx = min(p[0] for p in bottom_pts), max(p[0] for p in bottom_pts)
                 bot_miny, bot_maxy = min(p[1] for p in bottom_pts), max(p[1] for p in bottom_pts)
                 worst = max(
-                    abs(top_minx - bot_minx), abs(top_maxx - bot_maxx),
-                    abs(top_miny - bot_miny), abs(top_maxy - bot_maxy),
+                    abs(top_minx - bot_minx),
+                    abs(top_maxx - bot_maxx),
+                    abs(top_miny - bot_miny),
+                    abs(top_maxy - bot_maxy),
                 )
                 wall_xy_errors.append(worst)
 
@@ -271,6 +281,7 @@ class FloorAlignmentAnalyzer:
 # ======================================================================== #
 # Çoklu-mesh (bina/şehir) rapor toplayıcı
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class BatchQualityReport:

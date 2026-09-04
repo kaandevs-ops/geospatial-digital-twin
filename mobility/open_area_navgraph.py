@@ -25,10 +25,10 @@ olarak** yansıtılmadı (`edge_cost_multiplier_from_properties` adında ayrı,
 isteğe bağlı bir kanca bırakıldı - çağıran taraf `properties` sözlüğünü
 kullanarak kendi çarpanını uygulayabilir, sessizce "eğim=0" varsayılmaz).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
 
 from ..core_engine.geometry_engine import Point2D
 from ..core_engine.gis_core import GeoFeature, GeoFeatureCollection
@@ -107,7 +107,9 @@ class OpenAreaNavGraphBuilder:
 
 
 def edge_cost_multiplier_from_properties(
-    properties: dict, *, default: float = 1.0,
+    properties: dict,
+    *,
+    default: float = 1.0,
 ) -> float:
     """Roadmap'in "kaldırım genişliği/eğim bilgisiyle zenginleştirilmiş"
     notunun isteğe bağlı kancası. OSM `width` (metre) ve `incline`

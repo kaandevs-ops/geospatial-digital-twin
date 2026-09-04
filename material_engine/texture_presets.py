@@ -46,7 +46,9 @@ def _brick_texture(albedo: tuple[float, float, float], size: int) -> TextureMap:
     rengi malzemenin kendi albedo'su, harç rengi standart gri-bej harç
     tonudur (gerçek bir doku dosyası değil ama düz renkten belirgin
     şekilde ayrışan, tanınabilir bir tuğla-harç deseni)."""
-    mask = ProceduralMaterials.procedural_brick_pattern(size, size, brick_w=max(4, size // 4), brick_h=max(2, size // 8))
+    mask = ProceduralMaterials.procedural_brick_pattern(
+        size, size, brick_w=max(4, size // 4), brick_h=max(2, size // 8)
+    )
     r, g, b = albedo
     brick = (_clamp255(r), _clamp255(g), _clamp255(b))
     mortar = (_clamp255(0.72), _clamp255(0.68), _clamp255(0.62))
@@ -56,7 +58,7 @@ def _brick_texture(albedo: tuple[float, float, float], size: int) -> TextureMap:
         for x in range(size):
             color = brick if row[x] else mortar
             idx = (y * size + x) * 3
-            pixels[idx:idx + 3] = bytes(color)
+            pixels[idx : idx + 3] = bytes(color)
     return TextureMap(width=size, height=size, channels=3, pixels=bytes(pixels))
 
 
@@ -68,7 +70,11 @@ def _checker_texture(albedo: tuple[float, float, float], size: int) -> TextureMa
     bir doku)."""
     r, g, b = albedo
     dark = (_clamp255(r * 0.82), _clamp255(g * 0.82), _clamp255(b * 0.82))
-    light = (_clamp255(min(1.0, r * 1.08)), _clamp255(min(1.0, g * 1.08)), _clamp255(min(1.0, b * 1.08)))
+    light = (
+        _clamp255(min(1.0, r * 1.08)),
+        _clamp255(min(1.0, g * 1.08)),
+        _clamp255(min(1.0, b * 1.08)),
+    )
     pixels = bytearray(size * size * 3)
     cell = max(1, size // 8)
     for y in range(size):
@@ -76,7 +82,7 @@ def _checker_texture(albedo: tuple[float, float, float], size: int) -> TextureMa
             checker = ((x // cell) + (y // cell)) % 2 == 0
             color = light if checker else dark
             idx = (y * size + x) * 3
-            pixels[idx:idx + 3] = bytes(color)
+            pixels[idx : idx + 3] = bytes(color)
     return TextureMap(width=size, height=size, channels=3, pixels=bytes(pixels))
 
 

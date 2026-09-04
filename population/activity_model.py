@@ -21,11 +21,12 @@ yolculuk simülasyonu) tarafından tüketilmek üzere tasarlanmıştır - roadma
 notu: "mode choice model" ve gerçek rota hesaplaması Katman 3.3'ün işidir,
 bu modül yalnızca TALEBİ üretir (ayrım bilinçli - tek sorumluluk ilkesi).
 """
+
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Sequence
 
 from .synthetic_population import DailyRoutineType, SyntheticIndividual
 
@@ -36,7 +37,7 @@ class ActivityType(str, Enum):
     WORK = "work"
     LUNCH_BREAK = "lunch_break"
     SOCIAL_EVENING = "social_evening"
-    LOCAL_ERRAND = "local_errand"          # ev hanımı/emekli kısa yerel çıkış
+    LOCAL_ERRAND = "local_errand"  # ev hanımı/emekli kısa yerel çıkış
 
 
 @dataclass(slots=True)
@@ -46,7 +47,7 @@ class Activity:
     gerçek konum ataması `osm_demand_bridge`'in işi)."""
 
     activity_type: ActivityType
-    start_hour: float   # 0-24 arası ondalık saat
+    start_hour: float  # 0-24 arası ondalık saat
 
 
 #: Rutin tipine göre günlük aktivite zinciri şablonu - roadmap'in kendi
@@ -130,7 +131,9 @@ class ActivityModel:
             )
         )
 
-    def od_demand_for_individual(self, individual: SyntheticIndividual, household_id: str) -> list[ODDemandEntry]:
+    def od_demand_for_individual(
+        self, individual: SyntheticIndividual, household_id: str
+    ) -> list[ODDemandEntry]:
         chain = self.activity_chain_for(individual)
         entries: list[ODDemandEntry] = []
         for i in range(len(chain) - 1):

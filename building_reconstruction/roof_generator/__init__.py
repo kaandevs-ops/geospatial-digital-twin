@@ -82,7 +82,9 @@ class RoofGenerator:
         if include_soffit and overhang_m > 0:
             soffit = RoofDetailGenerator.add_soffit(polygon, eave_polygon, base_z)
             if soffit.triangle_count():
-                roof_mesh = MeshMerger.merge([roof_mesh, soffit], name=roof_mesh.name + "_with_soffit")
+                roof_mesh = MeshMerger.merge(
+                    [roof_mesh, soffit], name=roof_mesh.name + "_with_soffit"
+                )
         return roof_mesh
 
     @staticmethod
@@ -150,8 +152,9 @@ class RoofGenerator:
             triangles.append((i, i2, i2 + n))
             triangles.append((i, i2 + n, i + n))
         from ...mesh_engine import _ear_clip_triangulate  # taban/tavan kapakları
+
         cap = _ear_clip_triangulate(ring, list(range(n)))
-        for (a, b, c) in cap:
+        for a, b, c in cap:
             triangles.append((a, c, b))  # taban (aşağı bakan normal)
         mesh = Mesh3D(vertices=vertices, triangles=triangles, name=name)
         NormalGenerator.compute_face_averaged_normals(mesh)
@@ -230,11 +233,13 @@ class RoofGenerator:
             else:
                 for seg in range(n):
                     theta = 2.0 * math.pi * seg / n
-                    vertices.append(Vertex3D(
-                        centroid.x + r * math.cos(theta),
-                        centroid.y + r * math.sin(theta),
-                        z,
-                    ))
+                    vertices.append(
+                        Vertex3D(
+                            centroid.x + r * math.cos(theta),
+                            centroid.y + r * math.sin(theta),
+                            z,
+                        )
+                    )
 
         triangles: list[tuple[int, int, int]] = []
 
@@ -253,7 +258,7 @@ class RoofGenerator:
         for ring_idx in range(m - 1):
             start_a = ring_start_indices[ring_idx]
             start_b = ring_start_indices[ring_idx + 1]
-            is_apex_next = (ring_idx + 1 == m - 1)
+            is_apex_next = ring_idx + 1 == m - 1
             if is_apex_next:
                 apex = start_b
                 for seg in range(n):
@@ -308,10 +313,12 @@ class RoofGenerator:
         r0, r1 = 4, 5
         # Dörtgen hip çatı üçgenleri (2 üçgen alınlık + 2 eğim yüzeyi):
         triangles = [
-            (0, 1, r0),       # ön üçgen yüzey
-            (2, 3, r1),        # arka üçgen yüzey
-            (1, 2, r1), (1, r1, r0),   # sağ eğim (quad -> 2 üçgen)
-            (3, 0, r0), (3, r0, r1),   # sol eğim (quad -> 2 üçgen)
+            (0, 1, r0),  # ön üçgen yüzey
+            (2, 3, r1),  # arka üçgen yüzey
+            (1, 2, r1),
+            (1, r1, r0),  # sağ eğim (quad -> 2 üçgen)
+            (3, 0, r0),
+            (3, r0, r1),  # sol eğim (quad -> 2 üçgen)
         ]
         mesh = Mesh3D(vertices=vertices, triangles=triangles, name="roof_hip")
         NormalGenerator.compute_face_averaged_normals(mesh)
@@ -349,9 +356,11 @@ class RoofGenerator:
         vertices = eave + ridge
         r0, r1 = 4, 5
         triangles = [
-            (0, 1, r0), (1, r1, r0),
+            (0, 1, r0),
+            (1, r1, r0),
             (1, 2, r1),
-            (2, 3, r1), (3, r0, r1),
+            (2, 3, r1),
+            (3, r0, r1),
             (3, 0, r0),
         ]
         mesh = Mesh3D(vertices=vertices, triangles=triangles, name="roof_gable")
@@ -389,8 +398,10 @@ class RoofGenerator:
         """
         centroid = RoofGenerator._centroid(polygon)
         ring = polygon.closed_ring()[:-1]
-        min_x = min(p.x for p in ring); max_x = max(p.x for p in ring)
-        min_y = min(p.y for p in ring); max_y = max(p.y for p in ring)
+        min_x = min(p.x for p in ring)
+        max_x = max(p.x for p in ring)
+        min_y = min(p.y for p in ring)
+        max_y = max(p.y for p in ring)
 
         half_depth_a = (max_y - min_y) * 0.15  # wing_a (ridge x eksenine paralel)
         half_depth_b = (max_x - min_x) * 0.15  # wing_b (ridge y eksenine paralel)
@@ -430,8 +441,10 @@ class RoofGenerator:
             (yükseklik minimum fonksiyonunun süreksizlik/kırılma çizgisini)
             yakalamak için gerekli; düz iki-üçgenli quad bunu kaçırırdı."""
             corners = [
-                (x_coords[0], y_coords[0]), (x_coords[1], y_coords[0]),
-                (x_coords[1], y_coords[1]), (x_coords[0], y_coords[1]),
+                (x_coords[0], y_coords[0]),
+                (x_coords[1], y_coords[0]),
+                (x_coords[1], y_coords[1]),
+                (x_coords[0], y_coords[1]),
             ]
             corner_idx = []
             for cx, cy in corners:
@@ -481,9 +494,7 @@ class RoofGenerator:
         lower_prism = MeshBuilder.extrude_polygon(
             Polygon(ring), base_z, lower_height, name="roof_mansard_lower"
         )
-        upper_roof = RoofGenerator.hip(
-            Polygon(inset_ring), base_z + lower_height, pitch_deg=20.0
-        )
+        upper_roof = RoofGenerator.hip(Polygon(inset_ring), base_z + lower_height, pitch_deg=20.0)
         return MeshMerger.merge([lower_prism, upper_roof], name="roof_mansard")
 
     @staticmethod
@@ -502,12 +513,17 @@ class RoofGenerator:
         for i in range(strip_count):
             sx0 = min_x + i * strip_width
             sx1 = sx0 + strip_width
-            strip_poly = Polygon([
-                Point2D(sx0, min_y), Point2D(sx1, min_y),
-                Point2D(sx1, max_y), Point2D(sx0, max_y),
-            ])
-            segments.append(RoofGenerator._mono_pitch(strip_poly, base_z, pitch_deg,
-                                                        name=f"roof_sawtooth_{i}"))
+            strip_poly = Polygon(
+                [
+                    Point2D(sx0, min_y),
+                    Point2D(sx1, min_y),
+                    Point2D(sx1, max_y),
+                    Point2D(sx0, max_y),
+                ]
+            )
+            segments.append(
+                RoofGenerator._mono_pitch(strip_poly, base_z, pitch_deg, name=f"roof_sawtooth_{i}")
+            )
         return MeshMerger.merge(segments, name="roof_sawtooth")
 
     @staticmethod
@@ -517,10 +533,14 @@ class RoofGenerator:
         base = RoofGenerator._mono_pitch(polygon, base_z, pitch_deg, name="roof_modern_base")
         centroid = RoofGenerator._centroid(polygon)
         ring = polygon.closed_ring()[:-1]
-        inset = Polygon([
-            Point2D(centroid.x + (p.x - centroid.x) * 0.9, centroid.y + (p.y - centroid.y) * 0.9)
-            for p in ring
-        ])
+        inset = Polygon(
+            [
+                Point2D(
+                    centroid.x + (p.x - centroid.x) * 0.9, centroid.y + (p.y - centroid.y) * 0.9
+                )
+                for p in ring
+            ]
+        )
         parapet = MeshBuilder.extrude_polygon(inset, base_z, 0.3, name="roof_modern_parapet")
         return MeshMerger.merge([base, parapet], name="roof_modern")
 
@@ -559,15 +579,26 @@ class RoofGenerator:
         for j in range(1, n_y):
             y = min_y + j * (max_y - min_y) / n_y
             bar_ring = [
-                Point2D(min_x, y - bar_w / 2), Point2D(max_x, y - bar_w / 2),
-                Point2D(max_x, y + bar_w / 2), Point2D(min_x, y + bar_w / 2),
+                Point2D(min_x, y - bar_w / 2),
+                Point2D(max_x, y - bar_w / 2),
+                Point2D(max_x, y + bar_w / 2),
+                Point2D(min_x, y + bar_w / 2),
             ]
             v0 = Vertex3D(min_x, y, base_z)
             v1 = Vertex3D(max_x, y, base_z + rise)
-            parts.append(RoofDetailGenerator._tilted_panel(
-                (min_x + max_x) / 2, y, base_z + rise / 2, pitch_deg, min_x,
-                span, bar_w, 0.06, name=f"atrium_mullion_h_{j}",
-            ))
+            parts.append(
+                RoofDetailGenerator._tilted_panel(
+                    (min_x + max_x) / 2,
+                    y,
+                    base_z + rise / 2,
+                    pitch_deg,
+                    min_x,
+                    span,
+                    bar_w,
+                    0.06,
+                    name=f"atrium_mullion_h_{j}",
+                )
+            )
 
         # Düşey (X sabit) mullion çıtaları - eğim yönüne dik, sabit derinlik
         n_x = max(1, int((max_x - min_x) // grid_spacing))
@@ -575,8 +606,12 @@ class RoofGenerator:
             x = min_x + i * (max_x - min_x) / n_x
             z = base_z + (x - min_x) / span * rise
             box = MeshBuilder.build_box(
-                bar_w, (max_y - min_y), 0.10,
-                center_x=x, center_y=(min_y + max_y) / 2, base_z=z - 0.05,
+                bar_w,
+                (max_y - min_y),
+                0.10,
+                center_x=x,
+                center_y=(min_y + max_y) / 2,
+                base_z=z - 0.05,
                 name=f"atrium_mullion_v_{i}",
             )
             parts.append(box)
@@ -602,6 +637,7 @@ class RoofGenerator:
 # mesh'leri olarak üretilip çatı mesh'ine merge edilir (gerçek bir delik
 # kesip içine oturtmak yerine).
 
+
 class RoofDetailGenerator:
     """Çatı gövdesi (`RoofGenerator.generate(...)` çıktısı) üzerine baca ve
     çatı penceresi (skylight/dormer) gibi çıkıntılı detaylar ekler."""
@@ -620,8 +656,12 @@ class RoofDetailGenerator:
         oturacağı yaklaşık çatı yüzeyi Z'sidir (çağıran taraf genelde
         `base_z` + çatı ortalama yüksekliğini geçer)."""
         chimney = MeshBuilder.build_box(
-            width, depth, height,
-            center_x=position.x, center_y=position.y, base_z=roof_base_z,
+            width,
+            depth,
+            height,
+            center_x=position.x,
+            center_y=position.y,
+            base_z=roof_base_z,
             name="chimney",
         )
         return MeshMerger.merge([roof_mesh, chimney], name=roof_mesh.name + "_with_chimney")
@@ -639,17 +679,26 @@ class RoofDetailGenerator:
         kütlesi ekler - gerçek bir cam/delik kesimi değil, çıkıntılı basit
         bir hacim (yaygın procedural yaklaşım)."""
         skylight = MeshBuilder.build_box(
-            width, depth, height,
-            center_x=position.x, center_y=position.y, base_z=roof_surface_z,
+            width,
+            depth,
+            height,
+            center_x=position.x,
+            center_y=position.y,
+            base_z=roof_surface_z,
             name="skylight",
         )
         return MeshMerger.merge([roof_mesh, skylight], name=roof_mesh.name + "_with_skylight")
 
     @staticmethod
     def _tilted_panel(
-        center_x: float, center_y: float, surface_z: float,
-        pitch_deg: float, min_x: float,
-        panel_w: float, panel_d: float, thickness: float,
+        center_x: float,
+        center_y: float,
+        surface_z: float,
+        pitch_deg: float,
+        min_x: float,
+        panel_w: float,
+        panel_d: float,
+        thickness: float,
         name: str,
     ) -> Mesh3D:
         """`_mono_pitch` yüzeyine (eğim X ekseni boyunca, referans `min_x`)
@@ -664,22 +713,34 @@ class RoofDetailGenerator:
         hw, hd = panel_w / 2.0, panel_d / 2.0
 
         local = [
-            (-hw, -hd, 0.0), (hw, -hd, 0.0), (hw, hd, 0.0), (-hw, hd, 0.0),
-            (-hw, -hd, thickness), (hw, -hd, thickness), (hw, hd, thickness), (-hw, hd, thickness),
+            (-hw, -hd, 0.0),
+            (hw, -hd, 0.0),
+            (hw, hd, 0.0),
+            (-hw, hd, 0.0),
+            (-hw, -hd, thickness),
+            (hw, -hd, thickness),
+            (hw, hd, thickness),
+            (-hw, hd, thickness),
         ]
         verts: list[Vertex3D] = []
-        for (u, v, w) in local:
+        for u, v, w in local:
             dx = u * cos_t - w * sin_t
             dz = u * sin_t + w * cos_t
             verts.append(Vertex3D(center_x + dx, center_y + v, surface_z + dz))
 
         triangles = [
-            (0, 1, 2), (0, 2, 3),
-            (4, 6, 5), (4, 7, 6),
-            (0, 5, 1), (0, 4, 5),
-            (1, 6, 2), (1, 5, 6),
-            (2, 7, 3), (2, 6, 7),
-            (3, 4, 0), (3, 7, 4),
+            (0, 1, 2),
+            (0, 2, 3),
+            (4, 6, 5),
+            (4, 7, 6),
+            (0, 5, 1),
+            (0, 4, 5),
+            (1, 6, 2),
+            (1, 5, 6),
+            (2, 7, 3),
+            (2, 6, 7),
+            (3, 4, 0),
+            (3, 7, 4),
         ]
         mesh = Mesh3D(vertices=verts, triangles=triangles, name=name)
         NormalGenerator.compute_face_averaged_normals(mesh)
@@ -738,11 +799,19 @@ class RoofDetailGenerator:
             for i in range(n_x):
                 cx = start_x + i * step_x
                 surface_z = base_z + (cx - min_x) / span * rise
-                panels.append(RoofDetailGenerator._tilted_panel(
-                    cx, cy, surface_z, pitch_deg, min_x,
-                    panel_w, panel_d, thickness,
-                    name=f"solar_panel_{j}_{i}",
-                ))
+                panels.append(
+                    RoofDetailGenerator._tilted_panel(
+                        cx,
+                        cy,
+                        surface_z,
+                        pitch_deg,
+                        min_x,
+                        panel_w,
+                        panel_d,
+                        thickness,
+                        name=f"solar_panel_{j}_{i}",
+                    )
+                )
         return MeshMerger.merge(panels, name=roof_mesh.name + "_with_solar_panels")
 
     @staticmethod
@@ -779,8 +848,9 @@ class RoofDetailGenerator:
             return Mesh3D(vertices=[], triangles=[], name=name)
 
         n = len(wall_ring)
-        vertices = [Vertex3D(p.x, p.y, base_z) for p in wall_ring] + \
-                   [Vertex3D(p.x, p.y, base_z) for p in eave_ring]
+        vertices = [Vertex3D(p.x, p.y, base_z) for p in wall_ring] + [
+            Vertex3D(p.x, p.y, base_z) for p in eave_ring
+        ]
         triangles = []
         for i in range(n):
             i2 = (i + 1) % n
@@ -804,12 +874,12 @@ class RoofDetailGenerator:
         hesabı `regulations` modülüyle birlikte ayrıca yapılmalıdır.
         """
         table = {
-            "kutup": 45.0,      # çok yoğun kar yükü - dik çatı, kar birikmesin
+            "kutup": 45.0,  # çok yoğun kar yükü - dik çatı, kar birikmesin
             "daglik_karli": 40.0,
             "soguk": 30.0,
-            "ilman": 22.0,       # ılıman - roadmap varsayılanı (25° civarı)
-            "kurak": 10.0,       # kar yükü yok, düşük eğim yeterli
-            "tropikal": 15.0,    # yoğun yağmur tahliyesi için hafif eğim yeterli
+            "ilman": 22.0,  # ılıman - roadmap varsayılanı (25° civarı)
+            "kurak": 10.0,  # kar yükü yok, düşük eğim yeterli
+            "tropikal": 15.0,  # yoğun yağmur tahliyesi için hafif eğim yeterli
         }
         return table.get(climate_zone.lower(), 25.0)
 
@@ -878,20 +948,31 @@ class MultiPartRoofGenerator:
                 if not occupied[j][i] or consumed[j][i]:
                     continue
                 i_end = i
-                while i_end + 1 < len(xs) - 1 and occupied[j][i_end + 1] and not consumed[j][i_end + 1]:
+                while (
+                    i_end + 1 < len(xs) - 1
+                    and occupied[j][i_end + 1]
+                    and not consumed[j][i_end + 1]
+                ):
                     i_end += 1
                 j_end = j
                 while j_end + 1 < len(ys) - 1 and all(
-                    occupied[j_end + 1][k] and not consumed[j_end + 1][k] for k in range(i, i_end + 1)
+                    occupied[j_end + 1][k] and not consumed[j_end + 1][k]
+                    for k in range(i, i_end + 1)
                 ):
                     j_end += 1
                 for jj in range(j, j_end + 1):
                     for ii in range(i, i_end + 1):
                         consumed[jj][ii] = True
-                rects.append(Polygon([
-                    Point2D(xs[i], ys[j]), Point2D(xs[i_end + 1], ys[j]),
-                    Point2D(xs[i_end + 1], ys[j_end + 1]), Point2D(xs[i], ys[j_end + 1]),
-                ]))
+                rects.append(
+                    Polygon(
+                        [
+                            Point2D(xs[i], ys[j]),
+                            Point2D(xs[i_end + 1], ys[j]),
+                            Point2D(xs[i_end + 1], ys[j_end + 1]),
+                            Point2D(xs[i], ys[j_end + 1]),
+                        ]
+                    )
+                )
         return rects or [polygon]
 
     @staticmethod
@@ -912,7 +993,6 @@ class MultiPartRoofGenerator:
             return RoofGenerator.generate(polygon, base_z, roof_type, pitch_deg, overhang_m)
 
         meshes = [
-            RoofGenerator.generate(part, base_z, roof_type, pitch_deg, overhang_m)
-            for part in parts
+            RoofGenerator.generate(part, base_z, roof_type, pitch_deg, overhang_m) for part in parts
         ]
         return MeshMerger.merge(meshes, name=f"roof_multipart_{RoofType(roof_type).value}")

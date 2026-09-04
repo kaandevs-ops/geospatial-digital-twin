@@ -24,9 +24,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from harita.core_engine.coordinate_systems import GeoPoint
-from harita.lighting import SolarPositionCalculator, _julian_day, _greenwich_mean_sidereal_time_deg
-import harita.lighting as lighting_module
-
+from harita.lighting import SolarPositionCalculator, _greenwich_mean_sidereal_time_deg, _julian_day
 
 REFERENCE_DT = datetime(1992, 10, 13, 0, 0, 0, tzinfo=timezone.utc)
 

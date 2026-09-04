@@ -13,7 +13,6 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import List, Optional
 
 from .afad_client import HazardNetworkError, HazardParseError
 
@@ -58,15 +57,17 @@ class USGSClient:
         max_lat: float,
         min_lon: float,
         max_lon: float,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
         min_magnitude: float = 0.0,
         limit: int = 200,
     ) -> dict:
         params = {
             "format": "geojson",
-            "minlatitude": min_lat, "maxlatitude": max_lat,
-            "minlongitude": min_lon, "maxlongitude": max_lon,
+            "minlatitude": min_lat,
+            "maxlatitude": max_lat,
+            "minlongitude": min_lon,
+            "maxlongitude": max_lon,
             "minmagnitude": min_magnitude,
             "limit": limit,
             "orderby": "time",
@@ -78,14 +79,20 @@ class USGSClient:
 
         url = f"{self.endpoint}?{urllib.parse.urlencode(params)}"
         request = urllib.request.Request(
-            url, headers={"User-Agent": self.user_agent, "Accept": "application/json"},
+            url,
+            headers={"User-Agent": self.user_agent, "Accept": "application/json"},
         )
         try:
             with urllib.request.urlopen(request, timeout=self.timeout_s) as response:
                 raw_bytes = response.read()
             return json.loads(raw_bytes.decode("utf-8"))
-        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError,
-                OSError, ValueError) as exc:
+        except (
+            urllib.error.URLError,
+            urllib.error.HTTPError,
+            TimeoutError,
+            OSError,
+            ValueError,
+        ) as exc:
             raise HazardNetworkError(f"USGS uç noktasına ulaşılamadı: {exc!r}") from exc
 
     def fetch_earthquakes(
@@ -95,40 +102,48 @@ class USGSClient:
         max_lat: float,
         min_lon: float,
         max_lon: float,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
         min_magnitude: float = 0.0,
         limit: int = 200,
-    ) -> List[USGSEarthquake]:
+    ) -> list[USGSEarthquake]:
         raw = self.fetch_raw(
-            min_lat=min_lat, max_lat=max_lat, min_lon=min_lon, max_lon=max_lon,
-            start=start, end=end, min_magnitude=min_magnitude, limit=limit,
+            min_lat=min_lat,
+            max_lat=max_lat,
+            min_lon=min_lon,
+            max_lon=max_lon,
+            start=start,
+            end=end,
+            min_magnitude=min_magnitude,
+            limit=limit,
         )
         return parse_usgs_geojson(raw)
 
 
-def parse_usgs_geojson(raw: dict) -> List[USGSEarthquake]:
+def parse_usgs_geojson(raw: dict) -> list[USGSEarthquake]:
     if not isinstance(raw, dict) or "features" not in raw:
         raise HazardParseError(
             f"Beklenmeyen USGS GeoJSON şeması: {type(raw).__name__} "
             f"(anahtarlar={list(raw.keys()) if isinstance(raw, dict) else 'yok'})"
         )
-    results: List[USGSEarthquake] = []
+    results: list[USGSEarthquake] = []
     for feature in raw["features"]:
         try:
             props = feature["properties"]
             lon, lat, depth = feature["geometry"]["coordinates"]
             time_ms = props["time"]
-            results.append(USGSEarthquake(
-                event_id=str(feature.get("id", "")),
-                time_utc=datetime.fromtimestamp(time_ms / 1000.0, tz=timezone.utc),
-                latitude=float(lat),
-                longitude=float(lon),
-                depth_km=float(depth),
-                magnitude=float(props.get("mag") or 0.0),
-                magnitude_type=str(props.get("magType") or "Mw"),
-                place=str(props.get("place") or ""),
-            ))
+            results.append(
+                USGSEarthquake(
+                    event_id=str(feature.get("id", "")),
+                    time_utc=datetime.fromtimestamp(time_ms / 1000.0, tz=timezone.utc),
+                    latitude=float(lat),
+                    longitude=float(lon),
+                    depth_km=float(depth),
+                    magnitude=float(props.get("mag") or 0.0),
+                    magnitude_type=str(props.get("magType") or "Mw"),
+                    place=str(props.get("place") or ""),
+                )
+            )
         except (KeyError, ValueError, TypeError) as exc:
             raise HazardParseError(f"USGS feature ayrıştırılamadı: {feature!r} ({exc})") from exc
     return results

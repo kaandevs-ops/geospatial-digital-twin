@@ -34,7 +34,6 @@ from ...mesh_engine import Mesh3D, MeshBuilder, MeshMerger, WallOpening, WallOpe
 from ..building_elements import Door, ElevatorCore, Stair
 from ..room_generator import Room, RoomType
 
-
 # ============================================================================ #
 # Interior Wall Builder
 # ============================================================================ #
@@ -80,8 +79,13 @@ class InteriorWallBuilder:
 
                 openings = _door_openings_on_edge(a, b, interior_doors, wall_height)
                 wall_mesh = WallOpeningMeshBuilder.build_wall_segment(
-                    a, b, base_z, wall_height, openings,
-                    thickness=wall_thickness, name=f"{name_prefix}_{wall_id}",
+                    a,
+                    b,
+                    base_z,
+                    wall_height,
+                    openings,
+                    thickness=wall_thickness,
+                    name=f"{name_prefix}_{wall_id}",
                 )
                 wall_id += 1
                 if wall_mesh.triangle_count() > 0:
@@ -92,7 +96,9 @@ class InteriorWallBuilder:
         return MeshMerger.merge(segments, name=name_prefix)
 
 
-def _edge_key(a: Point2D, b: Point2D, eps: float = 1e-4) -> tuple[tuple[float, float], tuple[float, float]]:
+def _edge_key(
+    a: Point2D, b: Point2D, eps: float = 1e-4
+) -> tuple[tuple[float, float], tuple[float, float]]:
     pa = (round(a.x / eps), round(a.y / eps))
     pb = (round(b.x / eps), round(b.y / eps))
     return (pa, pb) if pa <= pb else (pb, pa)
@@ -104,7 +110,11 @@ def _footprint_edge_set(polygon: Polygon) -> set[tuple[tuple[float, float], tupl
 
 
 def _door_openings_on_edge(
-    a: Point2D, b: Point2D, doors: list[Door], wall_height: float, tolerance: float = 0.35,
+    a: Point2D,
+    b: Point2D,
+    doors: list[Door],
+    wall_height: float,
+    tolerance: float = 0.35,
 ) -> list[WallOpening]:
     """Bir kapı konumu, verilen duvar kenarına (segmente) yeterince
     yakınsa (dik mesafe < tolerance) o kenarda bir kapı boşluğu açılır."""
@@ -119,16 +129,22 @@ def _door_openings_on_edge(
         perp = abs(px * dy - py * dx)  # kenara dik mesafe
         if -0.05 <= u <= length + 0.05 and perp < tolerance:
             u_clamped = max(door.width / 2.0, min(length - door.width / 2.0, u))
-            openings.append(WallOpening(
-                u_start=u_clamped - door.width / 2.0, u_end=u_clamped + door.width / 2.0,
-                v_start=0.0, v_end=min(2.1, wall_height), kind="door",
-            ))
+            openings.append(
+                WallOpening(
+                    u_start=u_clamped - door.width / 2.0,
+                    u_end=u_clamped + door.width / 2.0,
+                    v_start=0.0,
+                    v_end=min(2.1, wall_height),
+                    kind="door",
+                )
+            )
     return openings
 
 
 # ============================================================================ #
 # Stair Mesh Builder
 # ============================================================================ #
+
 
 class StairMeshBuilder:
     """Roadmap Faz 2: `Stair` veri modelinden gerçek basamak-basamak 3D mesh."""
@@ -149,10 +165,14 @@ class StairMeshBuilder:
             cx = stair.position.x + run_dx * center_offset
             cy = stair.position.y + run_dy * center_offset
             box = _build_rotated_box(
-                width_along_run=stair.step_depth, width_across=stair.width,
+                width_along_run=stair.step_depth,
+                width_across=stair.width,
                 height=stair.step_height + (i * 0.0),  # her basamak kendi rise'ı kadar yüksek
-                center_x=cx, center_y=cy, base_z=base_z,
-                run_dx=run_dx, run_dy=run_dy,
+                center_x=cx,
+                center_y=cy,
+                base_z=base_z,
+                run_dx=run_dx,
+                run_dy=run_dy,
                 top_z=step_z + stair.step_height,
                 name=f"stair_step_{i}",
             )
@@ -163,9 +183,16 @@ class StairMeshBuilder:
 
 
 def _build_rotated_box(
-    width_along_run: float, width_across: float, height: float,
-    center_x: float, center_y: float, base_z: float, top_z: float,
-    run_dx: float, run_dy: float, name: str,
+    width_along_run: float,
+    width_across: float,
+    height: float,
+    center_x: float,
+    center_y: float,
+    base_z: float,
+    top_z: float,
+    run_dx: float,
+    run_dy: float,
+    name: str,
 ) -> Mesh3D:
     """Yükselen basamak kutusu: taban `base_z`den, üst yüzü `top_z`'de,
     ilerleme yönüne göre döndürülmüş dikdörtgen taban."""
@@ -177,12 +204,15 @@ def _build_rotated_box(
         Point2D(center_x + run_dx * hl + perp_dx * hw, center_y + run_dy * hl + perp_dy * hw),
         Point2D(center_x - run_dx * hl + perp_dx * hw, center_y - run_dy * hl + perp_dy * hw),
     ]
-    return MeshBuilder.extrude_polygon(Polygon(corners), base_z, max(0.02, top_z - base_z), name=name)
+    return MeshBuilder.extrude_polygon(
+        Polygon(corners), base_z, max(0.02, top_z - base_z), name=name
+    )
 
 
 # ============================================================================ #
 # Elevator Shaft Mesh Builder
 # ============================================================================ #
+
 
 class ElevatorShaftMeshBuilder:
     """Roadmap Faz 2: `ElevatorCore` veri modelinden taban-tavan arası içi
@@ -201,8 +231,10 @@ class ElevatorShaftMeshBuilder:
         hw, hd = core.width / 2.0, core.depth / 2.0
         cx, cy = core.position.x, core.position.y
         ring = [
-            Point2D(cx - hw, cy - hd), Point2D(cx + hw, cy - hd),
-            Point2D(cx + hw, cy + hd), Point2D(cx - hw, cy + hd),
+            Point2D(cx - hw, cy - hd),
+            Point2D(cx + hw, cy - hd),
+            Point2D(cx + hw, cy + hd),
+            Point2D(cx - hw, cy + hd),
         ]
         shaft_height = core.shaft_top_z - core.shaft_bottom_z
         panels: list[Mesh3D] = []
@@ -213,15 +245,23 @@ class ElevatorShaftMeshBuilder:
                 length = a.distance_to(b)
                 for f in range(max(1, floor_count)):
                     v0 = f * floor_height
-                    openings.append(WallOpening(
-                        u_start=length / 2.0 - door_width / 2.0,
-                        u_end=length / 2.0 + door_width / 2.0,
-                        v_start=v0, v_end=min(v0 + door_height, shaft_height),
-                        kind="door",
-                    ))
+                    openings.append(
+                        WallOpening(
+                            u_start=length / 2.0 - door_width / 2.0,
+                            u_end=length / 2.0 + door_width / 2.0,
+                            v_start=v0,
+                            v_end=min(v0 + door_height, shaft_height),
+                            kind="door",
+                        )
+                    )
             wall = WallOpeningMeshBuilder.build_wall_segment(
-                a, b, core.shaft_bottom_z, shaft_height, openings,
-                thickness=wall_thickness, name=f"{name}_wall_{i}",
+                a,
+                b,
+                core.shaft_bottom_z,
+                shaft_height,
+                openings,
+                thickness=wall_thickness,
+                name=f"{name}_wall_{i}",
             )
             if wall.triangle_count() > 0:
                 panels.append(wall)
@@ -233,6 +273,7 @@ class ElevatorShaftMeshBuilder:
 # ============================================================================ #
 # Furniture / Fixed Equipment Generator
 # ============================================================================ #
+
 
 class FurnitureKind(str, Enum):
     YANGIN_SONDURUCU = "yangin_sonduruculer"
@@ -283,8 +324,11 @@ class FurnitureGenerator:
 
     @staticmethod
     def place_for_floor(
-        rooms: list[Room], base_z: float, floor_level: int,
-        stairs: list[Stair] | None = None, exterior_door: Door | None = None,
+        rooms: list[Room],
+        base_z: float,
+        floor_level: int,
+        stairs: list[Stair] | None = None,
+        exterior_door: Door | None = None,
     ) -> list[FurnitureItem]:
         items: list[FurnitureItem] = []
         for room in rooms:
@@ -301,20 +345,36 @@ class FurnitureGenerator:
                 offset_x = (i - (len(kinds) - 1) / 2.0) * min(0.6, w * 0.2)
                 offset_y = (i % 2) * min(0.6, d * 0.2)
                 pos = Point2D(center.x + offset_x, center.y + offset_y)
-                items.append(FurnitureItem(kind=kind, position=pos, base_z=base_z, floor_level=floor_level, room_id=room.room_id))
+                items.append(
+                    FurnitureItem(
+                        kind=kind,
+                        position=pos,
+                        base_z=base_z,
+                        floor_level=floor_level,
+                        room_id=room.room_id,
+                    )
+                )
 
         # Kat başına en az bir yangın söndürücü + acil çıkış tabelası:
         # merdiven başına ve (varsa) zemin kattaki ana girişin üstüne.
-        for stair in (stairs or []):
-            items.append(FurnitureItem(
-                kind=FurnitureKind.YANGIN_SONDURUCU, position=stair.position,
-                base_z=base_z, floor_level=floor_level,
-            ))
+        for stair in stairs or []:
+            items.append(
+                FurnitureItem(
+                    kind=FurnitureKind.YANGIN_SONDURUCU,
+                    position=stair.position,
+                    base_z=base_z,
+                    floor_level=floor_level,
+                )
+            )
         if exterior_door is not None:
-            items.append(FurnitureItem(
-                kind=FurnitureKind.ACIL_CIKIS_TABELASI, position=exterior_door.position,
-                base_z=base_z + 2.1, floor_level=floor_level,
-            ))
+            items.append(
+                FurnitureItem(
+                    kind=FurnitureKind.ACIL_CIKIS_TABELASI,
+                    position=exterior_door.position,
+                    base_z=base_z + 2.1,
+                    floor_level=floor_level,
+                )
+            )
         return items
 
     @staticmethod
@@ -328,13 +388,23 @@ class FurnitureGenerator:
             w, d, h = _FURNITURE_DIMS.get(item.kind, (0.4, 0.4, 0.8))
             if item.kind == FurnitureKind.YANGIN_SONDURUCU:
                 mesh = MeshBuilder.build_cylinder(
-                    radius=w / 2.0, height=h, center_x=item.position.x, center_y=item.position.y,
-                    base_z=item.base_z, segments=10, name=f"{item.kind.value}_{idx}",
+                    radius=w / 2.0,
+                    height=h,
+                    center_x=item.position.x,
+                    center_y=item.position.y,
+                    base_z=item.base_z,
+                    segments=10,
+                    name=f"{item.kind.value}_{idx}",
                 )
             else:
                 mesh = MeshBuilder.build_box(
-                    width=w, depth=d, height=h, center_x=item.position.x, center_y=item.position.y,
-                    base_z=item.base_z, name=f"{item.kind.value}_{idx}",
+                    width=w,
+                    depth=d,
+                    height=h,
+                    center_x=item.position.x,
+                    center_y=item.position.y,
+                    base_z=item.base_z,
+                    name=f"{item.kind.value}_{idx}",
                 )
             parts.append(mesh)
         if not parts:

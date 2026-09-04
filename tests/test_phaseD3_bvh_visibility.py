@@ -28,25 +28,32 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from harita.core_engine.geometry_engine import Point2D, Polygon, GeometryEngine
-from harita.mesh_engine import MeshBuilder, Mesh3D
+from harita.analysis_engine.environmental_sim import NoiseSimulation, WindSimulation
 from harita.analysis_engine.visibility import (
-    RayCasting, LineOfSight, SceneVisibilityIndex,
+    LineOfSight,
+    RayCasting,
+    SceneVisibilityIndex,
 )
-from harita.analysis_engine.environmental_sim import WindSimulation, NoiseSimulation
+from harita.core_engine.geometry_engine import Point2D, Polygon
+from harita.mesh_engine import Mesh3D, MeshBuilder
 
 
 def _box_mesh(size=10.0, height=6.0, base_z=0.0, cx=0.0, cy=0.0) -> Mesh3D:
-    poly = Polygon(points=[
-        Point2D(cx - size / 2, cy - size / 2), Point2D(cx + size / 2, cy - size / 2),
-        Point2D(cx + size / 2, cy + size / 2), Point2D(cx - size / 2, cy + size / 2),
-    ])
+    poly = Polygon(
+        points=[
+            Point2D(cx - size / 2, cy - size / 2),
+            Point2D(cx + size / 2, cy - size / 2),
+            Point2D(cx + size / 2, cy + size / 2),
+            Point2D(cx - size / 2, cy + size / 2),
+        ]
+    )
     return MeshBuilder.extrude_polygon(poly, base_z=base_z, height=height)
 
 
 # ============================================================================ #
 # 1) RayCasting: BVH ile doğrusal tarama aynı sonucu vermeli
 # ============================================================================ #
+
 
 class TestRayCastingBVHParity:
     def test_bvh_hit_matches_linear_scan(self):
@@ -83,8 +90,9 @@ class TestRayCastingBVHParity:
         direction = (1.0, 0.0, 0.0)
 
         linear = RayCasting.cast_any(origin, direction, [mesh_a, mesh_b], max_distance=100.0)
-        accelerated = RayCasting.cast_any(origin, direction, [mesh_a, mesh_b],
-                                           max_distance=100.0, bvhs=bvhs)
+        accelerated = RayCasting.cast_any(
+            origin, direction, [mesh_a, mesh_b], max_distance=100.0, bvhs=bvhs
+        )
         assert linear is not None and accelerated is not None
         assert math.isclose(linear.distance, accelerated.distance, rel_tol=1e-9)
 
@@ -92,6 +100,7 @@ class TestRayCastingBVHParity:
 # ============================================================================ #
 # 2) SceneVisibilityIndex: A6 kabul kriteri (10.000 bina, <100ms)
 # ============================================================================ #
+
 
 def _build_grid_scene(n_side: int, spacing: float = 20.0, size: float = 8.0, height: float = 6.0):
     """`n_side x n_side` bina ızgarası (toplam n_side**2 bina) üretir."""
@@ -163,22 +172,43 @@ class TestSceneVisibilityIndexScale:
 # 3) WindSimulation: Wise (1970) bina-yüksekliği bağımlı wake modeli
 # ============================================================================ #
 
+
 class TestWindSimulationWakeModel:
     def test_taller_building_produces_longer_wake(self):
-        short_poly = Polygon(points=[
-            Point2D(20, 20), Point2D(28, 20), Point2D(28, 28), Point2D(20, 28),
-        ])
-        tall_poly = Polygon(points=[
-            Point2D(20, 20), Point2D(28, 20), Point2D(28, 28), Point2D(20, 28),
-        ])
+        short_poly = Polygon(
+            points=[
+                Point2D(20, 20),
+                Point2D(28, 20),
+                Point2D(28, 28),
+                Point2D(20, 28),
+            ]
+        )
+        tall_poly = Polygon(
+            points=[
+                Point2D(20, 20),
+                Point2D(28, 20),
+                Point2D(28, 28),
+                Point2D(20, 28),
+            ]
+        )
 
         field_short = WindSimulation.simulate(
-            width=40, height=40, cell_size_m=2.0, obstacles=[short_poly],
-            free_stream_speed=5.0, free_stream_direction_deg=0.0, heights_m=[3.0],
+            width=40,
+            height=40,
+            cell_size_m=2.0,
+            obstacles=[short_poly],
+            free_stream_speed=5.0,
+            free_stream_direction_deg=0.0,
+            heights_m=[3.0],
         )
         field_tall = WindSimulation.simulate(
-            width=40, height=40, cell_size_m=2.0, obstacles=[tall_poly],
-            free_stream_speed=5.0, free_stream_direction_deg=0.0, heights_m=[30.0],
+            width=40,
+            height=40,
+            cell_size_m=2.0,
+            obstacles=[tall_poly],
+            free_stream_speed=5.0,
+            free_stream_direction_deg=0.0,
+            heights_m=[30.0],
         )
 
         # Rüzgar +y yönünde estiği için downstream, obstacle'ın "arkasında"
@@ -188,7 +218,7 @@ class TestWindSimulationWakeModel:
             for row in range(20, 40):
                 for col in range(10, 20):
                     speed, _ = field.at(col, row)
-                    total += (5.0 - speed)
+                    total += 5.0 - speed
             return total
 
         assert wake_deficit_sum(field_tall) > wake_deficit_sum(field_short)
@@ -196,8 +226,12 @@ class TestWindSimulationWakeModel:
     def test_default_height_backward_compatible_when_heights_omitted(self):
         poly = Polygon(points=[Point2D(20, 20), Point2D(28, 20), Point2D(28, 28), Point2D(20, 28)])
         field = WindSimulation.simulate(
-            width=40, height=40, cell_size_m=2.0, obstacles=[poly],
-            free_stream_speed=5.0, free_stream_direction_deg=0.0,
+            width=40,
+            height=40,
+            cell_size_m=2.0,
+            obstacles=[poly],
+            free_stream_speed=5.0,
+            free_stream_direction_deg=0.0,
         )
         assert field.width == 40 and field.height == 40
 
@@ -205,6 +239,7 @@ class TestWindSimulationWakeModel:
 # ============================================================================ #
 # 4) NoiseSimulation: ISO 9613-2 basitleştirilmiş iki-terimli sönümleme
 # ============================================================================ #
+
 
 class TestNoiseSimulationISO9613:
     def test_matches_manual_iso_formula(self):
@@ -214,7 +249,10 @@ class TestNoiseSimulationISO9613:
         alpha = 2.0  # dB/km
 
         result = NoiseSimulation.spl_at(
-            source_db, source, receiver, atmospheric_absorption_db_per_km=alpha,
+            source_db,
+            source,
+            receiver,
+            atmospheric_absorption_db_per_km=alpha,
         )
 
         distance = 100.0

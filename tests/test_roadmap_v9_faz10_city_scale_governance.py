@@ -12,14 +12,21 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from harita.building_reconstruction.redevelopment import (
+    BuildingChangeRecord,
+    BuildingRedevelopmentOrchestrator,
+)
 from harita.collaboration.auth import PermissionDeniedError, Role
 from harita.collaboration.scenario_permissions import (
     ScenarioAction,
     can_perform,
     require_scenario_permission,
 )
+from harita.collaboration.scenario_watch import ScenarioWatchHub, scenario_topic
 from harita.core_engine.geometry_engine import Point2D
 from harita.digital_twin.hierarchy import TwinHierarchy
+from harita.extensibility.event_system import EventSystem
+from harita.extensibility.websocket_api import WSMessage
 from harita.mobility.city_scale_evacuation import (
     BuildingBridge,
     CityScaleAgentIndex,
@@ -32,17 +39,10 @@ from harita.mobility.city_scale_evacuation import (
 )
 from harita.mobility.indoor_navigation import BuildingNavGraph
 from harita.mobility.pathfinding import NavGraph
-from harita.building_reconstruction.redevelopment import (
-    BuildingChangeRecord,
-    BuildingRedevelopmentOrchestrator,
-)
-from harita.collaboration.scenario_watch import PlaybackState, ScenarioWatchHub, scenario_topic
-from harita.extensibility.event_system import EventSystem
-from harita.extensibility.websocket_api import WSMessage
 from harita.observability.logging import StructuredLogger
 from harita.observability.scenario_audit import (
-    record_scenario_event,
     query_scenario_audit_trail,
+    record_scenario_event,
 )
 from harita.persistence.project_manager import ProjectManager
 
@@ -79,16 +79,29 @@ class TestScenarioAuditTrail(unittest.TestCase):
 
     def test_record_and_query(self):
         record_scenario_event(
-            self.logger, actor="u1", project_id="p1", action="evacuation_run",
-            scenario_id="s1", result_id="r1", role="EDITOR",
+            self.logger,
+            actor="u1",
+            project_id="p1",
+            action="evacuation_run",
+            scenario_id="s1",
+            result_id="r1",
+            role="EDITOR",
         )
         record_scenario_event(
-            self.logger, actor="u2", project_id="p1", action="scenario_saved",
-            scenario_id="s2", role="OWNER",
+            self.logger,
+            actor="u2",
+            project_id="p1",
+            action="scenario_saved",
+            scenario_id="s2",
+            role="OWNER",
         )
         record_scenario_event(
-            self.logger, actor="u1", project_id="p2", action="evacuation_run",
-            scenario_id="s3", role="EDITOR",
+            self.logger,
+            actor="u1",
+            project_id="p2",
+            action="evacuation_run",
+            scenario_id="s3",
+            role="EDITOR",
         )
         all_p1 = query_scenario_audit_trail(self.logger, project_id="p1")
         self.assertEqual(len(all_p1), 2)
@@ -113,7 +126,9 @@ class TestProjectBranching(unittest.TestCase):
         self.mgr = ProjectManager(self.dir / "registry.db")
         self.addCleanup(self.mgr.close)
         self.handle = self.mgr.create_project(
-            self.dir / "main.hproj", "Ana Proje", "main-1",
+            self.dir / "main.hproj",
+            "Ana Proje",
+            "main-1",
         )
         self.handle.db.save_object("obj:1", "mesh", {"v": 1})
 
@@ -173,8 +188,10 @@ class TestCityScaleBridge(unittest.TestCase):
 
         bridge_building_to_outdoor_graph(b, "exit", outdoor, "sidewalk", edge_cost=2.0)
         bridge = BuildingBridge(
-            building_id="b1", exit_node_id="exit",
-            outdoor_node_id="sidewalk", assembly_point_node_id="assembly",
+            building_id="b1",
+            exit_node_id="exit",
+            outdoor_node_id="sidewalk",
+            assembly_point_node_id="assembly",
         )
         route = route_evacuated_agents_to_assembly_point(outdoor, bridge)
         self.assertEqual(route[0][0], "bridge::exit")
@@ -185,8 +202,10 @@ class TestCityScaleBridge(unittest.TestCase):
         outdoor = NavGraph()
         outdoor.add_node("assembly", Point2D(50, 0))
         bridge = BuildingBridge(
-            building_id="b1", exit_node_id="exit",
-            outdoor_node_id="sidewalk", assembly_point_node_id="assembly",
+            building_id="b1",
+            exit_node_id="exit",
+            outdoor_node_id="sidewalk",
+            assembly_point_node_id="assembly",
         )
         with self.assertRaises(CityScaleEvacuationError):
             route_evacuated_agents_to_assembly_point(outdoor, bridge)
@@ -199,9 +218,11 @@ class TestCityScaleBridge(unittest.TestCase):
         outdoor.add_edge("s1", "assembly", cost=20.0)
         outdoor.add_edge("s2", "assembly", cost=10.0)
 
-        bg1 = NavGraph(); bg1.add_node("exit", Point2D(0, 0))
+        bg1 = NavGraph()
+        bg1.add_node("exit", Point2D(0, 0))
         b1 = BuildingNavGraph(graph=bg1, floor_count=1, floor_height=3.0)
-        bg2 = NavGraph(); bg2.add_node("exit", Point2D(10, 0))
+        bg2 = NavGraph()
+        bg2.add_node("exit", Point2D(10, 0))
         b2 = BuildingNavGraph(graph=bg2, floor_count=1, floor_height=3.0)
 
         bridge_building_to_outdoor_graph(b1, "exit", outdoor, "s1")
@@ -286,7 +307,9 @@ class TestIotInitialCondition(unittest.TestCase):
 
     def test_occupancy_multiplier_applied(self):
         count, used = initial_agent_count_from_iot(
-            4.0, fallback_count=0, occupancy_per_sensor_unit=2.5,
+            4.0,
+            fallback_count=0,
+            occupancy_per_sensor_unit=2.5,
         )
         self.assertEqual(count, 10)
         self.assertTrue(used)
@@ -297,7 +320,8 @@ class TestScenarioWatchHub(unittest.TestCase):
         hub = ScenarioWatchHub()
         conn = hub.router.connect()
         reply = hub.router.dispatch(
-            conn, WSMessage(type="scenario_watch.join", payload={"project_id": "p1", "result_id": "r1"})
+            conn,
+            WSMessage(type="scenario_watch.join", payload={"project_id": "p1", "result_id": "r1"}),
         )
         self.assertEqual(reply.payload["playing"], False)
         self.assertIn(scenario_topic("p1", "r1"), conn.topics)
@@ -306,13 +330,26 @@ class TestScenarioWatchHub(unittest.TestCase):
         hub = ScenarioWatchHub()
         c1 = hub.router.connect()
         c2 = hub.router.connect()
-        hub.router.dispatch(c1, WSMessage(type="scenario_watch.join", payload={"project_id": "p1", "result_id": "r1"}))
-        hub.router.dispatch(c2, WSMessage(type="scenario_watch.join", payload={"project_id": "p1", "result_id": "r1"}))
         hub.router.dispatch(
-            c1, WSMessage(type="scenario_watch.sync", payload={
-                "project_id": "p1", "result_id": "r1", "playing": True,
-                "elapsed_s": 5.0, "updated_by": "u1",
-            })
+            c1,
+            WSMessage(type="scenario_watch.join", payload={"project_id": "p1", "result_id": "r1"}),
+        )
+        hub.router.dispatch(
+            c2,
+            WSMessage(type="scenario_watch.join", payload={"project_id": "p1", "result_id": "r1"}),
+        )
+        hub.router.dispatch(
+            c1,
+            WSMessage(
+                type="scenario_watch.sync",
+                payload={
+                    "project_id": "p1",
+                    "result_id": "r1",
+                    "playing": True,
+                    "elapsed_s": 5.0,
+                    "updated_by": "u1",
+                },
+            ),
         )
         self.assertEqual(len(c2.outbox), 1)
         self.assertEqual(c2.outbox[0].payload["elapsed_s"], 5.0)
@@ -322,9 +359,15 @@ class TestScenarioWatchHub(unittest.TestCase):
         hub = ScenarioWatchHub()
         c1 = hub.router.connect()
         c2 = hub.router.connect()
-        hub.router.dispatch(c1, WSMessage(type="scenario_watch.join", payload={"project_id": "p1", "result_id": "r1"}))
+        hub.router.dispatch(
+            c1,
+            WSMessage(type="scenario_watch.join", payload={"project_id": "p1", "result_id": "r1"}),
+        )
         self.assertEqual(hub.viewer_count("p1", "r1"), 1)
-        hub.router.dispatch(c2, WSMessage(type="scenario_watch.join", payload={"project_id": "p1", "result_id": "r1"}))
+        hub.router.dispatch(
+            c2,
+            WSMessage(type="scenario_watch.join", payload={"project_id": "p1", "result_id": "r1"}),
+        )
         self.assertEqual(hub.viewer_count("p1", "r1"), 2)
 
     def test_current_state_none_before_join(self):
@@ -337,10 +380,14 @@ class TestBuildingRedevelopmentCascade(unittest.TestCase):
         orch = BuildingRedevelopmentOrchestrator()
         calls = []
         orch.register_layer("energy_demand", lambda c: calls.append("energy") or "energy_demand")
-        orch.register_layer("synthetic_population", lambda c: calls.append("pop") or "synthetic_population")
+        orch.register_layer(
+            "synthetic_population", lambda c: calls.append("pop") or "synthetic_population"
+        )
         change = BuildingChangeRecord(
-            building_id="b1", change_kind="floor_count_changed",
-            old_floor_count=5, new_floor_count=10,
+            building_id="b1",
+            change_kind="floor_count_changed",
+            old_floor_count=5,
+            new_floor_count=10,
         )
         report = orch.apply(change)
         self.assertEqual(set(report.recomputed_layers), {"energy_demand", "synthetic_population"})

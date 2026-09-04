@@ -42,11 +42,14 @@ class TestFaz3_1RootTransform:
     def test_nonzero_peak_acceleration_gives_nonzero_offset_at_some_t(self):
         shake = GroundShakeForceModel(peak_acceleration_g=0.3, frequency_hz=2.0)
         sim = BuildingShakeSimulator(
-            building_id="b1", shake_model=shake,
-            structure_type=BasicBuildingType.BETONARME_CERCEVE, num_floors=5,
+            building_id="b1",
+            shake_model=shake,
+            structure_type=BasicBuildingType.BETONARME_CERCEVE,
+            num_floors=5,
         )
-        offsets = [sim.state_at(t=t * 0.05, floor_index=3).horizontal_offset_m[0]
-                   for t in range(40)]
+        offsets = [
+            sim.state_at(t=t * 0.05, floor_index=3).horizontal_offset_m[0] for t in range(40)
+        ]
         assert any(abs(o) > 1e-6 for o in offsets)
 
     def test_negative_floor_index_rejected(self):
@@ -63,8 +66,10 @@ class TestFaz3_2HeightBasedAmplitude:
     def test_higher_floor_shakes_more(self):
         shake = GroundShakeForceModel(peak_acceleration_g=0.25, frequency_hz=1.8)
         sim = BuildingShakeSimulator(
-            building_id="b1", shake_model=shake,
-            structure_type=BasicBuildingType.BETONARME_CERCEVE, num_floors=10,
+            building_id="b1",
+            shake_model=shake,
+            structure_type=BasicBuildingType.BETONARME_CERCEVE,
+            num_floors=10,
         )
         t = 0.13
         ground_floor = abs(sim.state_at(t, floor_index=0).horizontal_offset_m[0])
@@ -88,7 +93,8 @@ class TestFaz3_4StructureTypeDifferentiation:
         results = {}
         for bt in BasicBuildingType:
             sim = BuildingShakeSimulator(
-                building_id="b1", shake_model=shake, structure_type=bt, num_floors=5)
+                building_id="b1", shake_model=shake, structure_type=bt, num_floors=5
+            )
             results[bt] = sim.state_at(t=0.3, floor_index=4).horizontal_offset_m[0]
         assert len(set(round(v, 6) for v in results.values())) > 1
 
@@ -110,10 +116,7 @@ class TestFaz3_3PanicFeedback:
         assert panic_probability_from_intensity(0.0) == 0.0
 
     def test_high_intensity_can_trigger_panic(self):
-        agents = [
-            Agent(agent_id=i, position=Point2D(0, 0), goal=Point2D(10, 0))
-            for i in range(30)
-        ]
+        agents = [Agent(agent_id=i, position=Point2D(0, 0), goal=Point2D(10, 0)) for i in range(30)]
         newly_panicked = apply_shake_panic(agents, intensity=1.0, seed=7)
         assert newly_panicked > 0
         assert any(a.behavior == AgentBehavior.PANIC for a in agents)
@@ -124,8 +127,9 @@ class TestFaz3_3PanicFeedback:
         assert agent.behavior != AgentBehavior.PANIC
 
     def test_already_panicked_agents_are_not_recounted(self):
-        agent = Agent(agent_id=1, position=Point2D(0, 0), goal=Point2D(10, 0),
-                      behavior=AgentBehavior.PANIC)
+        agent = Agent(
+            agent_id=1, position=Point2D(0, 0), goal=Point2D(10, 0), behavior=AgentBehavior.PANIC
+        )
         newly_panicked = apply_shake_panic([agent], intensity=1.0, seed=1)
         assert newly_panicked == 0
 

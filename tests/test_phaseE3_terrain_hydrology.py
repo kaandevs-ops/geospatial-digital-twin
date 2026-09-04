@@ -40,18 +40,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from harita.core_engine.coordinate_systems import GeoPoint
 from harita.core_engine.gis_core import HeightmapParser
+from harita.render_engine.scene_bridge import Scene
 from harita.terrain_engine import (
     ErosionSimulator,
     FlowAccumulation,
     HeightmapGrid,
     TerrainMeshGenerator,
 )
-from harita.render_engine.scene_bridge import Scene
-
 
 # ======================================================================== #
 # D14 TIFF yazıcısının yeniden kullanımı (aynı minimal-ama-gerçek yazıcı)
 # ======================================================================== #
+
 
 def _build_tiff(width, height, elevations, compression=8, endian="<"):
     flat = [v for row in elevations for v in row]
@@ -127,14 +127,18 @@ def _grid_from_parsed(fc, resolution_m: float = 2.0) -> HeightmapGrid:
     width = feature.coordinates["width"]
     height = feature.coordinates["height"]
     return HeightmapGrid(
-        width=width, height=height, resolution_m=resolution_m,
-        elevations=elevations, origin=GeoPoint(lat=41.0, lon=29.0),
+        width=width,
+        height=height,
+        resolution_m=resolution_m,
+        elevations=elevations,
+        origin=GeoPoint(lat=41.0, lon=29.0),
     )
 
 
 # ======================================================================== #
 # Uçtan uca: gerçek DEFLATE-GeoTIFF -> HeightmapGrid
 # ======================================================================== #
+
 
 def test_real_deflate_geotiff_roundtrips_into_heightmap_grid():
     elevations = _v_valley_grid()
@@ -184,6 +188,7 @@ def test_real_geotiff_dem_survives_erosion_pass_without_breaking_shape():
 # Faz E3 çekirdek: FlowAccumulation -> Scene.attach_flow_network()
 # ======================================================================== #
 
+
 def test_flow_network_converges_to_known_valley_centerline():
     """Bilinen 'V' vadi profilinde, en yüksek akümülasyona sahip hücreler
     merkez sütunda (mid) toplanmalı - bu, D8 algoritmasının doğru
@@ -192,7 +197,10 @@ def test_flow_network_converges_to_known_valley_centerline():
     kabul kriterinin sayısal karşılığı)."""
     elevations = _v_valley_grid(width=9, height=7)
     grid = HeightmapGrid(
-        width=9, height=7, resolution_m=2.0, elevations=elevations,
+        width=9,
+        height=7,
+        resolution_m=2.0,
+        elevations=elevations,
         origin=GeoPoint(lat=41.0, lon=29.0),
     )
     accum = FlowAccumulation.accumulate(grid)
@@ -258,7 +266,9 @@ def test_attach_flow_network_empty_scene_stays_backward_compatible():
     çıktısı boş sözlük döner - viewer eski koduyla hiçbir fark görmez."""
     mesh = TerrainMeshGenerator.generate(
         HeightmapGrid(
-            width=3, height=3, resolution_m=1.0,
+            width=3,
+            height=3,
+            resolution_m=1.0,
             elevations=[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
             origin=GeoPoint(lat=0.0, lon=0.0),
         ),
@@ -272,7 +282,9 @@ def test_attach_flow_network_empty_scene_stays_backward_compatible():
 
 def test_attach_flow_network_rejects_foreign_node():
     grid = HeightmapGrid(
-        width=3, height=3, resolution_m=1.0,
+        width=3,
+        height=3,
+        resolution_m=1.0,
         elevations=[[3.0, 2.0, 1.0], [3.0, 2.0, 1.0], [3.0, 2.0, 1.0]],
         origin=GeoPoint(lat=0.0, lon=0.0),
     )

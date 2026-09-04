@@ -35,6 +35,7 @@ görsel olarak belirgin şekilde farklı siluetler):
   - PLANE     : yüksek gövde + çok geniş yayılan, basık-yassı taç
                 (çınarın karakteristik geniş gölgelik siluet).
 """
+
 from __future__ import annotations
 
 import math
@@ -56,7 +57,9 @@ def _regular_polygon(radius: float, segments: int) -> Polygon:
     return Polygon(points)
 
 
-def _cone_mesh(base_radius: float, base_z: float, apex_height: float, segments: int, name: str) -> Mesh3D:
+def _cone_mesh(
+    base_radius: float, base_z: float, apex_height: float, segments: int, name: str
+) -> Mesh3D:
     """Taban çemberi (poligon olarak) + tek bir tepe noktasına (apex)
     birleşen üçgenlerden oluşan basit bir koni. Taban kapalıdır (alt yüz
     üçgenlenir) böylece mesh manifold kalır."""
@@ -84,8 +87,14 @@ def _cone_mesh(base_radius: float, base_z: float, apex_height: float, segments: 
 
 
 def _blade_mesh(
-    length: float, width: float, tilt_deg: float, yaw_deg: float,
-    base_x: float, base_y: float, base_z: float, name: str,
+    length: float,
+    width: float,
+    tilt_deg: float,
+    yaw_deg: float,
+    base_x: float,
+    base_y: float,
+    base_z: float,
+    name: str,
 ) -> Mesh3D:
     """İnce, düz bir yaprak/palmiye yaprağı yaklaşıklaması: tabanda dar,
     ucu sivrilen, çift yüzlü (iki yönden görünür - normal ters çift
@@ -153,7 +162,9 @@ class TreeGenerator:
         if species == TreeSpecies.SHRUB:
             canopy_h = height * jitter
             parts.append(
-                _cone_mesh(canopy_radius * jitter, 0.0, canopy_h, _CANOPY_SEGMENTS, f"{name}_shrub_canopy")
+                _cone_mesh(
+                    canopy_radius * jitter, 0.0, canopy_h, _CANOPY_SEGMENTS, f"{name}_shrub_canopy"
+                )
             )
         elif species == TreeSpecies.PALM:
             # İnce, hafif eğik tek gövde (diğer türlerden daha uzun/ince
@@ -171,8 +182,14 @@ class TreeGenerator:
                 tilt_deg = -22.0 + rng.uniform(-6.0, 6.0)  # hafif aşağı sarkan yapraklar
                 parts.append(
                     _blade_mesh(
-                        frond_len, canopy_radius * 0.35, tilt_deg, yaw_deg,
-                        0.0, 0.0, trunk_h, f"{name}_frond_{i}",
+                        frond_len,
+                        canopy_radius * 0.35,
+                        tilt_deg,
+                        yaw_deg,
+                        0.0,
+                        0.0,
+                        trunk_h,
+                        f"{name}_frond_{i}",
                     )
                 )
         elif species == TreeSpecies.CYPRESS:
@@ -181,10 +198,18 @@ class TreeGenerator:
             trunk_h = height * 0.12 * jitter
             trunk_radius = max(0.06, canopy_radius * 0.08)
             trunk_polygon = _regular_polygon(trunk_radius, _TRUNK_SEGMENTS)
-            parts.append(MeshBuilder.extrude_polygon(trunk_polygon, 0.0, trunk_h, name=f"{name}_trunk"))
+            parts.append(
+                MeshBuilder.extrude_polygon(trunk_polygon, 0.0, trunk_h, name=f"{name}_trunk")
+            )
             narrow_radius = canopy_radius * 0.32 * jitter
             parts.append(
-                _cone_mesh(narrow_radius, trunk_h * 0.5, height - trunk_h * 0.5, _CANOPY_SEGMENTS, f"{name}_canopy")
+                _cone_mesh(
+                    narrow_radius,
+                    trunk_h * 0.5,
+                    height - trunk_h * 0.5,
+                    _CANOPY_SEGMENTS,
+                    f"{name}_canopy",
+                )
             )
         elif species == TreeSpecies.OLIVE:
             # Kısa/kalın gövde + düşük, geniş/basık tek taç (zeytin'in
@@ -192,12 +217,19 @@ class TreeGenerator:
             trunk_h = height * 0.32 * jitter
             trunk_radius = max(0.1, canopy_radius * 0.16)
             trunk_polygon = _regular_polygon(trunk_radius, _TRUNK_SEGMENTS)
-            parts.append(MeshBuilder.extrude_polygon(trunk_polygon, 0.0, trunk_h, name=f"{name}_trunk"))
+            parts.append(
+                MeshBuilder.extrude_polygon(trunk_polygon, 0.0, trunk_h, name=f"{name}_trunk")
+            )
             canopy_base_z = trunk_h * 0.7
             wide_radius = canopy_radius * 1.35 * jitter
             parts.append(
-                _cone_mesh(wide_radius, canopy_base_z, (height - canopy_base_z) * 0.85,
-                           _CANOPY_SEGMENTS, f"{name}_canopy")
+                _cone_mesh(
+                    wide_radius,
+                    canopy_base_z,
+                    (height - canopy_base_z) * 0.85,
+                    _CANOPY_SEGMENTS,
+                    f"{name}_canopy",
+                )
             )
         elif species == TreeSpecies.PINE:
             # CONIFER'dan ayrıştırılmış: gövde üzerinde 2-3 katmanlı,
@@ -205,7 +237,9 @@ class TreeGenerator:
             trunk_h = height * 0.35 * jitter
             trunk_radius = max(0.08, canopy_radius * 0.11)
             trunk_polygon = _regular_polygon(trunk_radius, _TRUNK_SEGMENTS)
-            parts.append(MeshBuilder.extrude_polygon(trunk_polygon, 0.0, trunk_h, name=f"{name}_trunk"))
+            parts.append(
+                MeshBuilder.extrude_polygon(trunk_polygon, 0.0, trunk_h, name=f"{name}_trunk")
+            )
             layers = 3
             remaining_h = height - trunk_h
             layer_h = remaining_h / layers
@@ -213,7 +247,13 @@ class TreeGenerator:
                 layer_base_z = trunk_h + layer_h * i * 0.72
                 layer_radius = canopy_radius * jitter * (1.0 - 0.22 * i)
                 parts.append(
-                    _cone_mesh(layer_radius, layer_base_z, layer_h, _CANOPY_SEGMENTS, f"{name}_pine_layer_{i}")
+                    _cone_mesh(
+                        layer_radius,
+                        layer_base_z,
+                        layer_h,
+                        _CANOPY_SEGMENTS,
+                        f"{name}_pine_layer_{i}",
+                    )
                 )
         elif species == TreeSpecies.OAK:
             # Kalın gövdeli, DECIDUOUS'tan daha geniş/yuvarlak tek büyük
@@ -221,11 +261,19 @@ class TreeGenerator:
             trunk_h = height * 0.45 * jitter
             trunk_radius = max(0.12, canopy_radius * 0.18)
             trunk_polygon = _regular_polygon(trunk_radius, _TRUNK_SEGMENTS)
-            parts.append(MeshBuilder.extrude_polygon(trunk_polygon, 0.0, trunk_h, name=f"{name}_trunk"))
+            parts.append(
+                MeshBuilder.extrude_polygon(trunk_polygon, 0.0, trunk_h, name=f"{name}_trunk")
+            )
             canopy_base_z = trunk_h * 0.7
             wide_radius = canopy_radius * 1.5 * jitter
             parts.append(
-                _cone_mesh(wide_radius, canopy_base_z, height - canopy_base_z, _CANOPY_SEGMENTS, f"{name}_canopy")
+                _cone_mesh(
+                    wide_radius,
+                    canopy_base_z,
+                    height - canopy_base_z,
+                    _CANOPY_SEGMENTS,
+                    f"{name}_canopy",
+                )
             )
         elif species == TreeSpecies.PLANE:
             # Yüksek gövde + çok geniş yayılan, basık-yassı taç
@@ -233,7 +281,9 @@ class TreeGenerator:
             trunk_h = height * 0.6 * jitter
             trunk_radius = max(0.1, canopy_radius * 0.14)
             trunk_polygon = _regular_polygon(trunk_radius, _TRUNK_SEGMENTS)
-            parts.append(MeshBuilder.extrude_polygon(trunk_polygon, 0.0, trunk_h, name=f"{name}_trunk"))
+            parts.append(
+                MeshBuilder.extrude_polygon(trunk_polygon, 0.0, trunk_h, name=f"{name}_trunk")
+            )
             canopy_base_z = trunk_h * 0.8
             wide_radius = canopy_radius * 2.0 * jitter
             flat_h = (height - canopy_base_z) * 0.55  # basık/yassı - düşük oranlı yükseklik
@@ -247,23 +297,41 @@ class TreeGenerator:
             trunk = MeshBuilder.extrude_polygon(trunk_polygon, 0.0, trunk_h, name=f"{name}_trunk")
             parts.append(trunk)
 
-            canopy_base_z = trunk_h * 0.75  # taç, gövdenin üst kısmıyla hafif örtüşür (görsel süreklilik)
+            canopy_base_z = (
+                trunk_h * 0.75
+            )  # taç, gövdenin üst kısmıyla hafif örtüşür (görsel süreklilik)
             canopy_h = height - canopy_base_z
 
             if species == TreeSpecies.CONIFER:
                 parts.append(
-                    _cone_mesh(canopy_radius * jitter, canopy_base_z, canopy_h, _CANOPY_SEGMENTS, f"{name}_canopy")
+                    _cone_mesh(
+                        canopy_radius * jitter,
+                        canopy_base_z,
+                        canopy_h,
+                        _CANOPY_SEGMENTS,
+                        f"{name}_canopy",
+                    )
                 )
             else:  # DECIDUOUS / GENERIC - iki basık koni üst üste (yuvarlak taç yaklaşıklaması)
                 lower_h = canopy_h * 0.55
                 upper_h = canopy_h * 0.55
                 parts.append(
-                    _cone_mesh(canopy_radius * jitter, canopy_base_z, lower_h, _CANOPY_SEGMENTS, f"{name}_canopy_lo")
+                    _cone_mesh(
+                        canopy_radius * jitter,
+                        canopy_base_z,
+                        lower_h,
+                        _CANOPY_SEGMENTS,
+                        f"{name}_canopy_lo",
+                    )
                 )
                 upper_base_z = canopy_base_z + canopy_h * 0.45
                 parts.append(
                     _cone_mesh(
-                        canopy_radius * 0.65 * jitter, upper_base_z, upper_h, _CANOPY_SEGMENTS, f"{name}_canopy_hi"
+                        canopy_radius * 0.65 * jitter,
+                        upper_base_z,
+                        upper_h,
+                        _CANOPY_SEGMENTS,
+                        f"{name}_canopy_hi",
                     )
                 )
 

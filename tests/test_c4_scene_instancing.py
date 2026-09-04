@@ -6,15 +6,12 @@ bağlanması.
 
 Ağ gerektirmez, tamamen sentetik veriyle çalışır.
 """
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 from harita.commerce_props import OutdoorSeatingItem
 from harita.core_engine.geometry_engine import Point2D
 from harita.performance.scene_instancing import (
-    DEFAULT_TREE_HEIGHT_BUCKET_M,
-    InstanceGroup,
     SceneInstancingResult,
     build_scene_instancing_result,
     instancing_groups_for_communication_towers,
@@ -30,10 +27,10 @@ from harita.sport_recreation import PlaygroundItem
 from harita.street_furniture import StreetFurnitureItem, StreetFurnitureType
 from harita.vegetation.types import TreeSpecies, VegetationInstance
 
-
 # --------------------------------------------------------------------------- #
 # street_furniture
 # --------------------------------------------------------------------------- #
+
 
 def test_street_furniture_same_type_shares_one_template():
     items = [
@@ -62,11 +59,18 @@ def test_street_furniture_transform_matches_world_position():
 # religious_structures
 # --------------------------------------------------------------------------- #
 
+
 def test_religious_structures_group_by_religion_and_height():
     items = [
-        ReligiousStructureItem(religion=ReligionKind.MUSLIM, position=Point2D(0, 0), base_height_m=8.0),
-        ReligiousStructureItem(religion=ReligionKind.MUSLIM, position=Point2D(1, 1), base_height_m=8.0),
-        ReligiousStructureItem(religion=ReligionKind.CHRISTIAN, position=Point2D(2, 2), base_height_m=8.0),
+        ReligiousStructureItem(
+            religion=ReligionKind.MUSLIM, position=Point2D(0, 0), base_height_m=8.0
+        ),
+        ReligiousStructureItem(
+            religion=ReligionKind.MUSLIM, position=Point2D(1, 1), base_height_m=8.0
+        ),
+        ReligiousStructureItem(
+            religion=ReligionKind.CHRISTIAN, position=Point2D(2, 2), base_height_m=8.0
+        ),
     ]
     groups = instancing_groups_for_religious_structures(items)
     assert len(groups) == 2
@@ -76,6 +80,7 @@ def test_religious_structures_group_by_religion_and_height():
 # --------------------------------------------------------------------------- #
 # playgrounds (tek şablon)
 # --------------------------------------------------------------------------- #
+
 
 def test_playgrounds_all_share_single_template():
     items = [PlaygroundItem(position=Point2D(i, i)) for i in range(5)]
@@ -87,6 +92,7 @@ def test_playgrounds_all_share_single_template():
 # --------------------------------------------------------------------------- #
 # outdoor seating (table_count'a göre gruplama)
 # --------------------------------------------------------------------------- #
+
 
 def test_outdoor_seating_groups_by_table_count():
     items = [
@@ -103,6 +109,7 @@ def test_outdoor_seating_groups_by_table_count():
 # --------------------------------------------------------------------------- #
 # communication towers (yükseklik kovalama)
 # --------------------------------------------------------------------------- #
+
 
 def test_communication_towers_bucket_by_rounded_height():
     items = [
@@ -121,19 +128,38 @@ def test_communication_towers_bucket_by_rounded_height():
 # vegetation (tür + yükseklik kovası, ölçek düzeltmesi)
 # --------------------------------------------------------------------------- #
 
+
 def test_vegetation_buckets_by_species_and_height():
     trees = [
         VegetationInstance(
-            species=TreeSpecies.CONIFER, x=0, y=0, z=0, height=8.2,
-            canopy_radius=2.0, rotation_deg=0.0, seed=1,
+            species=TreeSpecies.CONIFER,
+            x=0,
+            y=0,
+            z=0,
+            height=8.2,
+            canopy_radius=2.0,
+            rotation_deg=0.0,
+            seed=1,
         ),
         VegetationInstance(
-            species=TreeSpecies.CONIFER, x=1, y=1, z=0, height=8.9,
-            canopy_radius=2.1, rotation_deg=0.0, seed=2,
+            species=TreeSpecies.CONIFER,
+            x=1,
+            y=1,
+            z=0,
+            height=8.9,
+            canopy_radius=2.1,
+            rotation_deg=0.0,
+            seed=2,
         ),
         VegetationInstance(
-            species=TreeSpecies.DECIDUOUS, x=2, y=2, z=0, height=6.0,
-            canopy_radius=3.0, rotation_deg=0.0, seed=3,
+            species=TreeSpecies.DECIDUOUS,
+            x=2,
+            y=2,
+            z=0,
+            height=6.0,
+            canopy_radius=3.0,
+            rotation_deg=0.0,
+            seed=3,
         ),
     ]
     groups = instancing_groups_for_vegetation(trees, height_bucket_m=2.0)
@@ -146,8 +172,14 @@ def test_vegetation_buckets_by_species_and_height():
 def test_vegetation_transform_scale_reflects_real_height():
     trees = [
         VegetationInstance(
-            species=TreeSpecies.DECIDUOUS, x=0, y=0, z=0, height=5.0,
-            canopy_radius=2.0, rotation_deg=0.0, seed=1,
+            species=TreeSpecies.DECIDUOUS,
+            x=0,
+            y=0,
+            z=0,
+            height=5.0,
+            canopy_radius=2.0,
+            rotation_deg=0.0,
+            seed=1,
         ),
     ]
     groups = instancing_groups_for_vegetation(trees, height_bucket_m=2.0)
@@ -160,6 +192,7 @@ def test_vegetation_transform_scale_reflects_real_height():
 # --------------------------------------------------------------------------- #
 # InstanceGroup metrikleri
 # --------------------------------------------------------------------------- #
+
 
 def test_instance_group_naive_vs_base_triangle_counts():
     items = [
@@ -199,12 +232,19 @@ def test_instance_group_bake_instances_produces_list_per_instance():
 # SceneInstancingResult - toplu senaryo
 # --------------------------------------------------------------------------- #
 
+
 def test_build_scene_instancing_result_aggregates_all_categories():
     result = build_scene_instancing_result(
         vegetation=[
             VegetationInstance(
-                species=TreeSpecies.CONIFER, x=i, y=i, z=0, height=8.0,
-                canopy_radius=2.0, rotation_deg=0.0, seed=i,
+                species=TreeSpecies.CONIFER,
+                x=i,
+                y=i,
+                z=0,
+                height=8.0,
+                canopy_radius=2.0,
+                rotation_deg=0.0,
+                seed=i,
             )
             for i in range(50)
         ],

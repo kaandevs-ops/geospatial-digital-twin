@@ -30,10 +30,10 @@ from harita import DigitalTwinRegistry
 registry = DigitalTwinRegistry()
 twin = registry.create("bina-42")
 twin.set_metadata("building_type", "office")
-twin = registry.save(twin)          # v2 olarak commit edilir
+twin = registry.save(twin)  # v2 olarak commit edilir
 
 twin.bind_sensor(...)
-twin = registry.save(twin)          # v3
+twin = registry.save(twin)  # v3
 
 old = registry.get_version("bina-42", 1)
 diff = registry.diff("bina-42", 1, 3)
@@ -83,8 +83,10 @@ for i in range(50):
     t.set_metadata("energy_kwh", 12.5)
     registry.save(t)
 
+
 def energy(twin):
     return twin.metadata.get("energy_kwh", 0.0) if twin else 0.0
+
 
 total = h.aggregate_leaf_sum(registry, "neighborhood-1", energy)
 
@@ -92,8 +94,10 @@ total = h.aggregate_leaf_sum(registry, "neighborhood-1", energy)
 t = registry.get("bldg-3")
 t.set_metadata("energy_kwh", 999.0)
 registry.save(t)
-h.invalidate("bldg-3")          # yalnızca bldg-3 -> block-1 -> neighborhood-1 yolu kirlenir
-total = h.aggregate_leaf_sum(registry, "neighborhood-1", energy)  # yalnızca bu yol yeniden hesaplanır
+h.invalidate("bldg-3")  # yalnızca bldg-3 -> block-1 -> neighborhood-1 yolu kirlenir
+total = h.aggregate_leaf_sum(
+    registry, "neighborhood-1", energy
+)  # yalnızca bu yol yeniden hesaplanır
 ```
 
 ### Gerçekçi sensör zaman-serisi üretimi

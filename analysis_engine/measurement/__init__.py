@@ -43,8 +43,9 @@ class MeasurementEngine:
         return MeasurementResult(a.distance_to(b), "m", "distance_2d")
 
     @staticmethod
-    def distance_3d(a: tuple[float, float, float] | Vertex3D,
-                     b: tuple[float, float, float] | Vertex3D) -> MeasurementResult:
+    def distance_3d(
+        a: tuple[float, float, float] | Vertex3D, b: tuple[float, float, float] | Vertex3D
+    ) -> MeasurementResult:
         ax, ay, az = a.as_tuple() if isinstance(a, Vertex3D) else a
         bx, by, bz = b.as_tuple() if isinstance(b, Vertex3D) else b
         d = math.sqrt((ax - bx) ** 2 + (ay - by) ** 2 + (az - bz) ** 2)
@@ -66,8 +67,9 @@ class MeasurementEngine:
         return MeasurementResult(mesh.volume(), "m3", "volume_tetrahedral")
 
     @staticmethod
-    def volume_monte_carlo(mesh: Mesh3D, samples: int = 20_000,
-                            seed: int | None = None) -> MeasurementResult:
+    def volume_monte_carlo(
+        mesh: Mesh3D, samples: int = 20_000, seed: int | None = None
+    ) -> MeasurementResult:
         """Kapalı olması garanti olmayan mesh'ler için Monte-Carlo hacim
         tahmini: bounding-box içine rastgele nokta atıp mesh içinde kalanların
         oranını box hacmiyle çarpar. Ray-casting parity testi (bir eksende
@@ -99,7 +101,9 @@ class MeasurementEngine:
         return MeasurementResult(max_z - min_z, "m", "height")
 
     @staticmethod
-    def height_between(base: tuple[float, float, float], top: tuple[float, float, float]) -> MeasurementResult:
+    def height_between(
+        base: tuple[float, float, float], top: tuple[float, float, float]
+    ) -> MeasurementResult:
         return MeasurementResult(abs(top[2] - base[2]), "m", "height_between")
 
     # -- Angle -------------------------------------------------------------- #
@@ -117,8 +121,11 @@ class MeasurementEngine:
         return MeasurementResult(math.degrees(math.acos(cos_a)), "deg", "angle")
 
     @staticmethod
-    def angle_3d(a: tuple[float, float, float], vertex: tuple[float, float, float],
-                 b: tuple[float, float, float]) -> MeasurementResult:
+    def angle_3d(
+        a: tuple[float, float, float],
+        vertex: tuple[float, float, float],
+        b: tuple[float, float, float],
+    ) -> MeasurementResult:
         v1 = tuple(a[i] - vertex[i] for i in range(3))
         v2 = tuple(b[i] - vertex[i] for i in range(3))
         len1 = math.sqrt(sum(c * c for c in v1))
@@ -142,7 +149,9 @@ class MeasurementEngine:
         return MeasurementResult(pct, "%", "slope")
 
     @staticmethod
-    def slope_degrees(a: tuple[float, float, float], b: tuple[float, float, float]) -> MeasurementResult:
+    def slope_degrees(
+        a: tuple[float, float, float], b: tuple[float, float, float]
+    ) -> MeasurementResult:
         horizontal = math.hypot(b[0] - a[0], b[1] - a[1])
         rise = b[2] - a[2]
         if horizontal < 1e-12:

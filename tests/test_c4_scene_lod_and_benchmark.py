@@ -6,44 +6,43 @@ kriteri ölçümü).
 
 Ağ gerektirmez, tamamen sentetik veriyle çalışır.
 """
+
 from __future__ import annotations
 
 from harita.commerce_props import OutdoorSeatingItem
 from harita.core_engine.geometry_engine import Point2D
+from harita.data_engine.spatial_index import AABB3D
+from harita.mesh_engine import Mesh3D, MeshBuilder
 from harita.mesh_engine.batching import InstanceTransform
-from harita.performance.culling import LODLevel, LODManager
+from harita.performance.culling import FrustumCulling, LODLevel, LODManager, OcclusionCulling
 from harita.performance.mixed_scene_benchmark import (
     DEFAULT_MIXED_FEATURE_COUNT,
     generate_synthetic_mixed_scene,
     run_mixed_scene_benchmark,
 )
 from harita.performance.scene_instancing import InstanceGroup, build_scene_instancing_result
-from harita.performance.culling import FrustumCulling
 from harita.performance.scene_lod import (
     CULLED,
     FRUSTUM_CULLED,
-    OCCLUDED,
     FULL,
     IMPOSTOR,
     IMPOSTOR_TRIANGLE_FACTOR,
+    OCCLUDED,
     apply_lod_to_group,
     apply_scene_lod,
     build_cross_billboard_impostor,
     building_occluder_aabbs,
-    occluder_aabbs_from_scene,
     default_instance_lod_manager,
+    occluder_aabbs_from_scene,
 )
-from harita.performance.culling import OcclusionCulling
-from harita.data_engine.spatial_index import AABB3D
-from harita.mesh_engine import MeshBuilder, Mesh3D
 from harita.street_furniture import StreetFurnitureItem, StreetFurnitureType
 from harita.vegetation.types import TreeSpecies, VegetationInstance
 from harita.visualization.camera_rig import Camera
 
-
 # --------------------------------------------------------------------------- #
 # default_instance_lod_manager
 # --------------------------------------------------------------------------- #
+
 
 def test_default_lod_manager_has_three_levels_in_order():
     manager = default_instance_lod_manager()
@@ -63,6 +62,7 @@ def test_default_lod_manager_selects_culled_beyond_impostor_distance():
 # --------------------------------------------------------------------------- #
 # apply_lod_to_group
 # --------------------------------------------------------------------------- #
+
 
 def _street_furniture_group() -> InstanceGroup:
     items = [
@@ -127,18 +127,33 @@ def test_all_culled_group_has_zero_rendered_triangles():
 # apply_scene_lod (coklu kategori)
 # --------------------------------------------------------------------------- #
 
+
 def test_apply_scene_lod_covers_all_categories():
     vegetation = [
         VegetationInstance(
-            species=TreeSpecies.CONIFER, x=0.0, y=0.0, z=0.0, height=10.0,
-            canopy_radius=3.0, rotation_deg=0.0, seed=1,
+            species=TreeSpecies.CONIFER,
+            x=0.0,
+            y=0.0,
+            z=0.0,
+            height=10.0,
+            canopy_radius=3.0,
+            rotation_deg=0.0,
+            seed=1,
         ),
         VegetationInstance(
-            species=TreeSpecies.CONIFER, x=1000.0, y=0.0, z=0.0, height=10.0,
-            canopy_radius=3.0, rotation_deg=0.0, seed=2,
+            species=TreeSpecies.CONIFER,
+            x=1000.0,
+            y=0.0,
+            z=0.0,
+            height=10.0,
+            canopy_radius=3.0,
+            rotation_deg=0.0,
+            seed=2,
         ),
     ]
-    furniture = [StreetFurnitureItem(furniture_type=StreetFurnitureType.BENCH, position=Point2D(0, 0))]
+    furniture = [
+        StreetFurnitureItem(furniture_type=StreetFurnitureType.BENCH, position=Point2D(0, 0))
+    ]
     result = build_scene_instancing_result(vegetation=vegetation, street_furniture=furniture)
     camera = Camera(position=(0.0, 0.0, 0.0), target=(1.0, 0.0, 0.0))
     lod_aware = apply_scene_lod(result, camera)
@@ -151,8 +166,14 @@ def test_apply_scene_lod_covers_all_categories():
 def test_culled_ratio_is_between_zero_and_one():
     vegetation = [
         VegetationInstance(
-            species=TreeSpecies.CONIFER, x=float(i * 50), y=0.0, z=0.0, height=8.0,
-            canopy_radius=2.0, rotation_deg=0.0, seed=i,
+            species=TreeSpecies.CONIFER,
+            x=float(i * 50),
+            y=0.0,
+            z=0.0,
+            height=8.0,
+            canopy_radius=2.0,
+            rotation_deg=0.0,
+            seed=i,
         )
         for i in range(20)
     ]
@@ -174,6 +195,7 @@ def test_empty_scene_instancing_result_yields_empty_lod_result():
 # --------------------------------------------------------------------------- #
 # mixed_scene_benchmark - B3 kabul kriteri
 # --------------------------------------------------------------------------- #
+
 
 def test_generate_synthetic_mixed_scene_reaches_requested_scale():
     scene = generate_synthetic_mixed_scene(feature_count=1200, seed=7)
@@ -235,6 +257,7 @@ def test_run_mixed_scene_benchmark_small_scale_fails_b3_criterion():
 # üretimi - önceki dilimin dürüstlük notundaki eksiğin kısmi kapanışı).
 # ======================================================================== #
 
+
 def test_build_cross_billboard_impostor_produces_real_geometry():
     from harita.mesh_engine import Mesh3D, Vertex3D
 
@@ -290,6 +313,7 @@ def test_lod_instance_group_without_base_mesh_returns_none_for_impostor():
 # B3'ün "doku/materyal ataması" maddesinin kapanışı).
 # ======================================================================== #
 
+
 def test_impostor_material_for_known_categories():
     from harita.material_engine import PBRMaterial
     from harita.performance.scene_lod import impostor_material_for
@@ -332,6 +356,7 @@ def test_lod_instance_group_build_impostor_material_matches_template_key():
 # serileştirme köprüsü - önceki oturumda "yalnızca metaveri, gerçek doku
 # dosyası yok" olarak bırakılan zayıf halka.
 # ======================================================================== #
+
 
 def test_build_impostor_texture_produces_real_pixel_data():
     from harita.performance.scene_lod import build_impostor_texture
@@ -407,6 +432,7 @@ def test_scene_bridge_omits_map_fields_when_absent_regression():
 # ROADMAP_V7.md "Kalan": FrustumCulling ile LOD kovalarının birleşimi
 # --------------------------------------------------------------------------- #
 
+
 def test_apply_lod_without_frustum_param_is_unchanged_regression():
     """`frustum=None` (varsayılan) davranışı önceki oturumla birebir aynı
     kalmalı - regresyon garantisi."""
@@ -459,11 +485,18 @@ def test_apply_lod_frustum_skips_already_distance_culled_instances():
     tight_manager = default_instance_lod_manager(full_distance_m=10.0, impostor_distance_m=50.0)
     frustum = FrustumCulling(aspect=16 / 9, near=0.1, far=5000.0)
     lod_group = apply_lod_to_group(group, camera, tight_manager, frustum=frustum)
-    assert lod_group.instance_count(CULLED) == 2  # x=150 ve x=500 ikisi de impostor_distance_m=50'yi asiyor
+    assert (
+        lod_group.instance_count(CULLED) == 2
+    )  # x=150 ve x=500 ikisi de impostor_distance_m=50'yi asiyor
     total = lod_group.total_instance_count()
     assert total == 3
-    assert lod_group.instance_count(FULL) + lod_group.instance_count(IMPOSTOR) \
-        + lod_group.instance_count(CULLED) + lod_group.instance_count(FRUSTUM_CULLED) == total
+    assert (
+        lod_group.instance_count(FULL)
+        + lod_group.instance_count(IMPOSTOR)
+        + lod_group.instance_count(CULLED)
+        + lod_group.instance_count(FRUSTUM_CULLED)
+        == total
+    )
 
 
 def test_instance_world_aabb_returns_none_for_empty_mesh():
@@ -476,6 +509,7 @@ def test_instance_world_aabb_returns_none_for_empty_mesh():
     from harita.mesh_engine import Mesh3D
     from harita.mesh_engine.batching import InstanceTransform
     from harita.performance.scene_lod import _instance_world_aabb
+
     empty_mesh = Mesh3D(name="empty")
     assert _instance_world_aabb(empty_mesh, InstanceTransform(translation=(0, 0, 0))) is None
 
@@ -507,6 +541,7 @@ def test_culled_ratio_includes_frustum_culled():
     frustum = FrustumCulling(aspect=16 / 9, near=0.1, far=5000.0)
     lod_group = apply_lod_to_group(group, camera_away, manager, frustum=frustum)
     from harita.performance.scene_lod import LODAwareSceneResult
+
     scene_result = LODAwareSceneResult(groups={"bench": lod_group})
     assert scene_result.culled_ratio() == 1.0
     assert scene_result.frustum_culled_ratio() == 1.0
@@ -518,6 +553,7 @@ def test_frustum_culled_ratio_zero_when_frustum_not_used():
     manager = default_instance_lod_manager(full_distance_m=60.0, impostor_distance_m=250.0)
     lod_group = apply_lod_to_group(group, camera, manager)
     from harita.performance.scene_lod import LODAwareSceneResult
+
     scene_result = LODAwareSceneResult(groups={"bench": lod_group})
     assert scene_result.frustum_culled_ratio() == 0.0
 
@@ -527,6 +563,7 @@ def test_frustum_culled_ratio_zero_when_frustum_not_used():
 # ile LOD kovalarının birleşimi (occlusion politikası: bkz. modül docstring'i
 # - yalnızca bina bounding box'ları occluder sayılır, `building_occluder_aabbs`)
 # --------------------------------------------------------------------------- #
+
 
 def test_apply_lod_without_occlusion_param_is_unchanged_regression():
     """`occlusion=None` (varsayılan) davranışı önceki oturumla birebir aynı
@@ -574,8 +611,11 @@ def test_apply_lod_occlusion_skips_already_culled_instances():
     assert lod_group.instance_count(CULLED) == 2
     total = lod_group.total_instance_count()
     assert (
-        lod_group.instance_count(FULL) + lod_group.instance_count(IMPOSTOR)
-        + lod_group.instance_count(CULLED) + lod_group.instance_count(OCCLUDED) == total
+        lod_group.instance_count(FULL)
+        + lod_group.instance_count(IMPOSTOR)
+        + lod_group.instance_count(CULLED)
+        + lod_group.instance_count(OCCLUDED)
+        == total
     )
 
 
@@ -646,6 +686,7 @@ def test_culled_ratio_includes_occluded():
     occlusion = OcclusionCulling([huge_occluder])
     lod_group = apply_lod_to_group(group, camera, manager, occlusion=occlusion)
     from harita.performance.scene_lod import LODAwareSceneResult
+
     scene_result = LODAwareSceneResult(groups={"bench": lod_group})
     assert scene_result.culled_ratio() == 1.0
     assert scene_result.occluded_ratio() == 1.0
@@ -657,5 +698,6 @@ def test_occluded_ratio_zero_when_occlusion_not_used():
     manager = default_instance_lod_manager(full_distance_m=60.0, impostor_distance_m=250.0)
     lod_group = apply_lod_to_group(group, camera, manager)
     from harita.performance.scene_lod import LODAwareSceneResult
+
     scene_result = LODAwareSceneResult(groups={"bench": lod_group})
     assert scene_result.occluded_ratio() == 0.0

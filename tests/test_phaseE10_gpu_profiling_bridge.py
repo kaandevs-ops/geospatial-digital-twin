@@ -25,9 +25,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from harita.performance.profiler import GPUProfiler
 from harita.app_shell.api import build_app_router
 from harita.app_shell.session import AppSession
+from harita.performance.profiler import GPUProfiler
 
 
 def _new_session() -> AppSession:
@@ -84,7 +84,8 @@ def test_rest_endpoint_reports_gpu_timing():
     router, gpu_profiler = _make_router()
     gpu_profiler.begin_frame()
     resp = router.dispatch(
-        "POST", "/api/performance/gpu-timing",
+        "POST",
+        "/api/performance/gpu-timing",
         body={"gpu_time_ms": 4.5, "supported": True},
     )
     assert resp.status == 200
@@ -100,7 +101,8 @@ def test_rest_endpoint_reports_gpu_timing():
 def test_rest_endpoint_rejects_non_numeric_timing():
     router, _ = _make_router()
     resp = router.dispatch(
-        "POST", "/api/performance/gpu-timing",
+        "POST",
+        "/api/performance/gpu-timing",
         body={"gpu_time_ms": "not-a-number"},
     )
     assert resp.status == 422

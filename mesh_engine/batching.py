@@ -47,7 +47,9 @@ def _rotation_matrix_z(deg: float) -> tuple[tuple[float, float, float], ...]:
     )
 
 
-def _apply_transform(v: Vertex3D, translation: Vec3, rotation_deg_z: float, scale: float) -> Vertex3D:
+def _apply_transform(
+    v: Vertex3D, translation: Vec3, rotation_deg_z: float, scale: float
+) -> Vertex3D:
     x, y, z = v.x * scale, v.y * scale, v.z * scale
     if rotation_deg_z:
         m = _rotation_matrix_z(rotation_deg_z)
@@ -111,7 +113,9 @@ class InstanceMeshBaker:
     genellenmiş hali."""
 
     @staticmethod
-    def bake_merged(base_mesh: Mesh3D, transforms: list[InstanceTransform], name: str = "baked_instances") -> Mesh3D:
+    def bake_merged(
+        base_mesh: Mesh3D, transforms: list[InstanceTransform], name: str = "baked_instances"
+    ) -> Mesh3D:
         """Tüm instance'ları TEK bir mesh'e gömer (1 draw call, ama
         GPU-instancing'in bellek avantajından yararlanmaz - az sayıda
         (<~200) tekrar için uygundur, ör. bir avlu içindeki bank grubu)."""
@@ -119,9 +123,12 @@ class InstanceMeshBaker:
         for t in transforms:
             offset = len(merged.vertices)
             merged.vertices.extend(
-                _apply_transform(v, t.translation, t.rotation_deg_z, t.scale) for v in base_mesh.vertices
+                _apply_transform(v, t.translation, t.rotation_deg_z, t.scale)
+                for v in base_mesh.vertices
             )
-            merged.triangles.extend((a + offset, b + offset, c + offset) for (a, b, c) in base_mesh.triangles)
+            merged.triangles.extend(
+                (a + offset, b + offset, c + offset) for (a, b, c) in base_mesh.triangles
+            )
         return merged
 
     @staticmethod
@@ -133,7 +140,10 @@ class InstanceMeshBaker:
         için `bake_merged`'e göre çok daha verimli)."""
         return [
             Mesh3D(
-                vertices=[_apply_transform(v, t.translation, t.rotation_deg_z, t.scale) for v in base_mesh.vertices],
+                vertices=[
+                    _apply_transform(v, t.translation, t.rotation_deg_z, t.scale)
+                    for v in base_mesh.vertices
+                ],
                 triangles=list(base_mesh.triangles),
                 name=f"{base_mesh.name}_instance",
             )

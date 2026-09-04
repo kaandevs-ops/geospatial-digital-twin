@@ -30,13 +30,17 @@ from harita.material_engine import PBRMaterial
 from harita.render_engine import Scene
 
 footprint = Footprint(
-    polygon=Polygon([Point2D(0,0), Point2D(20,0), Point2D(20,15), Point2D(0,15)]),
-    building_type="apartman", floor_count=5, height_m=15.0,
+    polygon=Polygon([Point2D(0, 0), Point2D(20, 0), Point2D(20, 15), Point2D(0, 15)]),
+    building_type="apartman",
+    floor_count=5,
+    height_m=15.0,
 )
-building = ProceduralBuildingGenerator.generate(footprint, building_type=BuildingType.APARTMAN, seed=11)
+building = ProceduralBuildingGenerator.generate(
+    footprint, building_type=BuildingType.APARTMAN, seed=11
+)
 
 scene = Scene(name="mahalle")
-scene.add_mesh(building.full_mesh(), material=PBRMaterial(name="beton", albedo=(0.68,0.66,0.62)))
+scene.add_mesh(building.full_mesh(), material=PBRMaterial(name="beton", albedo=(0.68, 0.66, 0.62)))
 scene.write("scene.json")
 ```
 

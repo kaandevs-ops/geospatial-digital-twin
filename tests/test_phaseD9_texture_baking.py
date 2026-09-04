@@ -19,30 +19,29 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from harita.core_engine.geometry_engine import Point2D, Polygon
+from harita.data_engine.spatial_index import BVH
+from harita.material_engine.texture_baking import (
+    AOBaker,
+    HemisphereSampler,
+    NormalMapBaker,
+    TextureMap,
+    TextureMapCodec,
+    _barycentric_2d,
+    _ray_triangle,
+)
 from harita.mesh_engine import (
+    Mesh3D,
     MeshBuilder,
     MeshMerger,
     NormalGenerator,
     UVGenerator,
-    Vertex3D,
-    Mesh3D,
 )
-from harita.material_engine.texture_baking import (
-    AOBaker,
-    NormalMapBaker,
-    TextureMap,
-    TextureMapCodec,
-    HemisphereSampler,
-    _ray_triangle,
-    _barycentric_2d,
-)
-from harita.data_engine.spatial_index import BVH
-
 
 # ============================================================================ #
 # Test sahnesi: geniş bir taban plakası + ortasında yükselen bir çıkıntı kutu
 # (roadmap'in "küp üstüne çıkıntı" senaryosu)
 # ============================================================================ #
+
 
 def _build_plate_with_bump() -> Mesh3D:
     plate_poly = Polygon([Point2D(-5, -5), Point2D(5, -5), Point2D(5, 5), Point2D(-5, 5)])
@@ -65,6 +64,7 @@ def scene_mesh() -> Mesh3D:
 # ============================================================================ #
 # AOBaker - texel dizisi (bake_texture)
 # ============================================================================ #
+
 
 class TestAOBakerTexture:
     def test_bake_texture_returns_correct_dimensions(self, scene_mesh):
@@ -95,7 +95,10 @@ class TestAOBakerTexture:
         # UV [0.4, 0.6] civarında. Crevice: çıkıntıya bitişik texel'ler
         # (u ~ 0.4, v ~ 0.5). Açık alan: köşeye yakın (u ~ 0.05, v ~ 0.05).
         def texel_at_uv(u: float, v: float) -> tuple[int, int]:
-            return (min(tex.width - 1, int(u * tex.width)), min(tex.height - 1, int(v * tex.height)))
+            return (
+                min(tex.width - 1, int(u * tex.width)),
+                min(tex.height - 1, int(v * tex.height)),
+            )
 
         crevice_x, crevice_y = texel_at_uv(0.41, 0.5)
         open_x, open_y = texel_at_uv(0.05, 0.05)
@@ -127,7 +130,8 @@ class TestAOBakerTexture:
         tex_bvh = AOBaker.bake_texture(scene_mesh, width=12, height=12, sample_count=8, bvh=bvh)
         diffs = [
             abs(tex_linear.ao_value(x, y) - tex_bvh.ao_value(x, y))
-            for y in range(12) for x in range(12)
+            for y in range(12)
+            for x in range(12)
         ]
         assert max(diffs) < 1e-6
 
@@ -143,6 +147,7 @@ class TestAOBakerTexture:
 # ============================================================================ #
 # AOBaker - vertex-tabanlı ucuz varyant
 # ============================================================================ #
+
 
 class TestAOBakerVertex:
     def test_vertex_ao_values_in_range(self, scene_mesh):
@@ -164,6 +169,7 @@ class TestAOBakerVertex:
 # ============================================================================ #
 # NormalMapBaker
 # ============================================================================ #
+
 
 class TestNormalMapBaker:
     def test_bake_texture_dimensions_and_channels(self, scene_mesh):
@@ -215,6 +221,7 @@ class TestNormalMapBaker:
 # TextureMapCodec - sıkıştırma + base64 round-trip
 # ============================================================================ #
 
+
 class TestTextureMapCodec:
     def test_roundtrip_preserves_pixels_exactly(self):
         original = TextureMap(width=4, height=4, channels=1, pixels=bytes(range(16)))
@@ -227,7 +234,13 @@ class TestTextureMapCodec:
 
     def test_payload_is_json_serializable(self):
         import json
-        tex = TextureMap(width=8, height=8, channels=3, pixels=bytes(range(8 * 8 * 3 % 256)) * 3 if False else bytes([10] * (8 * 8 * 3)))
+
+        tex = TextureMap(
+            width=8,
+            height=8,
+            channels=3,
+            pixels=bytes(range(8 * 8 * 3 % 256)) * 3 if False else bytes([10] * (8 * 8 * 3)),
+        )
         payload = TextureMapCodec.encode(tex)
         serialized = json.dumps(payload)
         deserialized = json.loads(serialized)
@@ -258,6 +271,7 @@ class TestTextureMapCodec:
 # ============================================================================ #
 # HemisphereSampler - determinizm ve geometrik doğruluk
 # ============================================================================ #
+
 
 class TestHemisphereSampler:
     def test_same_seed_produces_identical_samples(self):
@@ -294,6 +308,7 @@ class TestHemisphereSampler:
 # ============================================================================ #
 # Geometri yardımcıları (barycentric / möller-trumbore) - birim testler
 # ============================================================================ #
+
 
 class TestGeometryHelpers:
     def test_ray_triangle_hits_known_triangle(self):

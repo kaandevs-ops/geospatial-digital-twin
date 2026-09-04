@@ -46,14 +46,12 @@ yeterli, aşırı detay gereksiz" notuyla tutarlı bir basitleştirme).
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
-from . import GRAVITY, GroundShakeForceModel, PhysicsWorld, RigidBox
 from ..hazard_data.risk_scoring import RiskLevel
 from ..mesh_engine import Mesh3D, MeshSplitter
+from . import GRAVITY, GroundShakeForceModel, PhysicsWorld, RigidBox
 
 __all__ = [
     "DAMAGE_HONESTY_NOTE",
@@ -102,6 +100,7 @@ DAMAGE_HONESTY_NOTE_WITH_ENGINEERING_MODE = (
 # ============================================================================ #
 # 4.1 — Seviye 1: risk skoruna göre önceden tanımlı hasar durumu
 # ============================================================================ #
+
 
 class DamageLevel(str, Enum):
     """Roadmap 4.1'in "önceden tanımlı hasar durumu" kademeleri.
@@ -165,7 +164,9 @@ class BuildingDamageState:
 
 
 def compute_damage_level(
-    risk_level: RiskLevel, *, peak_shake_intensity: float = 0.0,
+    risk_level: RiskLevel,
+    *,
+    peak_shake_intensity: float = 0.0,
 ) -> DamageLevel:
     """Roadmap 4.1: risk skoru tabanlı, isteğe bağlı olarak gerçekleşen
     sarsıntı şiddetiyle (Faz 3.A `BuildingShakeState.intensity`, 0..1)
@@ -187,7 +188,10 @@ def compute_damage_level(
 
 
 def level1_damage_state(
-    building_id: str, risk_level: RiskLevel, *, peak_shake_intensity: float = 0.0,
+    building_id: str,
+    risk_level: RiskLevel,
+    *,
+    peak_shake_intensity: float = 0.0,
     engineering_mode: bool = False,
 ) -> BuildingDamageState:
     """Roadmap 4.1'in tek-çağrılık üretim fonksiyonu."""
@@ -197,7 +201,10 @@ def level1_damage_state(
 
 
 def damage_state_for_level(
-    building_id: str, level: DamageLevel, *, honesty_note: str = DAMAGE_HONESTY_NOTE,
+    building_id: str,
+    level: DamageLevel,
+    *,
+    honesty_note: str = DAMAGE_HONESTY_NOTE,
 ) -> BuildingDamageState:
     """Web arayüzü entegrasyonu: `DamageLevel`'den (ör. Faz 3.B'nin
     `drift_based_damage_hint()` çıktısından) doğrudan render sözleşmesi
@@ -217,6 +224,7 @@ def damage_state_for_level(
 # ============================================================================ #
 # 4.2 — Seviye 2: kat-bazlı RigidBox fizik motoruyla gerçek devrilme/çöküş
 # ============================================================================ #
+
 
 @dataclass(frozen=True, slots=True)
 class FloorCollapseState:
@@ -246,7 +254,10 @@ class Level2CollapseSimulator:
     floor_mass: float = 5000.0
 
     def build_world(
-        self, peak_acceleration_g: float, *, frequency_hz: float = 1.8,
+        self,
+        peak_acceleration_g: float,
+        *,
+        frequency_hz: float = 1.8,
         structural_integrity: float = 0.5,
     ) -> PhysicsWorld:
         """`structural_integrity` (0..1, düşük = zayıf/yüksek risk):
@@ -278,16 +289,22 @@ class Level2CollapseSimulator:
 
         if peak_acceleration_g > 0:
             world.shake_model = GroundShakeForceModel(
-                peak_acceleration_g=peak_acceleration_g, frequency_hz=frequency_hz,
+                peak_acceleration_g=peak_acceleration_g,
+                frequency_hz=frequency_hz,
             )
         return world
 
     def run(
-        self, peak_acceleration_g: float, *, duration_s: float = 6.0,
-        frequency_hz: float = 1.8, structural_integrity: float = 0.5,
+        self,
+        peak_acceleration_g: float,
+        *,
+        duration_s: float = 6.0,
+        frequency_hz: float = 1.8,
+        structural_integrity: float = 0.5,
     ) -> list[FloorCollapseState]:
         world = self.build_world(
-            peak_acceleration_g, frequency_hz=frequency_hz,
+            peak_acceleration_g,
+            frequency_hz=frequency_hz,
             structural_integrity=structural_integrity,
         )
         world.run(duration_s)
@@ -309,6 +326,7 @@ class Level2CollapseSimulator:
 # 4.3 — Seviye 3: parçalı gerçek yıkım fiziği / mesh fragmentasyonu
 # ============================================================================ #
 
+
 @dataclass(frozen=True, slots=True)
 class FragmentPiece:
     """Roadmap 4.3.1'in ön-hesaplanmış tek bir parçası - editör/pipeline
@@ -320,15 +338,25 @@ class FragmentPiece:
     half_extents: tuple[float, float, float]
 
 
-def _mesh_center_and_half_extents(mesh: Mesh3D) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+def _mesh_center_and_half_extents(
+    mesh: Mesh3D,
+) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
     (min_x, min_y, min_z), (max_x, max_y, max_z) = mesh.bounding_box()
     center = ((min_x + max_x) / 2.0, (min_y + max_y) / 2.0, (min_z + max_z) / 2.0)
-    half = (max((max_x - min_x) / 2.0, 0.05), max((max_y - min_y) / 2.0, 0.05), max((max_z - min_z) / 2.0, 0.05))
+    half = (
+        max((max_x - min_x) / 2.0, 0.05),
+        max((max_y - min_y) / 2.0, 0.05),
+        max((max_z - min_z) / 2.0, 0.05),
+    )
     return center, half
 
 
 def precompute_fragments(
-    mesh: Mesh3D, *, building_id: str, pieces_x: int = 3, pieces_y: int = 3,
+    mesh: Mesh3D,
+    *,
+    building_id: str,
+    pieces_x: int = 3,
+    pieces_y: int = 3,
 ) -> list[FragmentPiece]:
     """Roadmap 4.3.1: "Ön-hesaplanmış fragmentasyon (runtime değil,
     hazırlık aşamasında)". Bina mesh'ini `mesh_engine.MeshSplitter.
@@ -377,15 +405,23 @@ def precompute_fragments(
                 continue
             center, half = _mesh_center_and_half_extents(piece_mesh)
             piece_mesh.name = f"{building_id}_frag_{piece_num}"
-            fragments.append(FragmentPiece(
-                piece_id=piece_mesh.name, mesh=piece_mesh, center=center, half_extents=half,
-            ))
+            fragments.append(
+                FragmentPiece(
+                    piece_id=piece_mesh.name,
+                    mesh=piece_mesh,
+                    center=center,
+                    half_extents=half,
+                )
+            )
             piece_num += 1
     return fragments
 
 
 def is_fragmentation_eligible(
-    *, is_camera_focused: bool, distance_to_camera_m: float, focus_distance_threshold_m: float = 40.0,
+    *,
+    is_camera_focused: bool,
+    distance_to_camera_m: float,
+    focus_distance_threshold_m: float = 40.0,
 ) -> bool:
     """Roadmap 4.3.3: "Bu seviye sadece 'hikaye anı' binalar için (kamera
     yakın, kullanıcı odaklanmış) aktif olmalı; şehir genelinde yüzlerce
@@ -406,15 +442,20 @@ class RuntimeFragmentTrigger:
     building_id: str
 
     def trigger(
-        self, fragments: list[FragmentPiece], *, peak_acceleration_g: float,
-        is_camera_focused: bool, distance_to_camera_m: float,
-    ) -> Optional[PhysicsWorld]:
+        self,
+        fragments: list[FragmentPiece],
+        *,
+        peak_acceleration_g: float,
+        is_camera_focused: bool,
+        distance_to_camera_m: float,
+    ) -> PhysicsWorld | None:
         """4.3.3 kapısından geçmezse `None` döner (çağıran taraf Seviye
         1/2'ye düşmeli - roadmap: "Uzak binalar Seviye 1/2'de kalmalı").
         Geçerse, her parça bir `RigidBox` olarak dünyaya eklenip PGA'dan
         türetilen başlangıç impulsu uygulanır (yerçekimi + yatay itki)."""
         if not is_fragmentation_eligible(
-            is_camera_focused=is_camera_focused, distance_to_camera_m=distance_to_camera_m,
+            is_camera_focused=is_camera_focused,
+            distance_to_camera_m=distance_to_camera_m,
         ):
             return None
         world = PhysicsWorld()
@@ -428,7 +469,9 @@ class RuntimeFragmentTrigger:
         # Roadmap 4.3.2: "başlangıç impulsu risk skoru/PGA'dan türetilir".
         impulse_speed = min(peak_acceleration_g, 2.0) * GRAVITY * 0.3
         for frag in fragments:
-            mass = max(frag.half_extents[0] * frag.half_extents[1] * frag.half_extents[2] * 800.0, 5.0)
+            mass = max(
+                frag.half_extents[0] * frag.half_extents[1] * frag.half_extents[2] * 800.0, 5.0
+            )
             body = RigidBox(
                 body_id=frag.piece_id,
                 position=frag.center,
@@ -444,6 +487,7 @@ class RuntimeFragmentTrigger:
 # ============================================================================ #
 # 4.4 — Hasar sonrası kalıcı durum
 # ============================================================================ #
+
 
 @dataclass
 class DamagePersistenceStore:
@@ -468,10 +512,12 @@ class DamagePersistenceStore:
         (ör. animasyon ara karesi hasar seviyesini geçici düşürmemeli)."""
         key = (scenario_id, state.building_id)
         existing = self._states.get(key)
-        if existing is None or _damage_rank(state.damage_level) >= _damage_rank(existing.damage_level):
+        if existing is None or _damage_rank(state.damage_level) >= _damage_rank(
+            existing.damage_level
+        ):
             self._states[key] = state
 
-    def get(self, scenario_id: str, building_id: str) -> Optional[BuildingDamageState]:
+    def get(self, scenario_id: str, building_id: str) -> BuildingDamageState | None:
         return self._states.get((scenario_id, building_id))
 
     def all_for_scenario(self, scenario_id: str) -> list[BuildingDamageState]:

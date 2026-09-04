@@ -7,25 +7,25 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from harita.core_engine.geometry_engine import Point2D, Polygon
-from harita.mesh_engine import MeshBuilder
-from harita.material_engine import ProceduralMaterials
-
 from harita.digital_twin import (
     DigitalTwin,
-    TwinEvent,
-    SensorBinding,
-    Annotation,
-    Measurement,
-    TwinDiff,
-    diff_twins,
     DigitalTwinRegistry,
+    SensorBinding,
+    diff_twins,
 )
+from harita.material_engine import ProceduralMaterials
+from harita.mesh_engine import MeshBuilder
 
 
 def _sample_mesh():
-    footprint = Polygon(points=[
-        Point2D(0, 0), Point2D(10, 0), Point2D(10, 8), Point2D(0, 8),
-    ])
+    footprint = Polygon(
+        points=[
+            Point2D(0, 0),
+            Point2D(10, 0),
+            Point2D(10, 8),
+            Point2D(0, 8),
+        ]
+    )
     return MeshBuilder.extrude_polygon(footprint, base_z=0.0, height=3.0)
 
 
@@ -36,6 +36,7 @@ def _sample_material():
 # ============================================================================ #
 # DigitalTwin - temel davranış
 # ============================================================================ #
+
 
 class TestDigitalTwinBasics:
     def test_create_empty_twin(self):
@@ -90,11 +91,13 @@ class TestDigitalTwinBasics:
 # Sensörler
 # ============================================================================ #
 
+
 class TestSensorBinding:
     def test_bind_and_update_sensor(self):
         twin = DigitalTwin(id="twin-1")
-        sensor = SensorBinding(sensor_id="temp-01", sensor_type="temperature",
-                                target_ref="floor:2", unit="C")
+        sensor = SensorBinding(
+            sensor_id="temp-01", sensor_type="temperature", target_ref="floor:2", unit="C"
+        )
         twin.bind_sensor(sensor)
         assert len(twin.sensors) == 1
 
@@ -120,11 +123,11 @@ class TestSensorBinding:
 # Anotasyonlar
 # ============================================================================ #
 
+
 class TestAnnotations:
     def test_add_annotation(self):
         twin = DigitalTwin(id="twin-1")
-        ann = twin.add_annotation("Çatlak tespit edildi", (1.0, 2.0, 3.0),
-                                    category="issue")
+        ann = twin.add_annotation("Çatlak tespit edildi", (1.0, 2.0, 3.0), category="issue")
         assert ann in twin.annotations
         assert ann.resolved is False
         assert ann.category == "issue"
@@ -146,11 +149,11 @@ class TestAnnotations:
 # Ölçümler
 # ============================================================================ #
 
+
 class TestMeasurements:
     def test_add_measurement(self):
         twin = DigitalTwin(id="twin-1")
-        m = twin.add_measurement("distance", 12.5, "m",
-                                  points=[(0, 0, 0), (12.5, 0, 0)])
+        m = twin.add_measurement("distance", 12.5, "m", points=[(0, 0, 0), (12.5, 0, 0)])
         assert m in twin.measurements
         assert m.kind == "distance"
 
@@ -166,6 +169,7 @@ class TestMeasurements:
 # ============================================================================ #
 # History sorguları
 # ============================================================================ #
+
 
 class TestHistoryQueries:
     def test_events_since(self):
@@ -188,6 +192,7 @@ class TestHistoryQueries:
 # ============================================================================ #
 # Serialization
 # ============================================================================ #
+
 
 class TestSerialization:
     def test_roundtrip_empty_twin(self):
@@ -220,6 +225,7 @@ class TestSerialization:
 
     def test_json_serializable(self):
         import json
+
         twin = DigitalTwin(id="twin-1")
         twin.set_geometry(_sample_mesh())
         raw = json.dumps(twin.to_dict())
@@ -231,6 +237,7 @@ class TestSerialization:
 # ============================================================================ #
 # TwinDiff
 # ============================================================================ #
+
 
 class TestTwinDiff:
     def test_diff_detects_metadata_change(self):
@@ -266,6 +273,7 @@ class TestTwinDiff:
 # ============================================================================ #
 # DigitalTwinRegistry
 # ============================================================================ #
+
 
 class TestDigitalTwinRegistry:
     def test_create_and_get(self):

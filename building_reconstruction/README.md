@@ -22,21 +22,27 @@ Teknik spesifikasyon: [`../docs/PHASE_SPECS.md`](../docs/PHASE_SPECS.md#phase-3-
 ```python
 from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.building_reconstruction import (
-    Footprint, ProceduralBuildingGenerator, BuildingType,
+    Footprint,
+    ProceduralBuildingGenerator,
+    BuildingType,
 )
 
 footprint = Footprint(
-    polygon=Polygon([Point2D(0,0), Point2D(20,0), Point2D(20,15), Point2D(0,15)]),
-    building_type="apartments", floor_count=5, height_m=15.0,
+    polygon=Polygon([Point2D(0, 0), Point2D(20, 0), Point2D(20, 15), Point2D(0, 15)]),
+    building_type="apartments",
+    floor_count=5,
+    height_m=15.0,
 )
 building = ProceduralBuildingGenerator.generate(
-    footprint, building_type=BuildingType.APARTMAN, seed=11,
+    footprint,
+    building_type=BuildingType.APARTMAN,
+    seed=11,
 )
 
-print(len(building.floors))          # 5
+print(len(building.floors))  # 5
 print(building.roof.triangle_count())
-print(building.facade.material)      # FacadeMaterial.BETON
-full_mesh = building.full_mesh()     # cephe + çatı birleşik Mesh3D
+print(building.facade.material)  # FacadeMaterial.BETON
+full_mesh = building.full_mesh()  # cephe + çatı birleşik Mesh3D
 ```
 
 ## Roadmap V2 — A3 derinleştirme (bu oturum)

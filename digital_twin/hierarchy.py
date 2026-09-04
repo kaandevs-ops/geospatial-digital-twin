@@ -28,15 +28,16 @@ from __future__ import annotations
 import math
 import random
 from collections import defaultdict
-from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
 
 from . import DigitalTwin, DigitalTwinRegistry
-
 
 # ========================================================================== #
 # TwinHierarchy
 # ========================================================================== #
+
 
 class TwinHierarchy:
     """Twin'ler arası parent/child ilişkisini tutan hafif ağaç yapısı.
@@ -61,7 +62,7 @@ class TwinHierarchy:
 
     # -- yapı ----------------------------------------------------------- #
 
-    def add(self, twin_id: str, parent_id: Optional[str] = None) -> None:
+    def add(self, twin_id: str, parent_id: str | None = None) -> None:
         """Bir düğümü hiyerarşiye ekler (yoksa) ve varsa parent'a bağlar."""
         if twin_id not in self._parent:
             self._parent[twin_id] = None
@@ -81,7 +82,7 @@ class TwinHierarchy:
             self._parent[parent_id] = None
         self._mark_dirty(child_id)
 
-    def parent_of(self, twin_id: str) -> Optional[str]:
+    def parent_of(self, twin_id: str) -> str | None:
         return self._parent.get(twin_id)
 
     def children_of(self, twin_id: str) -> list:
@@ -130,7 +131,7 @@ class TwinHierarchy:
         kardeş alt-ağaçlar dokunulmamış (temiz/önbellekten okunabilir)
         kalır.
         """
-        node: Optional[str] = twin_id
+        node: str | None = twin_id
         seen = set()
         while node is not None and node not in seen:
             seen.add(node)
@@ -154,7 +155,7 @@ class TwinHierarchy:
         self,
         registry: DigitalTwinRegistry,
         twin_id: str,
-        metric_fn: Callable[[Optional[DigitalTwin]], float],
+        metric_fn: Callable[[DigitalTwin | None], float],
         reduce_fn: Callable[[list], float] = sum,
         cache_key: str = "default",
     ) -> float:
@@ -179,8 +180,7 @@ class TwinHierarchy:
         children = self.children_of(twin_id)
         if children:
             values = [
-                self.aggregate(registry, c, metric_fn, reduce_fn, cache_key)
-                for c in children
+                self.aggregate(registry, c, metric_fn, reduce_fn, cache_key) for c in children
             ]
             result = reduce_fn(values)
         else:
@@ -195,7 +195,7 @@ class TwinHierarchy:
         self,
         registry: DigitalTwinRegistry,
         twin_id: str,
-        metric_fn: Callable[[Optional[DigitalTwin]], float],
+        metric_fn: Callable[[DigitalTwin | None], float],
         cache_key: str = "default",
     ) -> float:
         """`aggregate()` için kısayol: toplam (sum) reduce fonksiyonu."""
@@ -207,7 +207,7 @@ class TwinHierarchy:
         self,
         registry: DigitalTwinRegistry,
         twin_id: str,
-        metric_fn: Callable[[Optional[DigitalTwin]], float],
+        metric_fn: Callable[[DigitalTwin | None], float],
     ) -> float:
         """Önbellek kullanmadan, tüm yaprakları doğrudan tarayarak toplam
         hesaplar. `aggregate()` sonucunun doğruluğunu test etmek için
@@ -225,7 +225,7 @@ class TwinHierarchy:
         return {"parent": dict(self._parent)}
 
     @staticmethod
-    def from_dict(data: dict) -> "TwinHierarchy":
+    def from_dict(data: dict) -> TwinHierarchy:
         h = TwinHierarchy()
         for child_id, parent_id in data.get("parent", {}).items():
             h.add(child_id, parent_id)
@@ -235,6 +235,7 @@ class TwinHierarchy:
 # ========================================================================== #
 # Sensör zaman-serisi üretici
 # ========================================================================== #
+
 
 @dataclass(slots=True)
 class SensorSeriesConfig:
@@ -249,14 +250,14 @@ class SensorSeriesConfig:
     seed: int = 0
     day_seconds: float = 86400.0
     year_seconds: float = 365.25 * 86400.0
-    min_value: Optional[float] = None
-    max_value: Optional[float] = None
+    min_value: float | None = None
+    max_value: float | None = None
 
 
 def generate_sensor_timeseries(
     start_timestamp: float,
     count: int,
-    config: Optional[SensorSeriesConfig] = None,
+    config: SensorSeriesConfig | None = None,
     **overrides: Any,
 ) -> list:
     """Gerçekçi bir sensör zaman serisi üretir.
@@ -276,6 +277,7 @@ def generate_sensor_timeseries(
     cfg = config or SensorSeriesConfig()
     if overrides:
         import dataclasses
+
         current = {f.name: getattr(cfg, f.name) for f in dataclasses.fields(cfg)}
         cfg = SensorSeriesConfig(**{**current, **overrides})
 
@@ -283,7 +285,9 @@ def generate_sensor_timeseries(
     series = []
     for i in range(count):
         t = start_timestamp + i * cfg.interval_seconds
-        daily = cfg.daily_amplitude * math.sin(2 * math.pi * (t % cfg.day_seconds) / cfg.day_seconds)
+        daily = cfg.daily_amplitude * math.sin(
+            2 * math.pi * (t % cfg.day_seconds) / cfg.day_seconds
+        )
         seasonal = cfg.seasonal_amplitude * math.sin(
             2 * math.pi * (t % cfg.year_seconds) / cfg.year_seconds
         )
@@ -337,9 +341,13 @@ def apply_timeseries_to_sensor(
     target.update(last_value, last_ts)
     twin.log_event(
         "sensor_timeseries_applied",
-        {"sensor_id": sensor_id, "point_count": len(series),
-         "first_ts": series[0][0], "last_ts": last_ts,
-         "last_value": last_value},
+        {
+            "sensor_id": sensor_id,
+            "point_count": len(series),
+            "first_ts": series[0][0],
+            "last_ts": last_ts,
+            "last_value": last_value,
+        },
         "sensor",
     )
     return len(series)

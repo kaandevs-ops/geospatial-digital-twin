@@ -33,9 +33,9 @@ from __future__ import annotations
 import base64
 import math
 import zlib
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from ..mesh_engine import Mesh3D, Vertex3D
+from ..mesh_engine import Mesh3D
 
 Vec3 = tuple[float, float, float]
 
@@ -48,6 +48,7 @@ Vec3 = tuple[float, float, float]
 # ============================================================================ #
 # Texture Map - ortak veri taşıyıcı + sıkıştırılmış kodlama
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class TextureMap:
@@ -66,7 +67,7 @@ class TextureMap:
 
     def texel(self, x: int, y: int) -> tuple[int, ...]:
         idx = (y * self.width + x) * self.channels
-        return tuple(self.pixels[idx: idx + self.channels])
+        return tuple(self.pixels[idx : idx + self.channels])
 
     def ao_value(self, x: int, y: int) -> float:
         if self.channels != 1:
@@ -133,6 +134,7 @@ class TextureMapCodec:
         """`TextureMap` -> `PBRMaterial.albedo_map`'in beklediği kendi
         kendine yeten `str` referansı (dosya yolu gerektirmez)."""
         import json as _json
+
         encoded = TextureMapCodec.encode(tex)
         payload = base64.b64encode(_json.dumps(encoded).encode("ascii")).decode("ascii")
         return f"{TextureMapCodec.DATA_URI_PREFIX}{payload}"
@@ -141,15 +143,19 @@ class TextureMapCodec:
     def from_data_uri(data_uri: str) -> TextureMap:
         """`to_data_uri`'nin tersi."""
         import json as _json
+
         if not data_uri.startswith(TextureMapCodec.DATA_URI_PREFIX):
             raise ValueError("TextureMapCodec.from_data_uri: beklenmeyen şema/önek.")
-        payload = _json.loads(base64.b64decode(data_uri[len(TextureMapCodec.DATA_URI_PREFIX):]).decode("ascii"))
+        payload = _json.loads(
+            base64.b64decode(data_uri[len(TextureMapCodec.DATA_URI_PREFIX) :]).decode("ascii")
+        )
         return TextureMapCodec.decode(payload)
 
 
 # ============================================================================ #
 # Ortak geometri yardımcıları (Möller-Trumbore, barycentric UV rasterizasyon)
 # ============================================================================ #
+
 
 def _sub(a: Vec3, b: Vec3) -> Vec3:
     return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
@@ -197,8 +203,9 @@ def _ray_triangle(origin: Vec3, direction: Vec3, a: Vec3, b: Vec3, c: Vec3) -> f
     return t
 
 
-def _barycentric_2d(p: tuple[float, float], a: tuple[float, float],
-                     b: tuple[float, float], c: tuple[float, float]) -> Vec3 | None:
+def _barycentric_2d(
+    p: tuple[float, float], a: tuple[float, float], b: tuple[float, float], c: tuple[float, float]
+) -> Vec3 | None:
     """2D (UV-uzayı) barycentric koordinatlar; nokta üçgen dışındaysa None."""
     v0 = (b[0] - a[0], b[1] - a[1])
     v1 = (c[0] - a[0], c[1] - a[1])
@@ -223,6 +230,7 @@ def _barycentric_2d(p: tuple[float, float], a: tuple[float, float],
 @dataclass(slots=True)
 class _UVTexel:
     """Bir texel'in 3D karşılığı: UV-uzayı rasterizasyonundan çıkan ara sonuç."""
+
     world_pos: Vec3
     world_normal: Vec3
     triangle_index: int
@@ -275,11 +283,13 @@ def _rasterize_uv_space(mesh: Mesh3D, width: int, height: int) -> list[_UVTexel 
                     a * v0.y + b * v1.y + c * v2.y,
                     a * v0.z + b * v1.z + c * v2.z,
                 )
-                normal = _normalize((
-                    a * n0[0] + b * n1[0] + c * n2[0],
-                    a * n0[1] + b * n1[1] + c * n2[1],
-                    a * n0[2] + b * n1[2] + c * n2[2],
-                ))
+                normal = _normalize(
+                    (
+                        a * n0[0] + b * n1[0] + c * n2[0],
+                        a * n0[1] + b * n1[1] + c * n2[1],
+                        a * n0[2] + b * n1[2] + c * n2[2],
+                    )
+                )
                 result[py * width + px] = _UVTexel(pos, normal, tri_idx)
 
     return result
@@ -288,6 +298,7 @@ def _rasterize_uv_space(mesh: Mesh3D, width: int, height: int) -> list[_UVTexel 
 # ============================================================================ #
 # Hemisphere sampling - deterministik, seed'li (test edilebilir/tekrarlanabilir)
 # ============================================================================ #
+
 
 class HemisphereSampler:
     """Kosinüs-ağırlıklı yarım-küre örnekleme (Malley yöntemi: disk üzerinde
@@ -333,15 +344,23 @@ class HemisphereSampler:
 # AO Baker
 # ============================================================================ #
 
+
 class AOBaker:
     """Roadmap: 'material_engine/texture_baking.py: mesh geometrisinden
     stdlib-only bir AO haritası (basit ray-sampling: her texel için
     yarım-küre örnekleme, komşu üçgenlerle kesişim testi) üretimi'."""
 
     @staticmethod
-    def _occlusion_at(pos: Vec3, normal: Vec3, mesh: Mesh3D, sample_count: int,
-                       max_distance: float, bias: float, seed: int,
-                       bvh: "object | None" = None) -> float:
+    def _occlusion_at(
+        pos: Vec3,
+        normal: Vec3,
+        mesh: Mesh3D,
+        sample_count: int,
+        max_distance: float,
+        bias: float,
+        seed: int,
+        bvh: object | None = None,
+    ) -> float:
         sampler = HemisphereSampler(seed=seed)
         dirs = sampler.sample_hemisphere(normal, sample_count)
         origin = (
@@ -368,9 +387,16 @@ class AOBaker:
         return 1.0 - (occluded / sample_count)
 
     @classmethod
-    def bake_texture(cls, mesh: Mesh3D, width: int = 64, height: int = 64,
-                      sample_count: int = 16, max_distance: float = 5.0,
-                      bias: float = 1e-3, bvh: "object | None" = None) -> TextureMap:
+    def bake_texture(
+        cls,
+        mesh: Mesh3D,
+        width: int = 64,
+        height: int = 64,
+        sample_count: int = 16,
+        max_distance: float = 5.0,
+        bias: float = 1e-3,
+        bvh: object | None = None,
+    ) -> TextureMap:
         """Mesh'in UV uzayını rasterize edip her texel'de yarım-küre AO
         örneklemesi yapar. `bvh` verilirse (`data_engine.spatial_index.BVH`
         örneği - aynı mesh üzerinden inşa edilmiş), doğrusal üçgen
@@ -383,17 +409,27 @@ class AOBaker:
                 pixels[i] = 255  # dead-space: tam açık (etkisiz) varsayılan
                 continue
             ao = cls._occlusion_at(
-                texel.world_pos, texel.world_normal, mesh,
-                sample_count=sample_count, max_distance=max_distance,
-                bias=bias, seed=12345 + i, bvh=bvh,
+                texel.world_pos,
+                texel.world_normal,
+                mesh,
+                sample_count=sample_count,
+                max_distance=max_distance,
+                bias=bias,
+                seed=12345 + i,
+                bvh=bvh,
             )
             pixels[i] = max(0, min(255, int(round(ao * 255))))
         return TextureMap(width=width, height=height, channels=1, pixels=bytes(pixels))
 
     @classmethod
-    def bake_vertex_ao(cls, mesh: Mesh3D, sample_count: int = 24,
-                        max_distance: float = 5.0, bias: float = 1e-3,
-                        bvh: "object | None" = None) -> list[float]:
+    def bake_vertex_ao(
+        cls,
+        mesh: Mesh3D,
+        sample_count: int = 24,
+        max_distance: float = 5.0,
+        bias: float = 1e-3,
+        bvh: object | None = None,
+    ) -> list[float]:
         """Texel-rasterizasyonu gerektirmeyen, doğrudan her vertex için AO
         değeri döndüren daha ucuz varyant (UV olmayan mesh'lerde veya
         vertex-renk tabanlı AO iş akışlarında kullanılabilir)."""
@@ -401,9 +437,14 @@ class AOBaker:
         for i, v in enumerate(mesh.vertices):
             normal = v.normal or (0.0, 0.0, 1.0)
             ao = cls._occlusion_at(
-                v.as_tuple(), normal, mesh,
-                sample_count=sample_count, max_distance=max_distance,
-                bias=bias, seed=999 + i, bvh=bvh,
+                v.as_tuple(),
+                normal,
+                mesh,
+                sample_count=sample_count,
+                max_distance=max_distance,
+                bias=bias,
+                seed=999 + i,
+                bvh=bvh,
             )
             result.append(ao)
         return result
@@ -413,21 +454,27 @@ class AOBaker:
 # Normal Map Baker (yüksek-poli -> düşük-poli)
 # ============================================================================ #
 
+
 class NormalMapBaker:
     """Roadmap: 'Normal map: yüksek-poli mesh'ten düşük-poli hedefe (D1'in
     ürettiği LOD) normal detayı aktarımı (basit ray-cast tabanlı bake)'."""
 
     @staticmethod
-    def _closest_hit_normal(origin: Vec3, direction: Vec3, high_mesh: Mesh3D,
-                             search_distance: float,
-                             bvh_high: "object | None" = None) -> Vec3 | None:
+    def _closest_hit_normal(
+        origin: Vec3,
+        direction: Vec3,
+        high_mesh: Mesh3D,
+        search_distance: float,
+        bvh_high: object | None = None,
+    ) -> Vec3 | None:
         if bvh_high is not None:
             hit = bvh_high.intersect_ray(origin, direction)
             if hit is not None and hit.t <= search_distance:
                 tri = high_mesh.triangles[hit.triangle_index]
                 a, b, c = high_mesh.triangle_positions(tri)
-                return _normalize(_cross(_sub(b.as_tuple(), a.as_tuple()),
-                                          _sub(c.as_tuple(), a.as_tuple())))
+                return _normalize(
+                    _cross(_sub(b.as_tuple(), a.as_tuple()), _sub(c.as_tuple(), a.as_tuple()))
+                )
             return None
 
         best_t = None
@@ -438,16 +485,21 @@ class NormalMapBaker:
             if t is not None and 1e-6 < t <= search_distance:
                 if best_t is None or t < best_t:
                     best_t = t
-                    best_normal = _normalize(_cross(
-                        _sub(b.as_tuple(), a.as_tuple()), _sub(c.as_tuple(), a.as_tuple())
-                    ))
+                    best_normal = _normalize(
+                        _cross(_sub(b.as_tuple(), a.as_tuple()), _sub(c.as_tuple(), a.as_tuple()))
+                    )
         return best_normal
 
     @classmethod
-    def bake_texture(cls, low_mesh: Mesh3D, high_mesh: Mesh3D,
-                      width: int = 64, height: int = 64,
-                      search_distance: float = 2.0,
-                      bvh_high: "object | None" = None) -> TextureMap:
+    def bake_texture(
+        cls,
+        low_mesh: Mesh3D,
+        high_mesh: Mesh3D,
+        width: int = 64,
+        height: int = 64,
+        search_distance: float = 2.0,
+        bvh_high: object | None = None,
+    ) -> TextureMap:
         """Düşük-poli hedefin UV uzayını rasterize eder; her texel için
         düşük-poli yüzeyden hem +normal hem -normal yönünde `search_distance`
         içinde yüksek-poli mesh'e ray atar (en yakın kesişimi alır - iki
@@ -460,7 +512,7 @@ class NormalMapBaker:
         for i, texel in enumerate(texels):
             if texel is None:
                 # dead-space: (0,0,1) -> encode edilmiş (128,128,255)
-                pixels[i * 3: i * 3 + 3] = bytes((128, 128, 255))
+                pixels[i * 3 : i * 3 + 3] = bytes((128, 128, 255))
                 continue
             n_low = texel.world_normal
             hit_normal = cls._closest_hit_normal(
@@ -472,7 +524,7 @@ class NormalMapBaker:
                     texel.world_pos, inv, high_mesh, search_distance, bvh_high
                 )
             final_normal = hit_normal if hit_normal is not None else n_low
-            pixels[i * 3: i * 3 + 3] = bytes(
+            pixels[i * 3 : i * 3 + 3] = bytes(
                 max(0, min(255, int(round((c + 1.0) * 0.5 * 255)))) for c in final_normal
             )
         return TextureMap(width=width, height=height, channels=3, pixels=bytes(pixels))

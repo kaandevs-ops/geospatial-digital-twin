@@ -6,26 +6,36 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from harita.core_engine.geometry_engine import Point2D, Polygon
+from harita.building_reconstruction.building_elements import ElevatorCore, Stair
 from harita.building_reconstruction.room_generator import Room, RoomType
-from harita.building_reconstruction.building_elements import Stair, ElevatorCore
-
-from harita.mobility.pathfinding import (
-    AStar, Dijkstra, JumpPointSearch, NavGraph, ThetaStar,
+from harita.core_engine.geometry_engine import Point2D, Polygon
+from harita.mobility.crowd_simulation import (
+    Agent,
+    AgentBehavior,
+    EvacuationSimulator,
+    OccupancyHeatmap,
+    SocialForceModel,
+    spawn_random_agents,
 )
 from harita.mobility.indoor_navigation import Floor, IndoorNavigationBuilder
-from harita.mobility.crowd_simulation import (
-    Agent, AgentBehavior, EvacuationSimulator, OccupancyHeatmap,
-    SocialForceModel, spawn_random_agents,
+from harita.mobility.pathfinding import (
+    AStar,
+    Dijkstra,
+    JumpPointSearch,
+    NavGraph,
+    ThetaStar,
 )
 from harita.mobility.traffic_simulation import (
-    IDMModel, TrafficAgent, TrafficSimulator, VehicleType, build_route,
+    IDMModel,
+    TrafficSimulator,
+    VehicleType,
+    build_route,
 )
-
 
 # ============================================================================ #
 # NavGraph
 # ============================================================================ #
+
 
 def test_navgraph_basic_add_and_neighbors():
     g = NavGraph()
@@ -81,6 +91,7 @@ def test_navgraph_from_grid_with_blocked_wall():
 # ============================================================================ #
 # A* / Dijkstra / ThetaStar
 # ============================================================================ #
+
 
 def test_astar_finds_optimal_path_on_simple_line():
     g = NavGraph()
@@ -167,10 +178,10 @@ def test_theta_star_produces_valid_and_not_longer_path():
 # Indoor Navigation
 # ============================================================================ #
 
+
 def _rect_room(room_id, x0, y0, x1, y1, room_type=RoomType.OFIS, neighbors=None):
     poly = Polygon(points=[Point2D(x0, y0), Point2D(x1, y0), Point2D(x1, y1), Point2D(x0, y1)])
-    return Room(polygon=poly, room_type=room_type.value, room_id=room_id,
-                neighbors=neighbors or [])
+    return Room(polygon=poly, room_type=room_type.value, room_id=room_id, neighbors=neighbors or [])
 
 
 def test_floor_to_nav_graph_respects_adjacency():
@@ -186,9 +197,20 @@ def test_floor_to_nav_graph_respects_adjacency():
 
 def test_indoor_navigation_connects_two_floors_via_stair():
     r1 = _rect_room(1, 0, 0, 4, 4)
-    floor0 = Floor(floor_index=0, rooms=[r1], stairs=[Stair(
-        position=Point2D(2, 2), width=1.2, run_length=3.0, step_count=15,
-        step_height=0.18, step_depth=0.28)])
+    floor0 = Floor(
+        floor_index=0,
+        rooms=[r1],
+        stairs=[
+            Stair(
+                position=Point2D(2, 2),
+                width=1.2,
+                run_length=3.0,
+                step_count=15,
+                step_height=0.18,
+                step_depth=0.28,
+            )
+        ],
+    )
     r2 = _rect_room(2, 0, 0, 4, 4)
     floor1 = Floor(floor_index=1, rooms=[r2])
 
@@ -203,10 +225,17 @@ def test_indoor_navigation_connects_two_floors_via_stair():
 def test_indoor_navigation_elevator_cheaper_than_stair():
     r1 = _rect_room(1, 0, 0, 4, 4)
     r2 = _rect_room(2, 0, 0, 4, 4)
-    stair = Stair(position=Point2D(2, 2), width=1.2, run_length=3.0,
-                   step_count=15, step_height=0.18, step_depth=0.28)
-    elevator = ElevatorCore(position=Point2D(2, 2), width=2.0, depth=2.0,
-                              shaft_top_z=3.0, shaft_bottom_z=0.0)
+    stair = Stair(
+        position=Point2D(2, 2),
+        width=1.2,
+        run_length=3.0,
+        step_count=15,
+        step_height=0.18,
+        step_depth=0.28,
+    )
+    elevator = ElevatorCore(
+        position=Point2D(2, 2), width=2.0, depth=2.0, shaft_top_z=3.0, shaft_bottom_z=0.0
+    )
 
     floor_stair = Floor(floor_index=0, rooms=[r1], stairs=[stair])
     floor_target = Floor(floor_index=1, rooms=[r2])
@@ -233,6 +262,7 @@ def test_indoor_navigation_nearest_node():
 # Crowd Simulation
 # ============================================================================ #
 
+
 def test_agent_moves_toward_goal_under_social_force():
     agent = Agent(agent_id=0, position=Point2D(0, 0), goal=Point2D(10, 0))
     model = SocialForceModel()
@@ -253,8 +283,12 @@ def test_agents_repel_each_other_and_dont_overlap():
 
 
 def test_panic_behavior_has_higher_effective_speed():
-    calm = Agent(agent_id=0, position=Point2D(0, 0), goal=Point2D(1, 0), behavior=AgentBehavior.NORMAL)
-    panicked = Agent(agent_id=1, position=Point2D(0, 0), goal=Point2D(1, 0), behavior=AgentBehavior.PANIC)
+    calm = Agent(
+        agent_id=0, position=Point2D(0, 0), goal=Point2D(1, 0), behavior=AgentBehavior.NORMAL
+    )
+    panicked = Agent(
+        agent_id=1, position=Point2D(0, 0), goal=Point2D(1, 0), behavior=AgentBehavior.PANIC
+    )
     assert panicked.effective_desired_speed() > calm.effective_desired_speed()
 
 
@@ -265,8 +299,7 @@ def test_evacuation_simulator_evacuates_agents_through_graph():
     for i in range(5):
         g.add_edge(i, i + 1)
 
-    agents = [Agent(agent_id=i, position=Point2D(0.0, 0.0), goal=Point2D(0, 0))
-              for i in range(3)]
+    agents = [Agent(agent_id=i, position=Point2D(0.0, 0.0), goal=Point2D(0, 0)) for i in range(3)]
 
     def node_of_agent(agent):
         return 0
@@ -285,9 +318,11 @@ def test_evacuation_simulator_evacuates_agents_through_graph():
 
 
 def test_occupancy_heatmap_counts_agents_per_cell():
-    agents = [Agent(agent_id=0, position=Point2D(0.5, 0.5), goal=Point2D(0, 0)),
-              Agent(agent_id=1, position=Point2D(0.6, 0.6), goal=Point2D(0, 0)),
-              Agent(agent_id=2, position=Point2D(5.5, 5.5), goal=Point2D(0, 0))]
+    agents = [
+        Agent(agent_id=0, position=Point2D(0.5, 0.5), goal=Point2D(0, 0)),
+        Agent(agent_id=1, position=Point2D(0.6, 0.6), goal=Point2D(0, 0)),
+        Agent(agent_id=2, position=Point2D(5.5, 5.5), goal=Point2D(0, 0)),
+    ]
     heatmap = OccupancyHeatmap.compute(agents, cell_size=1.0)
     assert heatmap[(0, 0)] == 2
     assert heatmap[(5, 5)] == 1
@@ -306,6 +341,7 @@ def test_spawn_random_agents_deterministic_with_seed():
 # ============================================================================ #
 # Traffic Simulation
 # ============================================================================ #
+
 
 def _straight_road_graph(length_km_nodes=10):
     g = NavGraph()
@@ -374,7 +410,12 @@ def test_traffic_simulator_arrived_count():
 
 def test_vehicle_types_have_distinct_idm_defaults():
     from harita.mobility.traffic_simulation import VEHICLE_IDM_DEFAULTS
-    assert VEHICLE_IDM_DEFAULTS[VehicleType.OTOBUS].vehicle_length > \
-           VEHICLE_IDM_DEFAULTS[VehicleType.BISIKLET].vehicle_length
-    assert VEHICLE_IDM_DEFAULTS[VehicleType.YAYA].desired_speed < \
-           VEHICLE_IDM_DEFAULTS[VehicleType.ARAC].desired_speed
+
+    assert (
+        VEHICLE_IDM_DEFAULTS[VehicleType.OTOBUS].vehicle_length
+        > VEHICLE_IDM_DEFAULTS[VehicleType.BISIKLET].vehicle_length
+    )
+    assert (
+        VEHICLE_IDM_DEFAULTS[VehicleType.YAYA].desired_speed
+        < VEHICLE_IDM_DEFAULTS[VehicleType.ARAC].desired_speed
+    )

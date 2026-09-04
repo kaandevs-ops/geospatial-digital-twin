@@ -80,19 +80,16 @@ class CoordinateConverter:
     def wgs84_to_web_mercator(point: GeoPoint) -> ProjectedPoint:
         """EPSG:4326 -> EPSG:3857"""
         x = math.radians(point.lon) * _WGS84_A
-        y = _WGS84_A * math.log(
-            math.tan(math.pi / 4 + math.radians(point.lat) / 2)
+        y = _WGS84_A * math.log(math.tan(math.pi / 4 + math.radians(point.lat) / 2))
+        return ProjectedPoint(
+            x=x, y=y, system=CoordinateSystem.WEB_MERCATOR, elevation=point.elevation
         )
-        return ProjectedPoint(x=x, y=y, system=CoordinateSystem.WEB_MERCATOR,
-                               elevation=point.elevation)
 
     @staticmethod
     def web_mercator_to_wgs84(point: ProjectedPoint) -> GeoPoint:
         """EPSG:3857 -> EPSG:4326"""
         lon = math.degrees(point.x / _WGS84_A)
-        lat = math.degrees(
-            2 * math.atan(math.exp(point.y / _WGS84_A)) - math.pi / 2
-        )
+        lat = math.degrees(2 * math.atan(math.exp(point.y / _WGS84_A)) - math.pi / 2)
         return GeoPoint(lat=lat, lon=lon, elevation=point.elevation)
 
     # ------------------------------------------------------------------ #
@@ -118,29 +115,35 @@ class CoordinateConverter:
         a = math.cos(lat) * (lon - lon0)
 
         m = _WGS84_A * (
-            (1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256) * lat
-            - (3 * e2 / 8 + 3 * e2 ** 2 / 32 + 45 * e2 ** 3 / 1024) * math.sin(2 * lat)
-            + (15 * e2 ** 2 / 256 + 45 * e2 ** 3 / 1024) * math.sin(4 * lat)
-            - (35 * e2 ** 3 / 3072) * math.sin(6 * lat)
+            (1 - e2 / 4 - 3 * e2**2 / 64 - 5 * e2**3 / 256) * lat
+            - (3 * e2 / 8 + 3 * e2**2 / 32 + 45 * e2**3 / 1024) * math.sin(2 * lat)
+            + (15 * e2**2 / 256 + 45 * e2**3 / 1024) * math.sin(4 * lat)
+            - (35 * e2**3 / 3072) * math.sin(6 * lat)
         )
 
-        easting = _K0 * n * (
-            a + (1 - t + c) * a ** 3 / 6
-            + (5 - 18 * t + t ** 2 + 72 * c - 58 * ep2) * a ** 5 / 120
-        ) + 500000.0
+        easting = (
+            _K0
+            * n
+            * (a + (1 - t + c) * a**3 / 6 + (5 - 18 * t + t**2 + 72 * c - 58 * ep2) * a**5 / 120)
+            + 500000.0
+        )
 
         northing = _K0 * (
-            m + n * math.tan(lat) * (
-                a ** 2 / 2
-                + (5 - t + 9 * c + 4 * c ** 2) * a ** 4 / 24
-                + (61 - 58 * t + t ** 2 + 600 * c - 330 * ep2) * a ** 6 / 720
+            m
+            + n
+            * math.tan(lat)
+            * (
+                a**2 / 2
+                + (5 - t + 9 * c + 4 * c**2) * a**4 / 24
+                + (61 - 58 * t + t**2 + 600 * c - 330 * ep2) * a**6 / 720
             )
         )
         if point.lat < 0:
             northing += 10_000_000.0  # güney yarımküre offseti
 
-        return ProjectedPoint(x=easting, y=northing, system=CoordinateSystem.UTM,
-                               zone=zone, elevation=point.elevation)
+        return ProjectedPoint(
+            x=easting, y=northing, system=CoordinateSystem.UTM, zone=zone, elevation=point.elevation
+        )
 
     @staticmethod
     def utm_to_wgs84(point: ProjectedPoint, northern_hemisphere: bool = True) -> GeoPoint:
@@ -155,13 +158,13 @@ class CoordinateConverter:
         y = point.y if northern_hemisphere else point.y - 10_000_000.0
 
         m = y / _K0
-        mu = m / (_WGS84_A * (1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256))
+        mu = m / (_WGS84_A * (1 - e2 / 4 - 3 * e2**2 / 64 - 5 * e2**3 / 256))
 
         phi1 = (
             mu
-            + (3 * e1 / 2 - 27 * e1 ** 3 / 32) * math.sin(2 * mu)
-            + (21 * e1 ** 2 / 16 - 55 * e1 ** 4 / 32) * math.sin(4 * mu)
-            + (151 * e1 ** 3 / 96) * math.sin(6 * mu)
+            + (3 * e1 / 2 - 27 * e1**3 / 32) * math.sin(2 * mu)
+            + (21 * e1**2 / 16 - 55 * e1**4 / 32) * math.sin(4 * mu)
+            + (151 * e1**3 / 96) * math.sin(6 * mu)
         )
 
         n1 = _WGS84_A / math.sqrt(1 - e2 * math.sin(phi1) ** 2)
@@ -171,19 +174,18 @@ class CoordinateConverter:
         d = x / (n1 * _K0)
 
         lat = phi1 - (n1 * math.tan(phi1) / r1) * (
-            d ** 2 / 2
-            - (5 + 3 * t1 + 10 * c1 - 4 * c1 ** 2 - 9 * ep2) * d ** 4 / 24
-            + (61 + 90 * t1 + 298 * c1 + 45 * t1 ** 2 - 252 * ep2 - 3 * c1 ** 2) * d ** 6 / 720
+            d**2 / 2
+            - (5 + 3 * t1 + 10 * c1 - 4 * c1**2 - 9 * ep2) * d**4 / 24
+            + (61 + 90 * t1 + 298 * c1 + 45 * t1**2 - 252 * ep2 - 3 * c1**2) * d**6 / 720
         )
         lon0 = math.radians(-183 + point.zone * 6)
         lon = lon0 + (
             d
-            - (1 + 2 * t1 + c1) * d ** 3 / 6
-            + (5 - 2 * c1 + 28 * t1 - 3 * c1 ** 2 + 8 * ep2 + 24 * t1 ** 2) * d ** 5 / 120
+            - (1 + 2 * t1 + c1) * d**3 / 6
+            + (5 - 2 * c1 + 28 * t1 - 3 * c1**2 + 8 * ep2 + 24 * t1**2) * d**5 / 120
         ) / math.cos(phi1)
 
-        return GeoPoint(lat=math.degrees(lat), lon=math.degrees(lon),
-                         elevation=point.elevation)
+        return GeoPoint(lat=math.degrees(lat), lon=math.degrees(lon), elevation=point.elevation)
 
     # ------------------------------------------------------------------ #
     # Local coordinate system (küçük ölçek - bina/sahne modellemesi)
@@ -198,8 +200,9 @@ class CoordinateConverter:
         lat0 = math.radians(origin.lat)
         dx = math.radians(point.lon - origin.lon) * _WGS84_A * math.cos(lat0)
         dy = math.radians(point.lat - origin.lat) * _WGS84_A
-        return ProjectedPoint(x=dx, y=dy, system=CoordinateSystem.LOCAL,
-                               elevation=point.elevation - origin.elevation)
+        return ProjectedPoint(
+            x=dx, y=dy, system=CoordinateSystem.LOCAL, elevation=point.elevation - origin.elevation
+        )
 
     @staticmethod
     def local_to_wgs84(point: ProjectedPoint, origin: GeoPoint) -> GeoPoint:
@@ -217,8 +220,7 @@ class CoordinateConverter:
         phi1, phi2 = math.radians(a.lat), math.radians(b.lat)
         dphi = math.radians(b.lat - a.lat)
         dlambda = math.radians(b.lon - a.lon)
-        h = (math.sin(dphi / 2) ** 2
-             + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2)
+        h = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
         return 2 * r * math.asin(math.sqrt(h))
 
     @staticmethod
@@ -227,8 +229,7 @@ class CoordinateConverter:
         phi1, phi2 = math.radians(a.lat), math.radians(b.lat)
         dlambda = math.radians(b.lon - a.lon)
         x = math.sin(dlambda) * math.cos(phi2)
-        y = (math.cos(phi1) * math.sin(phi2)
-             - math.sin(phi1) * math.cos(phi2) * math.cos(dlambda))
+        y = math.cos(phi1) * math.sin(phi2) - math.sin(phi1) * math.cos(phi2) * math.cos(dlambda)
         return (math.degrees(math.atan2(x, y)) + 360.0) % 360.0
 
     # ------------------------------------------------------------------ #
@@ -282,7 +283,7 @@ class CoordinateConverter:
         return f"WGS 84 / UTM zone {zone}{'N' if north else 'S'}"
 
     @staticmethod
-    def to_wgs84_epsg(point: "ProjectedPoint | GeoPoint", source_epsg: int) -> GeoPoint:
+    def to_wgs84_epsg(point: ProjectedPoint | GeoPoint, source_epsg: int) -> GeoPoint:
         """Herhangi bir kayıtlı EPSG kaynağından WGS84'e (EPSG:4326) dönüşüm."""
         if source_epsg == CoordinateConverter.EPSG_WGS84:
             if not isinstance(point, GeoPoint):
@@ -297,13 +298,12 @@ class CoordinateConverter:
             raise ValueError(f"EPSG:{source_epsg} kaynağı için ProjectedPoint bekleniyor")
         if point.zone != zone:
             raise ValueError(
-                f"ProjectedPoint.zone ({point.zone}) EPSG:{source_epsg} "
-                f"(zone {zone}) ile uyuşmuyor"
+                f"ProjectedPoint.zone ({point.zone}) EPSG:{source_epsg} (zone {zone}) ile uyuşmuyor"
             )
         return CoordinateConverter.utm_to_wgs84(point, northern_hemisphere=north)
 
     @staticmethod
-    def from_wgs84_epsg(point: GeoPoint, target_epsg: int) -> "ProjectedPoint | GeoPoint":
+    def from_wgs84_epsg(point: GeoPoint, target_epsg: int) -> ProjectedPoint | GeoPoint:
         """WGS84'ten (EPSG:4326) herhangi bir kayıtlı hedef EPSG'ye dönüşüm."""
         if target_epsg == CoordinateConverter.EPSG_WGS84:
             return point
@@ -320,8 +320,8 @@ class CoordinateConverter:
 
     @staticmethod
     def transform_epsg(
-        point: "ProjectedPoint | GeoPoint", source_epsg: int, target_epsg: int
-    ) -> "ProjectedPoint | GeoPoint":
+        point: ProjectedPoint | GeoPoint, source_epsg: int, target_epsg: int
+    ) -> ProjectedPoint | GeoPoint:
         """Genel EPSG->EPSG dönüşümü (WGS84 kayıtlı EPSG ailesi <-> Web
         Mercator <-> UTM). Her zaman WGS84 ara adımından geçer; bilinmeyen
         bir EPSG kodu ile karşılaşılırsa `ValueError` fırlatılır (sessiz/

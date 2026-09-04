@@ -62,8 +62,9 @@ import json
 import os
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 __all__ = [
     "LLMProvider",
@@ -98,7 +99,7 @@ class LLMCallError(RuntimeError):
 class LLMProvider(Protocol):
     """Tum LLM saglayicilarinin uydugu ortak, gorev-bagimsiz arayuz."""
 
-    def complete(self, prompt: str, system: Optional[str] = None) -> str:
+    def complete(self, prompt: str, system: str | None = None) -> str:
         """`prompt` (+ opsiyonel `system` talimati) icin duz-metin yanit
         dondurur. Kurulu/yapilandirilmis degilse `ProviderUnavailableError`,
         cagri basarisiz olursa `LLMCallError` firlatir."""
@@ -109,6 +110,7 @@ class LLMProvider(Protocol):
 # 1) GGUF (yerel, llama-cpp-python)
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class GGUFConfig:
     model_path: str
@@ -116,7 +118,7 @@ class GGUFConfig:
     n_gpu_layers: int = 0
     temperature: float = 0.2
     max_tokens: int = 512
-    chat_format: Optional[str] = None  # None -> llama-cpp-python kendi tahminine birakir
+    chat_format: str | None = None  # None -> llama-cpp-python kendi tahminine birakir
 
 
 class GGUFProvider:
@@ -171,7 +173,7 @@ class GGUFProvider:
             raise LLMCallError(f"GGUF modeli yuklenemedi: {exc}") from exc
         return self._llm
 
-    def complete(self, prompt: str, system: Optional[str] = None) -> str:
+    def complete(self, prompt: str, system: str | None = None) -> str:
         llm = self._ensure_loaded()
         messages = []
         if system:
@@ -188,14 +190,13 @@ class GGUFProvider:
         try:
             return response["choices"][0]["message"]["content"] or ""
         except (KeyError, IndexError, TypeError) as exc:
-            raise LLMCallError(
-                f"GGUF yaniti beklenmeyen sekilde: {response!r}"
-            ) from exc
+            raise LLMCallError(f"GGUF yaniti beklenmeyen sekilde: {response!r}") from exc
 
 
 # ============================================================================ #
 # 2) OpenAI-uyumlu HTTP API (OpenAI, Azure, Groq, Together, yerel sunucular, ...)
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class OpenAICompatibleConfig:
@@ -225,7 +226,7 @@ class OpenAICompatibleProvider:
         self,
         config: OpenAICompatibleConfig,
         *,
-        opener: Optional[Callable[[urllib.request.Request, float], Any]] = None,
+        opener: Callable[[urllib.request.Request, float], Any] | None = None,
     ) -> None:
         self._config = config
         self._opener = opener or _default_opener
@@ -234,7 +235,7 @@ class OpenAICompatibleProvider:
     def is_available(self) -> bool:
         return bool(self._config.api_key)
 
-    def complete(self, prompt: str, system: Optional[str] = None) -> str:
+    def complete(self, prompt: str, system: str | None = None) -> str:
         if not self._config.api_key:
             raise ProviderUnavailableError(
                 "OpenAI-uyumlu saglayici icin api_key tanimli degil "
@@ -275,6 +276,7 @@ class OpenAICompatibleProvider:
 # 3) Anthropic Messages API
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class AnthropicConfig:
     api_key: str
@@ -295,7 +297,7 @@ class AnthropicProvider:
         self,
         config: AnthropicConfig,
         *,
-        opener: Optional[Callable[[urllib.request.Request, float], Any]] = None,
+        opener: Callable[[urllib.request.Request, float], Any] | None = None,
     ) -> None:
         self._config = config
         self._opener = opener or _default_opener
@@ -304,7 +306,7 @@ class AnthropicProvider:
     def is_available(self) -> bool:
         return bool(self._config.api_key)
 
-    def complete(self, prompt: str, system: Optional[str] = None) -> str:
+    def complete(self, prompt: str, system: str | None = None) -> str:
         if not self._config.api_key:
             raise ProviderUnavailableError(
                 "Anthropic saglayicisi icin api_key tanimli degil "
@@ -332,8 +334,7 @@ class AnthropicProvider:
             body = json.loads(raw_body)
             blocks = body.get("content", [])
             text_parts = [
-                b.get("text", "") for b in blocks
-                if isinstance(b, dict) and b.get("type") == "text"
+                b.get("text", "") for b in blocks if isinstance(b, dict) and b.get("type") == "text"
             ]
             return "".join(text_parts)
         except (json.JSONDecodeError, AttributeError, TypeError) as exc:
@@ -364,28 +365,34 @@ def create_provider_from_config(config: dict) -> LLMProvider:
         model_path = config.get("model_path", "")
         if not model_path:
             raise InvalidProviderConfigError("gguf icin model_path zorunlu.")
-        return GGUFProvider(GGUFConfig(
-            model_path=model_path,
-            n_ctx=int(config.get("n_ctx", 4096)),
-            n_gpu_layers=int(config.get("n_gpu_layers", 0)),
-        ))
+        return GGUFProvider(
+            GGUFConfig(
+                model_path=model_path,
+                n_ctx=int(config.get("n_ctx", 4096)),
+                n_gpu_layers=int(config.get("n_gpu_layers", 0)),
+            )
+        )
     if backend == "openai":
         api_key = config.get("api_key", "")
         if not api_key:
             raise InvalidProviderConfigError("openai icin api_key zorunlu.")
-        return OpenAICompatibleProvider(OpenAICompatibleConfig(
-            api_key=api_key,
-            base_url=config.get("base_url", "https://api.openai.com/v1"),
-            model=config.get("model", "gpt-4o-mini"),
-        ))
+        return OpenAICompatibleProvider(
+            OpenAICompatibleConfig(
+                api_key=api_key,
+                base_url=config.get("base_url", "https://api.openai.com/v1"),
+                model=config.get("model", "gpt-4o-mini"),
+            )
+        )
     if backend == "anthropic":
         api_key = config.get("api_key", "")
         if not api_key:
             raise InvalidProviderConfigError("anthropic icin api_key zorunlu.")
-        return AnthropicProvider(AnthropicConfig(
-            api_key=api_key,
-            model=config.get("model", "claude-sonnet-4-6"),
-        ))
+        return AnthropicProvider(
+            AnthropicConfig(
+                api_key=api_key,
+                model=config.get("model", "claude-sonnet-4-6"),
+            )
+        )
     raise InvalidProviderConfigError(
         f"Bilinmeyen backend: {backend!r} (gguf|openai|anthropic olmali)."
     )
@@ -411,7 +418,8 @@ def _perform_request(
 # Ortam-tabanli fabrika
 # ============================================================================ #
 
-def create_provider_from_env(env: Optional[dict] = None) -> Optional[LLMProvider]:
+
+def create_provider_from_env(env: dict | None = None) -> LLMProvider | None:
     """`HARITA_LLM_BACKEND` ortam degiskenine gore uygun saglayiciyi
     olusturur. Tanimsiz/"none" ise `None` doner (cagiran taraf kural
     tabanli/heuristic davranisa duser).
@@ -427,24 +435,30 @@ def create_provider_from_env(env: Optional[dict] = None) -> Optional[LLMProvider
 
     if backend == "gguf":
         model_path = e.get("HARITA_GGUF_MODEL_PATH", "")
-        return GGUFProvider(GGUFConfig(
-            model_path=model_path,
-            n_ctx=int(e.get("HARITA_GGUF_N_CTX", "4096")),
-            n_gpu_layers=int(e.get("HARITA_GGUF_N_GPU_LAYERS", "0")),
-        ))
+        return GGUFProvider(
+            GGUFConfig(
+                model_path=model_path,
+                n_ctx=int(e.get("HARITA_GGUF_N_CTX", "4096")),
+                n_gpu_layers=int(e.get("HARITA_GGUF_N_GPU_LAYERS", "0")),
+            )
+        )
 
     if backend == "openai":
-        return OpenAICompatibleProvider(OpenAICompatibleConfig(
-            api_key=e.get("OPENAI_API_KEY", ""),
-            base_url=e.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-            model=e.get("OPENAI_MODEL", "gpt-4o-mini"),
-        ))
+        return OpenAICompatibleProvider(
+            OpenAICompatibleConfig(
+                api_key=e.get("OPENAI_API_KEY", ""),
+                base_url=e.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+                model=e.get("OPENAI_MODEL", "gpt-4o-mini"),
+            )
+        )
 
     if backend == "anthropic":
-        return AnthropicProvider(AnthropicConfig(
-            api_key=e.get("ANTHROPIC_API_KEY", ""),
-            model=e.get("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
-        ))
+        return AnthropicProvider(
+            AnthropicConfig(
+                api_key=e.get("ANTHROPIC_API_KEY", ""),
+                model=e.get("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
+            )
+        )
 
     raise ValueError(
         f"Bilinmeyen HARITA_LLM_BACKEND={backend!r}. "
@@ -487,7 +501,7 @@ def intent_llm_fn(
     def _fn(fragment: str) -> list[dict]:
         try:
             raw_text = provider.complete(fragment, system=system_prompt)
-        except (ProviderUnavailableError, LLMCallError) as exc:
+        except (ProviderUnavailableError, LLMCallError):
             if raise_on_error:
                 raise
             return []
@@ -525,7 +539,7 @@ def make_fixed_provider(responses: dict) -> LLMProvider:
     bos JSON listesi metni ("[]") doner."""
 
     class _FixedProvider:
-        def complete(self, prompt: str, system: Optional[str] = None) -> str:
+        def complete(self, prompt: str, system: str | None = None) -> str:
             return responses.get(prompt.strip(), "[]")
 
     return _FixedProvider()

@@ -54,20 +54,28 @@ _ROOF_TYPE_TO_MATERIAL: dict[RoofType, FacadeMaterial] = {
 # building_type -> her SurfaceClass için en olası FacadeMaterial.
 _TYPE_SURFACE_MATERIALS: dict[str, dict[SurfaceClass, FacadeMaterial]] = {
     "office": {
-        SurfaceClass.DUVAR: FacadeMaterial.BETON, SurfaceClass.CAM: FacadeMaterial.CAM,
-        SurfaceClass.METAL: FacadeMaterial.METAL, SurfaceClass.YUZEY: FacadeMaterial.KOMPOZIT,
+        SurfaceClass.DUVAR: FacadeMaterial.BETON,
+        SurfaceClass.CAM: FacadeMaterial.CAM,
+        SurfaceClass.METAL: FacadeMaterial.METAL,
+        SurfaceClass.YUZEY: FacadeMaterial.KOMPOZIT,
     },
     "house": {
-        SurfaceClass.DUVAR: FacadeMaterial.TAS, SurfaceClass.CAM: FacadeMaterial.CAM,
-        SurfaceClass.METAL: FacadeMaterial.METAL, SurfaceClass.YUZEY: FacadeMaterial.AHSAP,
+        SurfaceClass.DUVAR: FacadeMaterial.TAS,
+        SurfaceClass.CAM: FacadeMaterial.CAM,
+        SurfaceClass.METAL: FacadeMaterial.METAL,
+        SurfaceClass.YUZEY: FacadeMaterial.AHSAP,
     },
     "industrial": {
-        SurfaceClass.DUVAR: FacadeMaterial.ENDUSTRIYEL, SurfaceClass.CAM: FacadeMaterial.CAM,
-        SurfaceClass.METAL: FacadeMaterial.METAL, SurfaceClass.YUZEY: FacadeMaterial.BETON,
+        SurfaceClass.DUVAR: FacadeMaterial.ENDUSTRIYEL,
+        SurfaceClass.CAM: FacadeMaterial.CAM,
+        SurfaceClass.METAL: FacadeMaterial.METAL,
+        SurfaceClass.YUZEY: FacadeMaterial.BETON,
     },
     "_default": {
-        SurfaceClass.DUVAR: FacadeMaterial.BETON, SurfaceClass.CAM: FacadeMaterial.CAM,
-        SurfaceClass.METAL: FacadeMaterial.METAL, SurfaceClass.YUZEY: FacadeMaterial.KOMPOZIT,
+        SurfaceClass.DUVAR: FacadeMaterial.BETON,
+        SurfaceClass.CAM: FacadeMaterial.CAM,
+        SurfaceClass.METAL: FacadeMaterial.METAL,
+        SurfaceClass.YUZEY: FacadeMaterial.KOMPOZIT,
     },
 }
 
@@ -82,7 +90,8 @@ class MaterialHeuristicPredictor:
         if surface == SurfaceClass.CATI:
             roof_type = features.get("roof_type")
             material = _ROOF_TYPE_TO_MATERIAL.get(
-                RoofType(roof_type) if roof_type else RoofType.FLAT, FacadeMaterial.BETON,
+                RoofType(roof_type) if roof_type else RoofType.FLAT,
+                FacadeMaterial.BETON,
             )
             confidence = 0.7 if roof_type else 0.4
         else:
@@ -118,7 +127,9 @@ class AIMaterialPredictor:
         )
 
     def predict_all_surfaces(
-        self, building_type: str | None = None, roof_type: RoofType | None = None,
+        self,
+        building_type: str | None = None,
+        roof_type: RoofType | None = None,
     ) -> dict[SurfaceClass, MaterialPrediction]:
         return {
             sc: self.predict(sc, building_type=building_type, roof_type=roof_type)

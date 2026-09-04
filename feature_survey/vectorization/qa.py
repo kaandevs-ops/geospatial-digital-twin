@@ -19,8 +19,6 @@ sağlar:
 
 from __future__ import annotations
 
-import math
-
 
 class QAError(ValueError):
     pass
@@ -51,9 +49,7 @@ def _point_in_polygon(x: float, y: float, coords: list[tuple[float, float]]) -> 
     x1, y1 = coords[-1][0], coords[-1][1]
     for i in range(n):
         x2, y2 = coords[i][0], coords[i][1]
-        if ((y2 > y) != (y1 > y)) and (
-            x < (x1 - x2) * (y - y2) / (y1 - y2 + 1e-15) + x2
-        ):
+        if ((y2 > y) != (y1 > y)) and (x < (x1 - x2) * (y - y2) / (y1 - y2 + 1e-15) + x2):
             inside = not inside
         x1, y1 = x2, y2
     return inside

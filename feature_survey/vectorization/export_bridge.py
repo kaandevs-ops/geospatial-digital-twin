@@ -59,8 +59,9 @@ def export_linework_svg(features: list[VectorFeature], path: str, margin: float 
 
     for f in features:
         color = _CATEGORY_COLOR.get(f.code.category.value, "#7f8c8d")
-        style = SVGStyle(stroke=color, stroke_width=1.5,
-                          fill="none" if f.kind != "Polygon" else color + "22")
+        style = SVGStyle(
+            stroke=color, stroke_width=1.5, fill="none" if f.kind != "Polygon" else color + "22"
+        )
         points_2d = [_to_svg((c[0], c[1])) for c in f.coordinates]
         if f.kind == "Point":
             canvas.circle(points_2d[0][0], points_2d[0][1], 2.0, style)

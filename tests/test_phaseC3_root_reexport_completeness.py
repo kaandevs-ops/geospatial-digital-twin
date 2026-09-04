@@ -14,6 +14,7 @@ Bu test dosyası iki şeyi doğrular:
    `harita.__all__` içinde bulunur - gelecekte yeni bir faz eklenip
    re-export'un unutulması durumunda bu test kırmızı olur.
 """
+
 from __future__ import annotations
 
 import os
@@ -58,7 +59,11 @@ EXPECTED_AT_LEAST_ONE = {
     "performance": {"TaskScheduler", "GPUProfiler"},
     "extensibility": {"ModuleManager", "PluginManager"},
     "building_reconstruction": {"FootprintParser", "ProceduralBuildingGenerator", "RoofGenerator"},
-    "ai_reconstruction": {"HeightRegressionModel", "MLAssistedHeightPredictor", "AIBuildingAnalyzer"},
+    "ai_reconstruction": {
+        "HeightRegressionModel",
+        "MLAssistedHeightPredictor",
+        "AIBuildingAnalyzer",
+    },
     "persistence": {"ProjectManager", "ProjectDatabase"},
     "render_engine": {"Scene", "scene_from_meshes"},
     "app_shell": {"AppSession", "build_app_router"},
@@ -90,8 +95,7 @@ def test_expected_map_covers_every_discovered_subpackage():
     discovered = _top_level_subpackages()
     missing = discovered - set(EXPECTED_AT_LEAST_ONE)
     assert not missing, (
-        f"Yeni alt paket(ler) bulundu ama EXPECTED_AT_LEAST_ONE haritasına "
-        f"eklenmemiş: {missing}"
+        f"Yeni alt paket(ler) bulundu ama EXPECTED_AT_LEAST_ONE haritasına eklenmemiş: {missing}"
     )
 
 
@@ -113,20 +117,20 @@ def test_roadmap_v4_c3_example_import_line_works():
     """Roadmap V4/C3'ün kendi kabul kriteri örneği: tek bir import satırı,
     hiçbir alt paket yolu bilmeden çalışmalı."""
     from harita import (
-        ProceduralBuildingGenerator,
-        FootprintParser,
-        RoofGenerator,
-        FacadeGenerator,
-        RoomGenerator,
-        HeightRegressionModel,
-        MLAssistedHeightPredictor,
-        ProjectManager,
-        ProjectDatabase,
-        Scene,
         AppSession,
         AuthService,
-        CRDTBuildingState,
         CollaborationHub,
+        CRDTBuildingState,
+        FacadeGenerator,
+        FootprintParser,
+        HeightRegressionModel,
+        MLAssistedHeightPredictor,
+        ProceduralBuildingGenerator,
+        ProjectDatabase,
+        ProjectManager,
+        RoofGenerator,
+        RoomGenerator,
+        Scene,
     )
 
     assert ProceduralBuildingGenerator is not None
@@ -150,9 +154,9 @@ def test_no_name_collisions_with_existing_exports():
     yaşanmaması için building_reconstruction.Floor/render_engine.SceneNode
     takma adlarla (`BuildingFloor`/`RenderSceneNode`) eklendi - bu test
     orijinal isimlerin hâlâ doğru alt pakete işaret ettiğini doğrular."""
-    from harita.mobility import Floor as MobilityFloor
-    from harita.editor import SceneNode as EditorSceneNode
     from harita.building_reconstruction import Floor as BRFloor
+    from harita.editor import SceneNode as EditorSceneNode
+    from harita.mobility import Floor as MobilityFloor
     from harita.render_engine import SceneNode as RenderEngineSceneNode
 
     assert harita.Floor is MobilityFloor

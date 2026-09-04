@@ -5,7 +5,15 @@ from __future__ import annotations
 import math
 
 import pytest
-
+from harita.feature_survey.geodetic_engine.datum_transform import (
+    geocentric_to_geodetic,
+    geodetic_to_geocentric,
+    orthometric_height,
+)
+from harita.feature_survey.geodetic_engine.gnss_adjustment import (
+    compare_to_control_point,
+    rmse_from_differences,
+)
 from harita.feature_survey.geodetic_engine.reduction import (
     InsufficientDataError,
     ReducedObservation,
@@ -18,15 +26,6 @@ from harita.feature_survey.geodetic_engine.traverse import (
     compute_linear_closure,
     transit_adjustment,
 )
-from harita.feature_survey.geodetic_engine.gnss_adjustment import (
-    compare_to_control_point,
-    rmse_from_differences,
-)
-from harita.feature_survey.geodetic_engine.datum_transform import (
-    geocentric_to_geodetic,
-    geodetic_to_geocentric,
-    orthometric_height,
-)
 
 WGS84_A = 6378137.0
 WGS84_F = 1 / 298.257223563
@@ -35,9 +34,13 @@ WGS84_F = 1 / 298.257223563
 def test_reduce_observation_flat_sight():
     # Zenit açısı 100 gon = 90 derece (yatay gözlem) -> tüm mesafe yataydır.
     obs = reduce_observation(
-        "P1", slope_distance_m=100.0, zenith_angle_gon=100.0,
-        horizontal_angle_gon=0.0, backsight_bearing_gon=0.0,
-        instrument_height_m=1.5, target_height_m=1.5,
+        "P1",
+        slope_distance_m=100.0,
+        zenith_angle_gon=100.0,
+        horizontal_angle_gon=0.0,
+        backsight_bearing_gon=0.0,
+        instrument_height_m=1.5,
+        target_height_m=1.5,
     )
     assert obs.horizontal_distance_m == pytest.approx(100.0)
     assert obs.delta_elevation_m == pytest.approx(0.0, abs=1e-9)
@@ -48,9 +51,13 @@ def test_reduce_observation_flat_sight():
 def test_reduce_observation_missing_data_raises():
     with pytest.raises(InsufficientDataError):
         reduce_observation(
-            "P1", slope_distance_m=None, zenith_angle_gon=100.0,
-            horizontal_angle_gon=0.0, backsight_bearing_gon=0.0,
-            instrument_height_m=1.5, target_height_m=1.5,
+            "P1",
+            slope_distance_m=None,
+            zenith_angle_gon=100.0,
+            horizontal_angle_gon=0.0,
+            backsight_bearing_gon=0.0,
+            instrument_height_m=1.5,
+            target_height_m=1.5,
         )
 
 

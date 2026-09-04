@@ -7,11 +7,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.data_engine.spatial_index import AABB3D
-from harita.mesh_engine import Mesh3D, Vertex3D
-from harita.visualization.camera_rig import Camera
-
+from harita.mesh_engine import Vertex3D
 from harita.performance import (
     AssetDependencyManager,
     AsyncAssetLoader,
@@ -31,11 +28,12 @@ from harita.performance import (
     TaskScheduler,
     TextureAtlas,
 )
-
+from harita.visualization.camera_rig import Camera
 
 # ============================================================================ #
 # task_scheduler.py
 # ============================================================================ #
+
 
 class TestTaskScheduler:
     def test_runs_task_and_returns_result(self):
@@ -119,6 +117,7 @@ class TestAsyncAssetLoader:
 # culling.py
 # ============================================================================ #
 
+
 class TestFrustumCulling:
     def test_object_in_front_is_visible(self):
         camera = Camera(position=(0, 0, 0), target=(0, 0, -1), fov_deg=90.0)
@@ -167,25 +166,31 @@ class TestOcclusionCulling:
 
 class TestLODManager:
     def test_selects_highest_detail_when_close(self):
-        manager = LODManager([
-            LODLevel(max_distance=10, mesh_key="high"),
-            LODLevel(max_distance=50, mesh_key="medium"),
-            LODLevel(max_distance=200, mesh_key="low"),
-        ])
+        manager = LODManager(
+            [
+                LODLevel(max_distance=10, mesh_key="high"),
+                LODLevel(max_distance=50, mesh_key="medium"),
+                LODLevel(max_distance=200, mesh_key="low"),
+            ]
+        )
         assert manager.select(5).mesh_key == "high"
 
     def test_selects_lowest_detail_beyond_max(self):
-        manager = LODManager([
-            LODLevel(max_distance=10, mesh_key="high"),
-            LODLevel(max_distance=50, mesh_key="medium"),
-        ])
+        manager = LODManager(
+            [
+                LODLevel(max_distance=10, mesh_key="high"),
+                LODLevel(max_distance=50, mesh_key="medium"),
+            ]
+        )
         assert manager.select(500).mesh_key == "medium"
 
     def test_select_mesh_key_uses_distance(self):
-        manager = LODManager([
-            LODLevel(max_distance=10, mesh_key="high"),
-            LODLevel(max_distance=100, mesh_key="low"),
-        ])
+        manager = LODManager(
+            [
+                LODLevel(max_distance=10, mesh_key="high"),
+                LODLevel(max_distance=100, mesh_key="low"),
+            ]
+        )
         assert manager.select_mesh_key((0, 0, 0), (5, 0, 0)) == "high"
         assert manager.select_mesh_key((0, 0, 0), (50, 0, 0)) == "low"
 
@@ -208,6 +213,7 @@ class TestSpatialPartitioning:
 # ============================================================================ #
 # streaming.py
 # ============================================================================ #
+
 
 class TestIncrementalMeshGenerator:
     def test_yields_expected_chunk_count(self):
@@ -271,6 +277,7 @@ class TestInstancingBatch:
 # ============================================================================ #
 # profiler.py
 # ============================================================================ #
+
 
 class TestCPUProfiler:
     def test_measures_block_duration(self):

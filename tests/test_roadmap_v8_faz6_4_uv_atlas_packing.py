@@ -22,6 +22,7 @@ opt-in parametresinin (AO baking ile aynı desen, Faz 6.4 ilk yarısı) dört
    durumda çökme olmuyor, güvenli şekilde normal birleştirme yoluna
    düşüyor.
 """
+
 from __future__ import annotations
 
 from harita.building_reconstruction.footprint_parser import Footprint
@@ -33,9 +34,14 @@ from harita.core_engine.geometry_engine import Point2D, Polygon
 
 
 def _rect_footprint(w: float = 20.0, d: float = 15.0) -> Footprint:
-    poly = Polygon(points=[
-        Point2D(0.0, 0.0), Point2D(w, 0.0), Point2D(w, d), Point2D(0.0, d),
-    ])
+    poly = Polygon(
+        points=[
+            Point2D(0.0, 0.0),
+            Point2D(w, 0.0),
+            Point2D(w, d),
+            Point2D(0.0, d),
+        ]
+    )
     return Footprint(polygon=poly)
 
 
@@ -75,8 +81,12 @@ class TestGeometryPreservation:
         building = _generate_building()
         mesh_plain_uv = building.full_mesh(generate_uvs=True, texture_size_m=2.0)
         mesh_atlas_uv = building.full_mesh(
-            generate_uvs=True, texture_size_m=2.0, pack_uv_atlas=True,
-            atlas_texture_px=256, atlas_width_px=2048, atlas_height_px=2048,
+            generate_uvs=True,
+            texture_size_m=2.0,
+            pack_uv_atlas=True,
+            atlas_texture_px=256,
+            atlas_width_px=2048,
+            atlas_height_px=2048,
         )
         assert len(mesh_plain_uv.triangles) == len(mesh_atlas_uv.triangles)
         assert len(mesh_plain_uv.vertices) == len(mesh_atlas_uv.vertices)
@@ -84,7 +94,9 @@ class TestGeometryPreservation:
     def test_atlas_mesh_has_uvs_on_every_vertex(self):
         building = _generate_building()
         mesh = building.full_mesh(
-            generate_uvs=True, pack_uv_atlas=True, atlas_texture_px=256,
+            generate_uvs=True,
+            pack_uv_atlas=True,
+            atlas_texture_px=256,
         )
         assert all(v.uv is not None for v in mesh.vertices)
 
@@ -93,8 +105,12 @@ class TestAtlasPacking:
     def test_uvs_stay_within_unit_square(self):
         building = _generate_building()
         mesh = building.full_mesh(
-            generate_uvs=True, texture_size_m=2.0, pack_uv_atlas=True,
-            atlas_texture_px=256, atlas_width_px=1024, atlas_height_px=1024,
+            generate_uvs=True,
+            texture_size_m=2.0,
+            pack_uv_atlas=True,
+            atlas_texture_px=256,
+            atlas_width_px=1024,
+            atlas_height_px=1024,
         )
         for v in mesh.vertices:
             u, w = v.uv
@@ -105,8 +121,12 @@ class TestAtlasPacking:
         building = _generate_building()
         # Bu bina en az facade + roof içerir (2+ parça garanti).
         mesh = building.full_mesh(
-            generate_uvs=True, texture_size_m=2.0, pack_uv_atlas=True,
-            atlas_texture_px=256, atlas_width_px=1024, atlas_height_px=1024,
+            generate_uvs=True,
+            texture_size_m=2.0,
+            pack_uv_atlas=True,
+            atlas_texture_px=256,
+            atlas_width_px=1024,
+            atlas_height_px=1024,
         )
         u_values = {round(v.uv[0], 6) for v in mesh.vertices}
         w_values = {round(v.uv[1], 6) for v in mesh.vertices}
@@ -119,7 +139,9 @@ class TestAtlasPacking:
         # asıl amacı belgeliyor (tek doku sayfası + tek malzeme).
         building = _generate_building()
         mesh_atlas = building.full_mesh(
-            generate_uvs=True, pack_uv_atlas=True, atlas_texture_px=256,
+            generate_uvs=True,
+            pack_uv_atlas=True,
+            atlas_texture_px=256,
         )
         assert mesh_atlas.triangle_count() > 0
 

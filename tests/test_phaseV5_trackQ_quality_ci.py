@@ -22,8 +22,8 @@ _SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-import quality_dashboard as qd  # noqa: E402
 import perf_regression_gate as prg  # noqa: E402
+import quality_dashboard as qd  # noqa: E402
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _WORKFLOW_PATH = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "quality_ci.yml"
@@ -33,14 +33,18 @@ _WORKFLOW_PATH = Path(__file__).resolve().parents[1] / ".github" / "workflows" /
 # Q2 - quality_dashboard.py
 # ---------------------------------------------------------------------- #
 
+
 class TestQualityDashboard:
     def test_snapshot_covers_all_demo_cases(self):
         snapshot = qd.run_dashboard_snapshot()
         assert snapshot["case_count"] == 5  # visual_regression._DEMO_CASES ile aynı sayı
         names = {c["name"] for c in snapshot["cases"]}
         assert names == {
-            "dikdortgen_apartman", "l_sekli_ofis", "u_sekli_okul",
-            "duzensiz_villa", "kare_depo",
+            "dikdortgen_apartman",
+            "l_sekli_ofis",
+            "u_sekli_okul",
+            "duzensiz_villa",
+            "kare_depo",
         }
 
     def test_snapshot_is_json_serializable(self):
@@ -92,6 +96,7 @@ class TestQualityDashboard:
 # ---------------------------------------------------------------------- #
 # Q3 - perf_regression_gate.py
 # ---------------------------------------------------------------------- #
+
 
 class TestPerfRegressionGate:
     def test_measure_current_returns_expected_keys(self):
@@ -160,6 +165,7 @@ class TestPerfRegressionGate:
 # ---------------------------------------------------------------------- #
 # Q1 - CI workflow tanımı
 # ---------------------------------------------------------------------- #
+
 
 class TestQualityCIWorkflow:
     def test_workflow_file_exists(self):

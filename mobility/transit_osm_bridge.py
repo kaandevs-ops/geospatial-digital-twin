@@ -27,6 +27,7 @@ sözünde bıraktığı "iskelet" ölçeğinde) basit en-yakın-komşu sıralama
 **tahmini olarak** kurar ve bunu sonuçta `is_estimated_sequence=True` ile
 açıkça işaretler - sessizce gerçek güzergah gibi sunulmaz.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -37,13 +38,15 @@ from .transit_simulation import TransitLine, TransitStop
 
 #: Roadmap 3.2 durak kategorileri - hepsi `osm_client.DEFAULT_CATEGORIES`'te
 #: zaten mevcut (Faz 2.1 + Faz VI eklemesi), yeni kategori icat edilmedi.
-TRANSIT_STOP_CATEGORY_KEYS: frozenset[str] = frozenset({
-    "bus_stop",
-    "bus_station",
-    "railway_station",
-    "subway_entrance",
-    "transit_stop_position",
-})
+TRANSIT_STOP_CATEGORY_KEYS: frozenset[str] = frozenset(
+    {
+        "bus_stop",
+        "bus_station",
+        "railway_station",
+        "subway_entrance",
+        "transit_stop_position",
+    }
+)
 
 
 def build_transit_stops(collection: GeoFeatureCollection) -> list[TransitStop]:
@@ -101,7 +104,10 @@ class EstimatedTransitLine:
 
 
 def estimate_line_from_stops(
-    line_id: str, stops: list[TransitStop], *, start_stop_id: str | None = None,
+    line_id: str,
+    stops: list[TransitStop],
+    *,
+    start_stop_id: str | None = None,
 ) -> EstimatedTransitLine:
     """En-yakın-komşu (greedy nearest-neighbour) sıralamasıyla bir durak
     kümesinden tahmini hat sırası üretir. Gerçek güzergah topolojisi
@@ -137,7 +143,9 @@ def _distance(a: Point2D, b: Point2D) -> float:
 
 
 def hourly_occupancy_report(
-    vehicle_occupancy_samples: list[tuple[float, int, int]], *, dense_threshold: float = 0.75,
+    vehicle_occupancy_samples: list[tuple[float, int, int]],
+    *,
+    dense_threshold: float = 0.75,
 ) -> dict[int, dict[str, float]]:
     """Roadmap 3.2 madde 1 ("Saatlik yoğunluk raporu"): `(t_saniye,
     dolu_koltuk, kapasite)` örneklerinden (ör. `O.1 SimulationRecorder`

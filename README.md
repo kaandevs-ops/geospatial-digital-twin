@@ -191,7 +191,7 @@ TwinEvent (append-only event log on the twin)
 class SensorBinding:
     sensor_id: str
     sensor_type: str
-    target_ref: str          # e.g. "floor:2" / "room:server_room_1" / "roof"
+    target_ref: str  # e.g. "floor:2" / "room:server_room_1" / "roof"
     unit: str = ""
     last_value: float | None = None
     last_updated: float | None = None

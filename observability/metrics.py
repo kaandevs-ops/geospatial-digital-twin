@@ -24,7 +24,18 @@ from typing import Any
 #: Histogram varsayılan bucket sınırları (saniye) — HTTP gecikme
 #: ölçümleri için makul bir aralık (1ms - 10s).
 DEFAULT_HISTOGRAM_BUCKETS: tuple[float, ...] = (
-    0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0,
+    0.001,
+    0.005,
+    0.01,
+    0.025,
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    1.0,
+    2.5,
+    5.0,
+    10.0,
 )
 
 
@@ -105,7 +116,11 @@ class MetricsRegistry:
 
     # -- Counter ------------------------------------------------------------
     def inc_counter(
-        self, name: str, value: float = 1.0, *, help_text: str = "",
+        self,
+        name: str,
+        value: float = 1.0,
+        *,
+        help_text: str = "",
         labels: dict[str, str] | None = None,
     ) -> None:
         if value < 0:
@@ -123,7 +138,11 @@ class MetricsRegistry:
 
     # -- Gauge --------------------------------------------------------------
     def set_gauge(
-        self, name: str, value: float, *, help_text: str = "",
+        self,
+        name: str,
+        value: float,
+        *,
+        help_text: str = "",
         labels: dict[str, str] | None = None,
     ) -> None:
         self._register(name, "gauge", help_text)
@@ -138,7 +157,11 @@ class MetricsRegistry:
 
     # -- Histogram ------------------------------------------------------------
     def observe_histogram(
-        self, name: str, value: float, *, help_text: str = "",
+        self,
+        name: str,
+        value: float,
+        *,
+        help_text: str = "",
         labels: dict[str, str] | None = None,
         buckets: tuple[float, ...] = DEFAULT_HISTOGRAM_BUCKETS,
     ) -> None:
@@ -149,7 +172,9 @@ class MetricsRegistry:
         series.observe(value)
 
     def histogram_summary(
-        self, name: str, labels: dict[str, str] | None = None,
+        self,
+        name: str,
+        labels: dict[str, str] | None = None,
     ) -> dict[str, float] | None:
         series_map = self._histograms.get(name, {})
         series = series_map.get(_label_key(labels))
@@ -160,11 +185,7 @@ class MetricsRegistry:
             "sum": series.total_sum,
             "mean": series.total_sum / series.total_count,
             "p50": statistics.median(series.observations),
-            "p99": (
-                sorted(series.observations)[
-                    max(0, int(len(series.observations) * 0.99) - 1)
-                ]
-            ),
+            "p99": (sorted(series.observations)[max(0, int(len(series.observations) * 0.99) - 1)]),
         }
 
     # -- Faz 13 performance.profiler entegrasyonu ------------------------
@@ -176,11 +197,13 @@ class MetricsRegistry:
             return
         current_bytes, peak_bytes = memory_profiler.current_usage_bytes()
         self.set_gauge(
-            "process_memory_current_bytes", float(current_bytes),
+            "process_memory_current_bytes",
+            float(current_bytes),
             help_text="tracemalloc ile ölçülen anlık Python bellek kullanımı (byte)",
         )
         self.set_gauge(
-            "process_memory_peak_bytes", float(peak_bytes),
+            "process_memory_peak_bytes",
+            float(peak_bytes),
             help_text="tracemalloc ile ölçülen tepe Python bellek kullanımı (byte)",
         )
 

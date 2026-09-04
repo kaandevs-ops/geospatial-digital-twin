@@ -19,6 +19,7 @@ Kullanım::
 
     python3 scripts/overpass_load_report.py
 """
+
 from __future__ import annotations
 
 import io
@@ -52,7 +53,7 @@ class _FakeHTTPResponse:
     def read(self) -> bytes:
         return self._buf.read()
 
-    def __enter__(self) -> "_FakeHTTPResponse":
+    def __enter__(self) -> _FakeHTTPResponse:
         return self
 
     def __exit__(self, *exc: object) -> None:
@@ -72,7 +73,12 @@ def _synthetic_dense_response(element_count: int) -> dict:
     elements: list[dict] = []
     node_id = 1
     way_id = 100000
-    south, west, north, east = DENSE_BBOX.min_lat, DENSE_BBOX.min_lon, DENSE_BBOX.max_lat, DENSE_BBOX.max_lon
+    south, west, north, east = (
+        DENSE_BBOX.min_lat,
+        DENSE_BBOX.min_lon,
+        DENSE_BBOX.max_lat,
+        DENSE_BBOX.max_lon,
+    )
 
     def _pt() -> tuple[float, float]:
         return rng.uniform(south, north), rng.uniform(west, east)
@@ -100,7 +106,9 @@ def main() -> int:
     print("=" * 72)
     print("ROADMAP_V8 Faz 3.2 — Overpass Sorgu Yükü / Zaman Ölçümü Raporu")
     print("=" * 72)
-    print(f"Bbox: {DENSE_BBOX.min_lat},{DENSE_BBOX.min_lon} .. {DENSE_BBOX.max_lat},{DENSE_BBOX.max_lon}")
+    print(
+        f"Bbox: {DENSE_BBOX.min_lat},{DENSE_BBOX.min_lon} .. {DENSE_BBOX.max_lat},{DENSE_BBOX.max_lon}"
+    )
     print(f"Toplam kategori sayısı (DEFAULT_CATEGORIES): {len(DEFAULT_CATEGORIES)}")
     print()
 
@@ -130,8 +138,10 @@ def main() -> int:
         t0 = time.perf_counter()
         result = session.osm_category_summary(
             info["project_id"],
-            south=DENSE_BBOX.min_lat, west=DENSE_BBOX.min_lon,
-            north=DENSE_BBOX.max_lat, east=DENSE_BBOX.max_lon,
+            south=DENSE_BBOX.min_lat,
+            west=DENSE_BBOX.min_lon,
+            north=DENSE_BBOX.max_lat,
+            east=DENSE_BBOX.max_lon,
         )
         parse_elapsed = time.perf_counter() - t0
     print(f"   Ayrıştırma + özetleme süresi : {parse_elapsed * 1000:.1f} ms")
@@ -142,8 +152,10 @@ def main() -> int:
     print("-- 3) Rate-limiter kapasitesi (max_requests=20, window=60s) --")
     router = build_app_router(session)
     body = {
-        "south": DENSE_BBOX.min_lat, "west": DENSE_BBOX.min_lon,
-        "north": DENSE_BBOX.max_lat, "east": DENSE_BBOX.max_lon,
+        "south": DENSE_BBOX.min_lat,
+        "west": DENSE_BBOX.min_lon,
+        "north": DENSE_BBOX.max_lat,
+        "east": DENSE_BBOX.max_lon,
     }
     small_payload = _synthetic_dense_response(50)
 
@@ -151,11 +163,15 @@ def main() -> int:
         return _FakeHTTPResponse(small_payload)
 
     statuses = []
-    with mock.patch("harita.core_engine.gis_core.osm_client.urllib.request.urlopen", _urlopen_small):
+    with mock.patch(
+        "harita.core_engine.gis_core.osm_client.urllib.request.urlopen", _urlopen_small
+    ):
         t0 = time.perf_counter()
         for _ in range(25):
             resp = router.dispatch(
-                "POST", f"/api/projects/{info['project_id']}/osm/category-summary", body=body,
+                "POST",
+                f"/api/projects/{info['project_id']}/osm/category-summary",
+                body=body,
             )
             statuses.append(resp.status)
         burst_elapsed = time.perf_counter() - t0
@@ -165,7 +181,7 @@ def main() -> int:
     print(f"   25 art arda istek toplam süre : {burst_elapsed * 1000:.1f} ms")
     print(f"   Başarılı (200)                : {ok_count}")
     print(f"   Sınırlanan (429)              : {blocked_count}")
-    print(f"   Beklenen davranış             : ilk 20 -> 200, sonraki 5 -> 429")
+    print("   Beklenen davranış             : ilk 20 -> 200, sonraki 5 -> 429")
     ok = ok_count == 20 and blocked_count == 5 and statuses[:20] == [200] * 20
     print(f"   Sonuç                         : {'GEÇTİ' if ok else 'BEKLENMEDİK DAVRANIŞ'}")
     print()

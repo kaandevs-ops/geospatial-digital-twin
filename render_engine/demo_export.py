@@ -17,10 +17,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.building_reconstruction import (
-    Footprint, ProceduralBuildingGenerator, BuildingType,
+    BuildingType,
+    Footprint,
+    ProceduralBuildingGenerator,
 )
+from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.material_engine import PBRMaterial
 from harita.render_engine import Scene
 
@@ -29,12 +31,27 @@ def build_demo_city_block() -> Scene:
     scene = Scene(name="demo_bina_adasi")
 
     footprints = [
-        (Polygon([Point2D(0, 0), Point2D(20, 0), Point2D(20, 15), Point2D(0, 15)]),
-         BuildingType.APARTMAN, 5, 15.0, (30.0, 0.0, 0.0)),
-        (Polygon([Point2D(0, 0), Point2D(14, 0), Point2D(14, 14), Point2D(0, 14)]),
-         BuildingType.OFIS, 8, 28.0, (-5.0, 0.0, 0.0)),
-        (Polygon([Point2D(0, 0), Point2D(10, 0), Point2D(10, 10), Point2D(0, 10)]),
-         BuildingType.VILLA, 2, 6.0, (0.0, 0.0, 30.0)),
+        (
+            Polygon([Point2D(0, 0), Point2D(20, 0), Point2D(20, 15), Point2D(0, 15)]),
+            BuildingType.APARTMAN,
+            5,
+            15.0,
+            (30.0, 0.0, 0.0),
+        ),
+        (
+            Polygon([Point2D(0, 0), Point2D(14, 0), Point2D(14, 14), Point2D(0, 14)]),
+            BuildingType.OFIS,
+            8,
+            28.0,
+            (-5.0, 0.0, 0.0),
+        ),
+        (
+            Polygon([Point2D(0, 0), Point2D(10, 0), Point2D(10, 10), Point2D(0, 10)]),
+            BuildingType.VILLA,
+            2,
+            6.0,
+            (0.0, 0.0, 30.0),
+        ),
     ]
 
     concrete = PBRMaterial(name="beton_cephe", albedo=(0.68, 0.66, 0.62), roughness=0.8)

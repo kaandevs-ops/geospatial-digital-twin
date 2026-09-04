@@ -23,13 +23,14 @@ GÖSTERGE NİTELİĞİ: `risk_scoring`/`energy_audit` ile aynı disiplin - gerç
 bir POS/kartlı-ödeme ziyaret sayacının yerini TUTMAZ, yalnızca göreli gün
 içi dağılım şekli hakkında bir işaret verir.
 """
+
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Optional, Sequence
 
-from . import CommercePropType
 from ..population.activity_model import ActivityType, ODDemandEntry
+from . import CommercePropType
 
 DISCLAIMER = (
     "Gösterge niteliğindedir; literatürde bilinen tipik gün-içi ziyaret "
@@ -42,28 +43,108 @@ DISCLAIMER = (
 #: olacak şekilde normalize edilmiştir (`demand_model.HOURLY_LOAD_WEIGHTS`
 #: ile aynı teknik, farklı bir alanda yeniden kullanıldı).
 _MARKET_STALL_RAW = [
-    0.1, 0.1, 0.1, 0.1, 0.1, 0.2,     # 00-05 kapalı
-    0.5, 1.2, 1.8, 2.0, 1.7, 1.3,     # 06-11 sabah pazarı yoğun
-    0.9, 0.5, 0.3, 0.2, 0.15, 0.1,    # 12-17 kapanış
-    0.05, 0.02, 0.02, 0.02, 0.02, 0.02,  # 18-23 kapalı
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.2,  # 00-05 kapalı
+    0.5,
+    1.2,
+    1.8,
+    2.0,
+    1.7,
+    1.3,  # 06-11 sabah pazarı yoğun
+    0.9,
+    0.5,
+    0.3,
+    0.2,
+    0.15,
+    0.1,  # 12-17 kapanış
+    0.05,
+    0.02,
+    0.02,
+    0.02,
+    0.02,
+    0.02,  # 18-23 kapalı
 ]
 _OUTDOOR_SEATING_RAW = [
-    0.05, 0.02, 0.02, 0.02, 0.02, 0.05,  # 00-05
-    0.2, 0.4, 0.6, 0.8, 1.1, 1.6,        # 06-11 kahvaltı+öğlene doğru
-    2.0, 1.5, 0.9, 0.7, 0.8, 1.1,        # 12-17 öğle tepesi + ikindi
-    1.6, 2.1, 1.9, 1.4, 0.9, 0.4,        # 18-23 akşam tepesi
+    0.05,
+    0.02,
+    0.02,
+    0.02,
+    0.02,
+    0.05,  # 00-05
+    0.2,
+    0.4,
+    0.6,
+    0.8,
+    1.1,
+    1.6,  # 06-11 kahvaltı+öğlene doğru
+    2.0,
+    1.5,
+    0.9,
+    0.7,
+    0.8,
+    1.1,  # 12-17 öğle tepesi + ikindi
+    1.6,
+    2.1,
+    1.9,
+    1.4,
+    0.9,
+    0.4,  # 18-23 akşam tepesi
 ]
 _SHOPPING_MALL_RAW = [
-    0.02, 0.02, 0.02, 0.02, 0.02, 0.02,  # 00-05 kapalı
-    0.02, 0.05, 0.15, 0.5, 0.9, 1.3,     # 06-11 açılış
-    1.6, 1.7, 1.6, 1.5, 1.6, 1.9,        # 12-17 öğleden sonra tepesi
-    2.1, 1.9, 1.3, 0.6, 0.15, 0.05,      # 18-23 akşam tepesi + kapanış
+    0.02,
+    0.02,
+    0.02,
+    0.02,
+    0.02,
+    0.02,  # 00-05 kapalı
+    0.02,
+    0.05,
+    0.15,
+    0.5,
+    0.9,
+    1.3,  # 06-11 açılış
+    1.6,
+    1.7,
+    1.6,
+    1.5,
+    1.6,
+    1.9,  # 12-17 öğleden sonra tepesi
+    2.1,
+    1.9,
+    1.3,
+    0.6,
+    0.15,
+    0.05,  # 18-23 akşam tepesi + kapanış
 ]
 _SUPERMARKET_RAW = [
-    0.05, 0.02, 0.02, 0.02, 0.02, 0.1,   # 00-05
-    0.4, 0.8, 1.1, 1.2, 1.2, 1.4,        # 06-11
-    1.5, 1.2, 1.0, 1.1, 1.4, 1.9,        # 12-17 akşam yemeği hazırlığı öncesi
-    2.2, 1.7, 0.9, 0.4, 0.15, 0.05,      # 18-23 iş çıkışı tepesi
+    0.05,
+    0.02,
+    0.02,
+    0.02,
+    0.02,
+    0.1,  # 00-05
+    0.4,
+    0.8,
+    1.1,
+    1.2,
+    1.2,
+    1.4,  # 06-11
+    1.5,
+    1.2,
+    1.0,
+    1.1,
+    1.4,
+    1.9,  # 12-17 akşam yemeği hazırlığı öncesi
+    2.2,
+    1.7,
+    0.9,
+    0.4,
+    0.15,
+    0.05,  # 18-23 iş çıkışı tepesi
 ]
 
 
@@ -106,7 +187,7 @@ class FootfallProfile:
         weight = FOOTFALL_HOURLY_WEIGHTS[self.prop_type][hour]
         return (self.baseline_daily_visits / 24.0) * weight * demand_multiplier
 
-    def daily_curve(self, demand_multiplier_by_hour: Optional[dict[int, float]] = None) -> list[float]:
+    def daily_curve(self, demand_multiplier_by_hour: dict[int, float] | None = None) -> list[float]:
         mult = demand_multiplier_by_hour or {}
         return [self.hourly_visits(h, mult.get(h, 1.0)) for h in range(24)]
 

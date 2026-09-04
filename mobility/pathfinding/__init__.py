@@ -18,11 +18,10 @@ from __future__ import annotations
 
 import heapq
 import math
+from collections.abc import Callable, Hashable, Iterable
 from dataclasses import dataclass, field
-from typing import Callable, Hashable, Iterable
 
 from ...core_engine.geometry_engine import Point2D
-
 
 # ============================================================================ #
 # NavGraph
@@ -54,8 +53,9 @@ class NavGraph:
     def has_node(self, node: NodeId) -> bool:
         return node in self._adj
 
-    def add_edge(self, a: NodeId, b: NodeId, cost: float | None = None,
-                 bidirectional: bool = True) -> None:
+    def add_edge(
+        self, a: NodeId, b: NodeId, cost: float | None = None, bidirectional: bool = True
+    ) -> None:
         if a not in self._adj or b not in self._adj:
             raise KeyError("add_edge: her iki düğüm de önce add_node ile eklenmeli")
         if cost is None:
@@ -71,8 +71,9 @@ class NavGraph:
         else:
             self._blocked_edges.discard(key)
 
-    def update_edge_cost(self, a: NodeId, b: NodeId, cost: float,
-                          bidirectional: bool = True) -> None:
+    def update_edge_cost(
+        self, a: NodeId, b: NodeId, cost: float, bidirectional: bool = True
+    ) -> None:
         """Roadmap V9 / Katman 2.4 madde 7 (Faz IV, davranış kuralları) +
         Katman 7.2 (Faz V, yangın dinamik ağırlıklandırma) — kenar
         **silinmeden** maliyetinin mutable olarak güncellenmesi. Aynı
@@ -114,9 +115,13 @@ class NavGraph:
     # -- yardımcı: ızgara üretimi (test/DEM entegrasyonu için) --------- #
 
     @staticmethod
-    def from_grid(width: int, height: int, cell_size: float = 1.0,
-                   blocked_cells: set[tuple[int, int]] | None = None,
-                   diagonal: bool = True) -> "NavGraph":
+    def from_grid(
+        width: int,
+        height: int,
+        cell_size: float = 1.0,
+        blocked_cells: set[tuple[int, int]] | None = None,
+        diagonal: bool = True,
+    ) -> NavGraph:
         """Dikdörtgen ızgaradan `NavGraph` üretir. `blocked_cells` içindeki
         hücreler düğüm olarak eklenmez (engel/duvar)."""
         blocked_cells = blocked_cells or set()
@@ -156,6 +161,7 @@ def _euclidean_heuristic(graph: NavGraph) -> Callable[[NodeId, NodeId], float]:
         if pa is None or pb is None:
             return 0.0
         return pa.distance_to(pb)
+
     return h
 
 
@@ -172,12 +178,17 @@ def _reconstruct(came_from: dict[NodeId, NodeId], current: NodeId) -> list[NodeI
 # A*
 # ============================================================================ #
 
+
 class AStar:
     """Klasik A* - `heuristic(a, b)` verilmezse Öklid mesafesi kullanılır."""
 
     @staticmethod
-    def find_path(graph: NavGraph, start: NodeId, goal: NodeId,
-                   heuristic: Callable[[NodeId, NodeId], float] | None = None) -> PathResult:
+    def find_path(
+        graph: NavGraph,
+        start: NodeId,
+        goal: NodeId,
+        heuristic: Callable[[NodeId, NodeId], float] | None = None,
+    ) -> PathResult:
         if not graph.has_node(start) or not graph.has_node(goal):
             return PathResult([], math.inf, 0, False)
         if start == goal:
@@ -218,6 +229,7 @@ class AStar:
 # Dijkstra
 # ============================================================================ #
 
+
 class Dijkstra:
     """A*'ın heuristic=0 özel durumu; ayrı, sade bir implementasyon olarak
     tutulur (roadmap'te ayrı algoritma olarak listelendiği için)."""
@@ -252,6 +264,7 @@ class Dijkstra:
 # Jump Point Search (ızgara grafiklerine özel A* optimizasyonu)
 # ============================================================================ #
 
+
 class JumpPointSearch:
     """JPS, düzgün-maliyetli ızgara graflarında A*'a denk sonuç üretip çok
     daha az düğüm genişletir (simetrik yolları budayarak). Bu implementasyon
@@ -270,7 +283,8 @@ class JumpPointSearch:
 
         def is_walkable(x: int, y: int) -> bool:
             return (x, y) not in blocked and graph.has_node(
-                JumpPointSearch._node_id_at(graph, origin, cell_size, x, y))
+                JumpPointSearch._node_id_at(graph, origin, cell_size, x, y)
+            )
 
         start_xy = JumpPointSearch._xy_of(graph, start, origin, cell_size)
         goal_xy = JumpPointSearch._xy_of(graph, goal, origin, cell_size)
@@ -296,8 +310,9 @@ class JumpPointSearch:
 
             if current == goal_xy:
                 xy_path = _reconstruct(came_from, current)
-                node_path = [JumpPointSearch._node_id_at(graph, origin, cell_size, x, y)
-                             for x, y in xy_path]
+                node_path = [
+                    JumpPointSearch._node_id_at(graph, origin, cell_size, x, y) for x, y in xy_path
+                ]
                 cost = g_score[current]
                 return PathResult(node_path, cost, expanded, True)
 
@@ -321,8 +336,14 @@ class JumpPointSearch:
     # -- iç yardımcılar -------------------------------------------------- #
 
     @staticmethod
-    def _jump(x: int, y: int, dx: int, dy: int, goal_xy: tuple[int, int],
-               is_walkable: Callable[[int, int], bool]) -> tuple[int, int] | None:
+    def _jump(
+        x: int,
+        y: int,
+        dx: int,
+        dy: int,
+        goal_xy: tuple[int, int],
+        is_walkable: Callable[[int, int], bool],
+    ) -> tuple[int, int] | None:
         nx, ny = x + dx, y + dy
         if not is_walkable(nx, ny):
             return None
@@ -331,20 +352,25 @@ class JumpPointSearch:
 
         # yatay/dikey hareket
         if dx != 0 and dy == 0:
-            if (is_walkable(nx, ny + 1) and not is_walkable(x, ny + 1)) or \
-               (is_walkable(nx, ny - 1) and not is_walkable(x, ny - 1)):
+            if (is_walkable(nx, ny + 1) and not is_walkable(x, ny + 1)) or (
+                is_walkable(nx, ny - 1) and not is_walkable(x, ny - 1)
+            ):
                 return (nx, ny)
         elif dy != 0 and dx == 0:
-            if (is_walkable(nx + 1, ny) and not is_walkable(nx + 1, y)) or \
-               (is_walkable(nx - 1, ny) and not is_walkable(nx - 1, y)):
+            if (is_walkable(nx + 1, ny) and not is_walkable(nx + 1, y)) or (
+                is_walkable(nx - 1, ny) and not is_walkable(nx - 1, y)
+            ):
                 return (nx, ny)
         else:
             # diyagonal hareket - önce yatay/dikey forced-neighbor kontrolü
-            if (is_walkable(nx - dx, ny + dy) and not is_walkable(x - dx, y)) or \
-               (is_walkable(nx + dx, ny - dy) and not is_walkable(x, y - dy)):
+            if (is_walkable(nx - dx, ny + dy) and not is_walkable(x - dx, y)) or (
+                is_walkable(nx + dx, ny - dy) and not is_walkable(x, y - dy)
+            ):
                 return (nx, ny)
-            if JumpPointSearch._jump(nx, ny, dx, 0, goal_xy, is_walkable) is not None or \
-               JumpPointSearch._jump(nx, ny, 0, dy, goal_xy, is_walkable) is not None:
+            if (
+                JumpPointSearch._jump(nx, ny, dx, 0, goal_xy, is_walkable) is not None
+                or JumpPointSearch._jump(nx, ny, 0, dy, goal_xy, is_walkable) is not None
+            ):
                 return (nx, ny)
 
         return JumpPointSearch._jump(nx, ny, dx, dy, goal_xy, is_walkable)
@@ -356,8 +382,11 @@ class JumpPointSearch:
         if not graph.positions:
             return None
         sample = next(iter(graph.positions))
-        if not (isinstance(sample, tuple) and len(sample) == 2
-                and all(isinstance(v, int) for v in sample)):
+        if not (
+            isinstance(sample, tuple)
+            and len(sample) == 2
+            and all(isinstance(v, int) for v in sample)
+        ):
             return None
         xs = sorted({p.x for p in graph.positions.values()})
         cell_size = (xs[1] - xs[0]) if len(xs) > 1 else 1.0
@@ -365,12 +394,18 @@ class JumpPointSearch:
         all_gx = {n[0] for n in graph.positions}
         all_gy = {n[1] for n in graph.positions}
         full_w, full_h = max(all_gx) + 1, max(all_gy) + 1
-        blocked = {(gx, gy) for gy in range(full_h) for gx in range(full_w)
-                   if (gx, gy) not in graph.positions}
+        blocked = {
+            (gx, gy)
+            for gy in range(full_h)
+            for gx in range(full_w)
+            if (gx, gy) not in graph.positions
+        }
         return {"blocked": blocked, "cell_size": cell_size, "origin": origin}
 
     @staticmethod
-    def _xy_of(graph: NavGraph, node: NodeId, origin: Point2D, cell_size: float) -> tuple[int, int] | None:
+    def _xy_of(
+        graph: NavGraph, node: NodeId, origin: Point2D, cell_size: float
+    ) -> tuple[int, int] | None:
         if isinstance(node, tuple) and len(node) == 2 and all(isinstance(v, int) for v in node):
             return node
         return None
@@ -383,6 +418,7 @@ class JumpPointSearch:
 # ============================================================================ #
 # Theta* (any-angle pathfinding - line-of-sight tabanlı kısaltma)
 # ============================================================================ #
+
 
 class ThetaStar:
     """Theta*, A*'ın 'line-of-sight' genişletmesidir: bir düğümün ebeveynini
@@ -397,8 +433,12 @@ class ThetaStar:
     """
 
     @staticmethod
-    def find_path(graph: NavGraph, start: NodeId, goal: NodeId,
-                   line_of_sight: Callable[[NavGraph, NodeId, NodeId], bool] | None = None) -> PathResult:
+    def find_path(
+        graph: NavGraph,
+        start: NodeId,
+        goal: NodeId,
+        line_of_sight: Callable[[NavGraph, NodeId, NodeId], bool] | None = None,
+    ) -> PathResult:
         if not graph.has_node(start) or not graph.has_node(goal):
             return PathResult([], math.inf, 0, False)
         if start == goal:
@@ -428,7 +468,9 @@ class ThetaStar:
             parent = came_from[current]
             for nb, cost in graph.neighbors(current):
                 if los(graph, parent, nb):
-                    tentative = g_score[parent] + graph.positions[parent].distance_to(graph.positions[nb])
+                    tentative = g_score[parent] + graph.positions[parent].distance_to(
+                        graph.positions[nb]
+                    )
                     candidate_parent = parent
                 else:
                     tentative = g_score[current] + cost

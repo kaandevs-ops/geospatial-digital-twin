@@ -16,6 +16,7 @@ tarayıcıların `<input type="file" multiple>` ile ürettiği gövdeler bu
 kapsamda). Her `Content-Disposition: form-data` parçası bir alan adı
 (`name`) ve opsiyonel bir dosya adı (`filename`) taşır.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -62,9 +63,9 @@ def _split_header_block(block: bytes) -> dict[str, str]:
         if b":" not in line:
             continue
         key, _, value = line.partition(b":")
-        headers[key.decode("ascii", "ignore").strip().lower()] = (
-            value.decode("utf-8", "replace").strip()
-        )
+        headers[key.decode("ascii", "ignore").strip().lower()] = value.decode(
+            "utf-8", "replace"
+        ).strip()
     return headers
 
 
@@ -90,9 +91,7 @@ def parse_multipart(body: bytes, content_type_header: str) -> MultipartForm:
     """
     main_type, params = parse_content_type(content_type_header)
     if main_type != "multipart/form-data":
-        raise MultipartParseError(
-            f"Content-Type multipart/form-data değil: {main_type!r}"
-        )
+        raise MultipartParseError(f"Content-Type multipart/form-data değil: {main_type!r}")
     boundary = params.get("boundary")
     if not boundary:
         raise MultipartParseError("multipart/form-data gövdesinde 'boundary' parametresi eksik.")
@@ -129,10 +128,14 @@ def parse_multipart(body: bytes, content_type_header: str) -> MultipartForm:
         part_content_type = headers.get("content-type", "application/octet-stream")
 
         if filename is not None and filename != "":
-            form.files.append(MultipartFile(
-                field_name=field_name, filename=filename,
-                content_type=part_content_type, data=content,
-            ))
+            form.files.append(
+                MultipartFile(
+                    field_name=field_name,
+                    filename=filename,
+                    content_type=part_content_type,
+                    data=content,
+                )
+            )
         else:
             form.fields[field_name] = content.decode("utf-8", "replace")
     return form

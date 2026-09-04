@@ -19,19 +19,22 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from harita.core_engine.geometry_engine import Point2D
-from harita.mobility.pathfinding import NavGraph
-from harita.mobility.traffic_simulation import (
-    GreenshieldsModel, IDMParams, TrafficAgent, TrafficSignalPhase,
-    TrafficSimulator, VehicleType,
-)
 from harita.mobility.crowd_simulation import (
-    EvacuationBenchmark, ReferenceEvacuationScenario,
+    EvacuationBenchmark,
+    ReferenceEvacuationScenario,
 )
-
+from harita.mobility.traffic_simulation import (
+    GreenshieldsModel,
+    TrafficAgent,
+    TrafficSignalPhase,
+    TrafficSimulator,
+    VehicleType,
+)
 
 # ============================================================================ #
 # GreenshieldsModel
 # ============================================================================ #
+
 
 def test_greenshields_speed_decreases_linearly_with_density():
     model = GreenshieldsModel(free_flow_speed=100.0, jam_density=200.0)
@@ -66,8 +69,8 @@ def test_greenshields_capacity_is_maximum_flow_at_half_jam_density():
 
 def test_greenshields_congestion_flag():
     model = GreenshieldsModel(free_flow_speed=80.0, jam_density=160.0)
-    assert not model.is_congested(50.0)   # serbest akış rejimi
-    assert model.is_congested(120.0)      # sıkışık rejim
+    assert not model.is_congested(50.0)  # serbest akış rejimi
+    assert model.is_congested(120.0)  # sıkışık rejim
 
 
 def test_greenshields_clamps_out_of_range_density():
@@ -81,9 +84,9 @@ def test_greenshields_clamps_out_of_range_density():
 # TrafficSignalPhase
 # ============================================================================ #
 
+
 def test_signal_phase_cycles_correctly():
-    signal = TrafficSignalPhase(stop_line_distance=50.0, green_duration_s=20.0,
-                                  red_duration_s=30.0)
+    signal = TrafficSignalPhase(stop_line_distance=50.0, green_duration_s=20.0, red_duration_s=30.0)
     assert signal.cycle_length_s == 50.0
     assert signal.is_green(0.0)
     assert signal.is_green(19.9)
@@ -93,19 +96,22 @@ def test_signal_phase_cycles_correctly():
 
 
 def test_signal_phase_time_to_next_green():
-    signal = TrafficSignalPhase(stop_line_distance=10.0, green_duration_s=10.0,
-                                  red_duration_s=10.0)
+    signal = TrafficSignalPhase(stop_line_distance=10.0, green_duration_s=10.0, red_duration_s=10.0)
     assert signal.time_to_next_green(5.0) == 0.0  # zaten yeşil
     remaining = signal.time_to_next_green(15.0)
     assert math.isclose(remaining, 5.0)
 
 
-def _build_straight_route_agent(agent_id: int, route_len: float,
-                                  vehicle_type: VehicleType = VehicleType.ARAC,
-                                  start_distance: float = 0.0) -> TrafficAgent:
+def _build_straight_route_agent(
+    agent_id: int,
+    route_len: float,
+    vehicle_type: VehicleType = VehicleType.ARAC,
+    start_distance: float = 0.0,
+) -> TrafficAgent:
     positions = [Point2D(0.0, 0.0), Point2D(route_len, 0.0)]
-    agent = TrafficAgent(agent_id=agent_id, vehicle_type=vehicle_type,
-                          route_nodes=[0, 1], route_positions=positions)
+    agent = TrafficAgent(
+        agent_id=agent_id, vehicle_type=vehicle_type, route_nodes=[0, 1], route_positions=positions
+    )
     agent.distance_along_route = start_distance
     return agent
 
@@ -119,8 +125,7 @@ def test_red_signal_forms_queue_and_green_releases_it():
 
     # Durma çizgisinden hemen önce 3 araç, sırayla.
     for i, start_dist in enumerate([70.0, 60.0, 50.0]):
-        agent = _build_straight_route_agent(agent_id=i, route_len=200.0,
-                                              start_distance=start_dist)
+        agent = _build_straight_route_agent(agent_id=i, route_len=200.0, start_distance=start_dist)
         agent.speed = 10.0
         sim.add_agent(agent, route_key)
 
@@ -128,8 +133,9 @@ def test_red_signal_forms_queue_and_green_releases_it():
     # doğrudan kırmızı fazda başlar; kırmızı 10s sürer, sonra 5s yeşil
     # (döngü uzunluğu 15s) - test penceresi içinde en az bir yeşil geçişi
     # gözlemlenebilecek şekilde kısa tutuldu.
-    signal = TrafficSignalPhase(stop_line_distance=80.0, green_duration_s=5.0,
-                                  red_duration_s=10.0, offset_s=5.0)
+    signal = TrafficSignalPhase(
+        stop_line_distance=80.0, green_duration_s=5.0, red_duration_s=10.0, offset_s=5.0
+    )
     sim.add_signal(route_key, signal)
 
     for _ in range(80):  # 8 saniye (dt=0.1) - hâlâ kırmızı (kırmızı t=[0,10))
@@ -172,9 +178,9 @@ def test_signal_free_route_behaves_like_plain_idm():
 # EvacuationBenchmark (A7 / D6 kabul kriteri)
 # ============================================================================ #
 
+
 def test_reference_scenario_expected_time_matches_analytic_formula():
-    scenario = ReferenceEvacuationScenario(agent_count=130, exit_width_m=1.0,
-                                             room_depth_m=10.0)
+    scenario = ReferenceEvacuationScenario(agent_count=130, exit_width_m=1.0, room_depth_m=10.0)
     # 130 kişi / (1.3 kişi/m/s * 1.0 m) = 100s (darboğaz baskın olmalı)
     assert math.isclose(scenario.expected_evacuation_time_s(), 100.0, rel_tol=1e-6)
 
@@ -182,8 +188,9 @@ def test_reference_scenario_expected_time_matches_analytic_formula():
 def test_reference_scenario_travel_time_dominates_for_small_crowds():
     # Çok az kişi + geniş kapı -> darboğaz süresi ihmal edilebilir, oda
     # derinliği / yürüme hızı baskın olur.
-    scenario = ReferenceEvacuationScenario(agent_count=2, exit_width_m=3.0,
-                                             room_depth_m=13.4, walking_speed_ms=1.34)
+    scenario = ReferenceEvacuationScenario(
+        agent_count=2, exit_width_m=3.0, room_depth_m=13.4, walking_speed_ms=1.34
+    )
     expected = scenario.expected_evacuation_time_s()
     assert math.isclose(expected, 13.4 / 1.34, rel_tol=1e-6)
 
@@ -193,8 +200,13 @@ def test_evacuation_benchmark_within_tolerance_of_reference():
     çalışmasıyla (SFPE/Predtechenskii-Milinskii darboğaz akış formülü)
     **%20 sapma içinde** simülasyon sonucu."""
     result = EvacuationBenchmark.run_and_compare(
-        agent_count=30, room_width_m=10.0, room_depth_m=8.0,
-        exit_width_m=1.2, dt=0.1, max_time_s=180.0, seed=7,
+        agent_count=30,
+        room_width_m=10.0,
+        room_depth_m=8.0,
+        exit_width_m=1.2,
+        dt=0.1,
+        max_time_s=180.0,
+        seed=7,
     )
 
     assert result["total_agents"] == 30
@@ -213,12 +225,12 @@ def test_evacuation_benchmark_within_tolerance_of_reference():
 def test_evacuation_benchmark_deterministic_with_seed():
     """Aynı `seed` ile iki koşu birebir aynı sonucu vermeli (regresyon
     testlerinin kararlılığı için)."""
-    r1 = EvacuationBenchmark.run_and_compare(agent_count=15, room_width_m=8.0,
-                                               room_depth_m=6.0, exit_width_m=1.0,
-                                               seed=99)
-    r2 = EvacuationBenchmark.run_and_compare(agent_count=15, room_width_m=8.0,
-                                               room_depth_m=6.0, exit_width_m=1.0,
-                                               seed=99)
+    r1 = EvacuationBenchmark.run_and_compare(
+        agent_count=15, room_width_m=8.0, room_depth_m=6.0, exit_width_m=1.0, seed=99
+    )
+    r2 = EvacuationBenchmark.run_and_compare(
+        agent_count=15, room_width_m=8.0, room_depth_m=6.0, exit_width_m=1.0, seed=99
+    )
     assert math.isclose(r1["simulated_time_s"], r2["simulated_time_s"])
     assert r1["evacuated_count"] == r2["evacuated_count"]
 
@@ -227,12 +239,20 @@ def test_evacuation_benchmark_wider_exit_evacuates_faster():
     """Fiziksel tutarlılık: daha geniş bir çıkış, aynı kalabalık için
     tahliyeyi hızlandırmalı (darboğaz teorisiyle uyumlu)."""
     narrow = EvacuationBenchmark.run_and_compare(
-        agent_count=25, room_width_m=10.0, room_depth_m=8.0,
-        exit_width_m=0.8, max_time_s=240.0, seed=3,
+        agent_count=25,
+        room_width_m=10.0,
+        room_depth_m=8.0,
+        exit_width_m=0.8,
+        max_time_s=240.0,
+        seed=3,
     )
     wide = EvacuationBenchmark.run_and_compare(
-        agent_count=25, room_width_m=10.0, room_depth_m=8.0,
-        exit_width_m=2.0, max_time_s=240.0, seed=3,
+        agent_count=25,
+        room_width_m=10.0,
+        room_depth_m=8.0,
+        exit_width_m=2.0,
+        max_time_s=240.0,
+        seed=3,
     )
     assert wide["expected_time_s"] < narrow["expected_time_s"]
     assert wide["simulated_time_s"] <= narrow["simulated_time_s"] + 5.0  # küçük stokastik tolerans

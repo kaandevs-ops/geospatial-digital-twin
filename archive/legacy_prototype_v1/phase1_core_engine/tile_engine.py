@@ -19,10 +19,9 @@ import hashlib
 import math
 import os
 import threading
-import time
 from collections import OrderedDict
-from dataclasses import dataclass, field
-from typing import Awaitable, Callable, Dict, Optional, Tuple
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 
 TILE_SIZE_PX = 256
 MAX_ZOOM = 24
@@ -37,6 +36,7 @@ class TileEngineError(ValueError):
 # TILE COORDINATE MATEMATİĞİ
 # ============================================================================
 
+
 @dataclass(frozen=True)
 class TileCoordinate:
     x: int
@@ -46,19 +46,19 @@ class TileCoordinate:
     def __post_init__(self) -> None:
         if not (MIN_ZOOM <= self.z <= MAX_ZOOM):
             raise TileEngineError(f"zoom [{MIN_ZOOM},{MAX_ZOOM}] dışında: {self.z}")
-        n = 2 ** self.z
+        n = 2**self.z
         if not (0 <= self.x < n) or not (0 <= self.y < n):
             raise TileEngineError(f"tile x/y zoom={self.z} sınırı dışında: ({self.x},{self.y})")
 
     def key(self) -> str:
         return f"{self.z}/{self.x}/{self.y}"
 
-    def parent(self) -> "TileCoordinate":
+    def parent(self) -> TileCoordinate:
         if self.z == MIN_ZOOM:
             raise TileEngineError("kök tile'ın üst tile'ı yok")
         return TileCoordinate(self.x // 2, self.y // 2, self.z - 1)
 
-    def children(self) -> Tuple["TileCoordinate", "TileCoordinate", "TileCoordinate", "TileCoordinate"]:
+    def children(self) -> tuple[TileCoordinate, TileCoordinate, TileCoordinate, TileCoordinate]:
         if self.z == MAX_ZOOM:
             raise TileEngineError("maksimum zoom'da alt tile yok")
         return (
@@ -74,21 +74,17 @@ def lonlat_to_tile(lon: float, lat: float, zoom: int) -> TileCoordinate:
     if not (-180.0 <= lon <= 180.0) or not (-85.05112878 <= lat <= 85.05112878):
         raise TileEngineError(f"lon/lat tile şeması sınırı dışında: ({lon},{lat})")
     lat_rad = math.radians(lat)
-    n = 2 ** zoom
+    n = 2**zoom
     x = int((lon + 180.0) / 360.0 * n)
-    y = int(
-        (1.0 - math.log(math.tan(lat_rad) + 1.0 / math.cos(lat_rad)) / math.pi)
-        / 2.0
-        * n
-    )
+    y = int((1.0 - math.log(math.tan(lat_rad) + 1.0 / math.cos(lat_rad)) / math.pi) / 2.0 * n)
     x = max(0, min(n - 1, x))
     y = max(0, min(n - 1, y))
     return TileCoordinate(x=x, y=y, z=zoom)
 
 
-def tile_to_lonlat_bounds(tile: TileCoordinate) -> Tuple[float, float, float, float]:
+def tile_to_lonlat_bounds(tile: TileCoordinate) -> tuple[float, float, float, float]:
     """Tile -> (west, south, east, north) derece cinsinden sınır kutusu."""
-    n = 2 ** tile.z
+    n = 2**tile.z
 
     def _lon(x: int) -> float:
         return x / n * 360.0 - 180.0
@@ -104,21 +100,20 @@ def tile_to_lonlat_bounds(tile: TileCoordinate) -> Tuple[float, float, float, fl
     return west, south, east, north
 
 
-def lonlat_to_pixel(lon: float, lat: float, zoom: int) -> Tuple[float, float]:
+def lonlat_to_pixel(lon: float, lat: float, zoom: int) -> tuple[float, float]:
     """WGS84 -> global piksel koordinatı (verilen zoom'da, tüm dünya)."""
     lat_rad = math.radians(lat)
-    n = 2 ** zoom
+    n = 2**zoom
     world_px = n * TILE_SIZE_PX
     x = (lon + 180.0) / 360.0 * world_px
-    y = (
-        1.0 - math.log(math.tan(lat_rad) + 1.0 / math.cos(lat_rad)) / math.pi
-    ) / 2.0 * world_px
+    y = (1.0 - math.log(math.tan(lat_rad) + 1.0 / math.cos(lat_rad)) / math.pi) / 2.0 * world_px
     return x, y
 
 
 # ============================================================================
 # MEMORY CACHE (LRU)
 # ============================================================================
+
 
 class MemoryTileCache:
     """Basit thread-safe LRU bellek içi tile cache'i."""
@@ -127,12 +122,12 @@ class MemoryTileCache:
         if max_items <= 0:
             raise TileEngineError("max_items > 0 olmalı")
         self.max_items = max_items
-        self._store: "OrderedDict[str, bytes]" = OrderedDict()
+        self._store: OrderedDict[str, bytes] = OrderedDict()
         self._lock = threading.Lock()
         self.hits = 0
         self.misses = 0
 
-    def get(self, tile: TileCoordinate) -> Optional[bytes]:
+    def get(self, tile: TileCoordinate) -> bytes | None:
         key = tile.key()
         with self._lock:
             if key in self._store:
@@ -154,7 +149,7 @@ class MemoryTileCache:
         with self._lock:
             self._store.clear()
 
-    def stats(self) -> Dict[str, int]:
+    def stats(self) -> dict[str, int]:
         with self._lock:
             return {"items": len(self._store), "hits": self.hits, "misses": self.misses}
 
@@ -162,6 +157,7 @@ class MemoryTileCache:
 # ============================================================================
 # DISK CACHE
 # ============================================================================
+
 
 class DiskTileCache:
     """
@@ -177,7 +173,7 @@ class DiskTileCache:
     def _path_for(self, tile: TileCoordinate) -> str:
         return os.path.join(self.root_dir, str(tile.z), str(tile.x), f"{tile.y}.tile")
 
-    def get(self, tile: TileCoordinate) -> Optional[bytes]:
+    def get(self, tile: TileCoordinate) -> bytes | None:
         path = self._path_for(tile)
         if not os.path.isfile(path):
             return None
@@ -196,7 +192,7 @@ class DiskTileCache:
     def has(self, tile: TileCoordinate) -> bool:
         return os.path.isfile(self._path_for(tile))
 
-    def checksum(self, tile: TileCoordinate) -> Optional[str]:
+    def checksum(self, tile: TileCoordinate) -> str | None:
         data = self.get(tile)
         if data is None:
             return None
@@ -204,6 +200,7 @@ class DiskTileCache:
 
     def clear(self) -> None:
         import shutil
+
         with self._lock:
             if os.path.isdir(self.root_dir):
                 shutil.rmtree(self.root_dir)
@@ -236,16 +233,16 @@ class TileEngine:
 
     def __init__(
         self,
-        loader_fn: Optional[TileLoaderFn] = None,
-        memory_cache: Optional[MemoryTileCache] = None,
-        disk_cache: Optional[DiskTileCache] = None,
+        loader_fn: TileLoaderFn | None = None,
+        memory_cache: MemoryTileCache | None = None,
+        disk_cache: DiskTileCache | None = None,
         max_concurrent_loads: int = 8,
     ):
         self.loader_fn = loader_fn
         self.memory_cache = memory_cache or MemoryTileCache()
         self.disk_cache = disk_cache
         self._semaphore = asyncio.Semaphore(max_concurrent_loads)
-        self._inflight: Dict[str, "asyncio.Future[bytes]"] = {}
+        self._inflight: dict[str, asyncio.Future[bytes]] = {}
         self._inflight_lock = threading.Lock()
         self.stats = TileEngineStats()
 
@@ -298,13 +295,13 @@ class TileEngine:
             with self._inflight_lock:
                 self._inflight.pop(key, None)
 
-    async def get_tiles(self, tiles: "list[TileCoordinate]") -> "list[bytes]":
+    async def get_tiles(self, tiles: list[TileCoordinate]) -> list[bytes]:
         """Birden çok tile'ı eşzamanlı (concurrent) yükler — infinite-scroll pan/zoom senaryosu."""
         return await asyncio.gather(*(self.get_tile(t) for t in tiles))
 
     def visible_tiles(
         self, west: float, south: float, east: float, north: float, zoom: int
-    ) -> "list[TileCoordinate]":
+    ) -> list[TileCoordinate]:
         """
         Verilen görünür alan (viewport bbox) ve zoom seviyesi için gereken
         tile listesini üretir. "Infinite Scroll" ve "Multi Zoom Engine" için

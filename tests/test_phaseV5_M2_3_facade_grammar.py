@@ -1,6 +1,7 @@
 """
 ROADMAP V5 - Track M / M2.3: Grammar tabanlı cephe ritmi testleri.
 """
+
 from __future__ import annotations
 
 from harita.building_reconstruction.facade_generator import FacadeGenerator
@@ -45,10 +46,20 @@ def test_m23_building_types_have_distinct_rule_characters():
 def test_m23_facade_generator_opt_in_shape_grammar_does_not_break_default():
     poly = _rect_footprint()
     default_facade = FacadeGenerator.generate(
-        poly, "apartman", base_z=0.0, floor_height=3.0, floor_count=2, seed=7,
+        poly,
+        "apartman",
+        base_z=0.0,
+        floor_height=3.0,
+        floor_count=2,
+        seed=7,
     )
     grammar_facade = FacadeGenerator.generate(
-        poly, "apartman", base_z=0.0, floor_height=3.0, floor_count=2, seed=7,
+        poly,
+        "apartman",
+        base_z=0.0,
+        floor_height=3.0,
+        floor_count=2,
+        seed=7,
         use_shape_grammar=True,
     )
     assert default_facade.mesh is not None

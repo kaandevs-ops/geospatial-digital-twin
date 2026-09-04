@@ -24,8 +24,9 @@ from __future__ import annotations
 import json
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from .event_system import EventSystem
 
@@ -45,7 +46,7 @@ class WSMessage:
         )
 
     @staticmethod
-    def from_json(raw: str) -> "WSMessage":
+    def from_json(raw: str) -> WSMessage:
         data = json.loads(raw)
         return WSMessage(
             type=data["type"],
@@ -71,9 +72,9 @@ class WSConnection:
 
     connection_id: str = field(default_factory=lambda: uuid.uuid4().hex)
     topics: set = field(default_factory=set)
-    outbox: List[WSMessage] = field(default_factory=list)
+    outbox: list[WSMessage] = field(default_factory=list)
     closed: bool = False
-    send_fn: Optional[Callable[[WSMessage], None]] = None
+    send_fn: Callable[[WSMessage], None] | None = None
 
     def send(self, message: WSMessage) -> None:
         if self.closed:
@@ -103,12 +104,12 @@ class WebSocketRouter:
     """
 
     def __init__(self) -> None:
-        self._handlers: Dict[str, Callable[[WSConnection, Any], Any]] = {}
-        self._connections: Dict[str, WSConnection] = {}
-        self._event_system: Optional[EventSystem] = None
+        self._handlers: dict[str, Callable[[WSConnection, Any], Any]] = {}
+        self._connections: dict[str, WSConnection] = {}
+        self._event_system: EventSystem | None = None
 
     # -- bağlantı yönetimi ------------------------------------------------
-    def connect(self, connection: Optional[WSConnection] = None) -> WSConnection:
+    def connect(self, connection: WSConnection | None = None) -> WSConnection:
         conn = connection or WSConnection()
         self._connections[conn.connection_id] = conn
         return conn
@@ -118,7 +119,7 @@ class WebSocketRouter:
         if conn is not None:
             conn.close()
 
-    def connection(self, connection_id: str) -> Optional[WSConnection]:
+    def connection(self, connection_id: str) -> WSConnection | None:
         return self._connections.get(connection_id)
 
     # -- handler kaydı ------------------------------------------------------
@@ -133,7 +134,7 @@ class WebSocketRouter:
         self._handlers[message_type] = handler
 
     # -- dispatch -----------------------------------------------------------
-    def dispatch(self, connection: WSConnection, message: WSMessage) -> Optional[WSMessage]:
+    def dispatch(self, connection: WSConnection, message: WSMessage) -> WSMessage | None:
         if message.type == "subscribe":
             connection.subscribe(message.payload)
             return WSMessage(type="subscribe.ack", payload=message.payload)

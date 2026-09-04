@@ -32,9 +32,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
-from .camera_rig import Camera, CameraRig, CinematicKeyframe, Vec3, _lerp, _lerp_vec3
+from .camera_rig import Camera, CameraRig, CinematicKeyframe, Vec3, _lerp_vec3
 
 __all__ = [
     "SceneEventKind",
@@ -50,6 +49,7 @@ __all__ = [
 # 7.1 — Otomatik "ilginç an" tespiti
 # ======================================================================== #
 
+
 class SceneEventKind(str, Enum):
     """Roadmap 7.1'in kendi örnek listesiyle birebir: "binaya ilk çatlak"
     > "ajan grup davranışı" > "sıradan yürüyüş" - bu sıra `DEFAULT_EVENT_
@@ -58,12 +58,12 @@ class SceneEventKind(str, Enum):
     olay taksonomisi icat edilmedi, mevcut event-bus'ın (roadmap'in
     kendi ifadesiyle) tüketicisidir."""
 
-    BUILDING_FIRST_CRACK = "building_first_crack"        # Faz 4.1 hasar kademesi geçişi
-    BUILDING_COLLAPSE_START = "building_collapse_start"   # Faz 4.2/4.3 tetiklenmesi
-    ELEVATOR_STRANDED = "elevator_stranded"               # Faz 1.3 asansör kapalı + sıkışma
-    CROWD_DENSITY_PEAK = "crowd_density_peak"             # Faz 2.5 crowd_pressure=SQUEEZE
-    GROUP_BEHAVIOR = "group_behavior"                     # Faz 2.7 grup bağı
-    ORDINARY_WALK = "ordinary_walk"                       # hiçbiri - varsayılan/dolgu olay
+    BUILDING_FIRST_CRACK = "building_first_crack"  # Faz 4.1 hasar kademesi geçişi
+    BUILDING_COLLAPSE_START = "building_collapse_start"  # Faz 4.2/4.3 tetiklenmesi
+    ELEVATOR_STRANDED = "elevator_stranded"  # Faz 1.3 asansör kapalı + sıkışma
+    CROWD_DENSITY_PEAK = "crowd_density_peak"  # Faz 2.5 crowd_pressure=SQUEEZE
+    GROUP_BEHAVIOR = "group_behavior"  # Faz 2.7 grup bağı
+    ORDINARY_WALK = "ordinary_walk"  # hiçbiri - varsayılan/dolgu olay
 
 
 @dataclass(slots=True, frozen=True)
@@ -75,7 +75,7 @@ class SceneEvent:
     kind: SceneEventKind
     time_s: float
     position: Vec3
-    magnitude: float = 1.0   # 0.0-1.0, aynı türden olaylar arası ince ayrım
+    magnitude: float = 1.0  # 0.0-1.0, aynı türden olaylar arası ince ayrım
 
 
 #: Roadmap 7.1'in kendi verdiği örnek öncelik sırası - kural tabanlı,
@@ -106,10 +106,12 @@ class InterestScorer:
     )
 
     def score(self, event: SceneEvent) -> float:
-        base = self.priority_table.get(event.kind, DEFAULT_EVENT_PRIORITY[SceneEventKind.ORDINARY_WALK])
+        base = self.priority_table.get(
+            event.kind, DEFAULT_EVENT_PRIORITY[SceneEventKind.ORDINARY_WALK]
+        )
         return base * max(0.0, min(1.0, event.magnitude))
 
-    def most_interesting(self, events: list[SceneEvent]) -> Optional[SceneEvent]:
+    def most_interesting(self, events: list[SceneEvent]) -> SceneEvent | None:
         if not events:
             return None
         return max(events, key=lambda e: (self.score(e), e.time_s))
@@ -123,6 +125,7 @@ class InterestScorer:
 # ======================================================================== #
 # 7.2 — Kamera geçiş dili (yumuşak ease-in/out)
 # ======================================================================== #
+
 
 def _smoothstep(t: float) -> float:
     """Klasik ease-in/out (Hermite): t=0/1'de eğim sıfır - roadmap'in
@@ -157,8 +160,11 @@ def build_transition_keyframes(
     # - roadmap'in "sabit-genişlik açıları" notuna uygun basit ve
     # öngörülebilir bir yerleşim (yeni bir sinematografi kural motoru
     # icat edilmedi).
-    target_camera_pos: Vec3 = (ox - viewing_distance_m * 0.7, oy - viewing_distance_m * 0.7,
-                                oz + viewing_distance_m * 0.4)
+    target_camera_pos: Vec3 = (
+        ox - viewing_distance_m * 0.7,
+        oy - viewing_distance_m * 0.7,
+        oz + viewing_distance_m * 0.4,
+    )
 
     keyframes: list[CinematicKeyframe] = []
     t0 = 0.0
@@ -167,22 +173,31 @@ def build_transition_keyframes(
         eased = _smoothstep(t)
         pos = _lerp_vec3(from_camera.position, target_camera_pos, eased)
         tgt = _lerp_vec3(from_camera.target, to_event.position, eased)
-        keyframes.append(CinematicKeyframe(
-            time_s=t0 + t * transition_duration_s,
-            position=pos, target=tgt, fov_deg=fov_deg,
-        ))
+        keyframes.append(
+            CinematicKeyframe(
+                time_s=t0 + t * transition_duration_s,
+                position=pos,
+                target=tgt,
+                fov_deg=fov_deg,
+            )
+        )
 
     hold_start = t0 + transition_duration_s
-    keyframes.append(CinematicKeyframe(
-        time_s=hold_start + hold_duration_s,
-        position=target_camera_pos, target=to_event.position, fov_deg=fov_deg,
-    ))
+    keyframes.append(
+        CinematicKeyframe(
+            time_s=hold_start + hold_duration_s,
+            position=target_camera_pos,
+            target=to_event.position,
+            fov_deg=fov_deg,
+        )
+    )
     return keyframes
 
 
 # ======================================================================== #
 # 7.3 — Kullanıcı kontrolü her zaman öncelikli
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class AutoCameraController:
@@ -210,7 +225,7 @@ class AutoCameraController:
     def is_user_idle(self, current_t: float) -> bool:
         return (current_t - self._last_user_input_t) >= self.idle_threshold_s
 
-    def maybe_suggest(self, current_t: float, events: list[SceneEvent]) -> Optional[SceneEvent]:
+    def maybe_suggest(self, current_t: float, events: list[SceneEvent]) -> SceneEvent | None:
         """Kullanıcı boşta değilse `None` döner (hiçbir öneri sunulmaz -
         roadmap'in "yalnızca boşta bırakıldığında öneri sunar" ifadesi).
         Boştaysa en ilginç olayı önerir ve otomatik modu aktive eder."""
@@ -226,7 +241,9 @@ class AutoCameraController:
     def auto_active(self) -> bool:
         return self._auto_active
 
-    def apply_suggestion(self, event: SceneEvent, current_t: float, **kwargs) -> list[CinematicKeyframe]:
+    def apply_suggestion(
+        self, event: SceneEvent, current_t: float, **kwargs
+    ) -> list[CinematicKeyframe]:
         """`maybe_suggest()`'in döndürdüğü olayı gerçek bir keyframe
         dizisine çevirir ve `rig.set_cinematic_track()` (zaten var) ile
         kamerayı yönlendirir. Yalnızca `auto_active=True` iken çağrılmalı

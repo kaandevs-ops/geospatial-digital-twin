@@ -19,11 +19,11 @@ Harici model varsa `Predictor` arayüzü ile değiştirilebilir (bkz.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 
-from ..building_reconstruction.footprint_parser import Footprint
 from ..building_reconstruction.facade_generator import FacadeMaterial
+from ..building_reconstruction.footprint_parser import Footprint
 from .predictor import Predictor
 
 
@@ -83,23 +83,135 @@ class BuildingAnalysis:
 # belgelenmiş bir varsayılan aralık olarak ifade eder (çağıran taraf
 # opsiyonel olarak tüketebilir — zorunlu değişiklik gerektirmez).
 _TYPE_STATS: dict[str, dict] = {
-    "apartments": dict(floor_h=3.0, style=ArchitecturalStyle.MODERN, facade=FacadeMaterial.BETON, age_range=(5, 40), window_ratio=0.35, typical_floor_range=(3, 12)),
-    "house": dict(floor_h=3.0, style=ArchitecturalStyle.GELENEKSEL, facade=FacadeMaterial.TAS, age_range=(3, 60), window_ratio=0.25, typical_floor_range=(1, 2)),
-    "office": dict(floor_h=3.6, style=ArchitecturalStyle.MODERN, facade=FacadeMaterial.CAM, age_range=(1, 25), window_ratio=0.6, typical_floor_range=(3, 20)),
-    "commercial": dict(floor_h=4.5, style=ArchitecturalStyle.MINIMALIST, facade=FacadeMaterial.CAM, age_range=(1, 20), window_ratio=0.5, typical_floor_range=(1, 3)),
-    "industrial": dict(floor_h=6.0, style=ArchitecturalStyle.ENDUSTRIYEL, facade=FacadeMaterial.ENDUSTRIYEL, age_range=(2, 45), window_ratio=0.1, typical_floor_range=(1, 2)),
-    "warehouse": dict(floor_h=7.0, style=ArchitecturalStyle.ENDUSTRIYEL, facade=FacadeMaterial.METAL, age_range=(2, 35), window_ratio=0.05, typical_floor_range=(1, 1)),
-    "hospital": dict(floor_h=3.6, style=ArchitecturalStyle.MODERN, facade=FacadeMaterial.KOMPOZIT, age_range=(3, 30), window_ratio=0.4, typical_floor_range=(4, 10)),
-    "school": dict(floor_h=3.4, style=ArchitecturalStyle.GELENEKSEL, facade=FacadeMaterial.TUGLA, age_range=(5, 50), window_ratio=0.3, typical_floor_range=(1, 3)),
+    "apartments": dict(
+        floor_h=3.0,
+        style=ArchitecturalStyle.MODERN,
+        facade=FacadeMaterial.BETON,
+        age_range=(5, 40),
+        window_ratio=0.35,
+        typical_floor_range=(3, 12),
+    ),
+    "house": dict(
+        floor_h=3.0,
+        style=ArchitecturalStyle.GELENEKSEL,
+        facade=FacadeMaterial.TAS,
+        age_range=(3, 60),
+        window_ratio=0.25,
+        typical_floor_range=(1, 2),
+    ),
+    "office": dict(
+        floor_h=3.6,
+        style=ArchitecturalStyle.MODERN,
+        facade=FacadeMaterial.CAM,
+        age_range=(1, 25),
+        window_ratio=0.6,
+        typical_floor_range=(3, 20),
+    ),
+    "commercial": dict(
+        floor_h=4.5,
+        style=ArchitecturalStyle.MINIMALIST,
+        facade=FacadeMaterial.CAM,
+        age_range=(1, 20),
+        window_ratio=0.5,
+        typical_floor_range=(1, 3),
+    ),
+    "industrial": dict(
+        floor_h=6.0,
+        style=ArchitecturalStyle.ENDUSTRIYEL,
+        facade=FacadeMaterial.ENDUSTRIYEL,
+        age_range=(2, 45),
+        window_ratio=0.1,
+        typical_floor_range=(1, 2),
+    ),
+    "warehouse": dict(
+        floor_h=7.0,
+        style=ArchitecturalStyle.ENDUSTRIYEL,
+        facade=FacadeMaterial.METAL,
+        age_range=(2, 35),
+        window_ratio=0.05,
+        typical_floor_range=(1, 1),
+    ),
+    "hospital": dict(
+        floor_h=3.6,
+        style=ArchitecturalStyle.MODERN,
+        facade=FacadeMaterial.KOMPOZIT,
+        age_range=(3, 30),
+        window_ratio=0.4,
+        typical_floor_range=(4, 10),
+    ),
+    "school": dict(
+        floor_h=3.4,
+        style=ArchitecturalStyle.GELENEKSEL,
+        facade=FacadeMaterial.TUGLA,
+        age_range=(5, 50),
+        window_ratio=0.3,
+        typical_floor_range=(1, 3),
+    ),
     # --- ROADMAP_V8 Faz 5.3 eklentisi ---
-    "retail": dict(floor_h=4.0, style=ArchitecturalStyle.MINIMALIST, facade=FacadeMaterial.CAM, age_range=(1, 20), window_ratio=0.55, typical_floor_range=(1, 2)),
-    "religious": dict(floor_h=5.0, style=ArchitecturalStyle.KLASIK, facade=FacadeMaterial.TAS, age_range=(10, 200), window_ratio=0.15, typical_floor_range=(1, 2)),
-    "sports_centre": dict(floor_h=6.5, style=ArchitecturalStyle.MODERN, facade=FacadeMaterial.METAL, age_range=(1, 25), window_ratio=0.2, typical_floor_range=(1, 1)),
-    "hotel": dict(floor_h=3.2, style=ArchitecturalStyle.MODERN, facade=FacadeMaterial.KOMPOZIT, age_range=(1, 30), window_ratio=0.45, typical_floor_range=(4, 15)),
-    "government": dict(floor_h=3.8, style=ArchitecturalStyle.BROUTALIST, facade=FacadeMaterial.BETON, age_range=(10, 60), window_ratio=0.3, typical_floor_range=(3, 8)),
-    "university": dict(floor_h=3.6, style=ArchitecturalStyle.MODERN, facade=FacadeMaterial.TUGLA, age_range=(5, 60), window_ratio=0.4, typical_floor_range=(2, 6)),
-    "garage": dict(floor_h=2.6, style=ArchitecturalStyle.ENDUSTRIYEL, facade=FacadeMaterial.BETON, age_range=(2, 40), window_ratio=0.02, typical_floor_range=(1, 6)),
-    "_default": dict(floor_h=3.2, style=ArchitecturalStyle.MODERN, facade=FacadeMaterial.BETON, age_range=(5, 40), window_ratio=0.3, typical_floor_range=(1, 10)),
+    "retail": dict(
+        floor_h=4.0,
+        style=ArchitecturalStyle.MINIMALIST,
+        facade=FacadeMaterial.CAM,
+        age_range=(1, 20),
+        window_ratio=0.55,
+        typical_floor_range=(1, 2),
+    ),
+    "religious": dict(
+        floor_h=5.0,
+        style=ArchitecturalStyle.KLASIK,
+        facade=FacadeMaterial.TAS,
+        age_range=(10, 200),
+        window_ratio=0.15,
+        typical_floor_range=(1, 2),
+    ),
+    "sports_centre": dict(
+        floor_h=6.5,
+        style=ArchitecturalStyle.MODERN,
+        facade=FacadeMaterial.METAL,
+        age_range=(1, 25),
+        window_ratio=0.2,
+        typical_floor_range=(1, 1),
+    ),
+    "hotel": dict(
+        floor_h=3.2,
+        style=ArchitecturalStyle.MODERN,
+        facade=FacadeMaterial.KOMPOZIT,
+        age_range=(1, 30),
+        window_ratio=0.45,
+        typical_floor_range=(4, 15),
+    ),
+    "government": dict(
+        floor_h=3.8,
+        style=ArchitecturalStyle.BROUTALIST,
+        facade=FacadeMaterial.BETON,
+        age_range=(10, 60),
+        window_ratio=0.3,
+        typical_floor_range=(3, 8),
+    ),
+    "university": dict(
+        floor_h=3.6,
+        style=ArchitecturalStyle.MODERN,
+        facade=FacadeMaterial.TUGLA,
+        age_range=(5, 60),
+        window_ratio=0.4,
+        typical_floor_range=(2, 6),
+    ),
+    "garage": dict(
+        floor_h=2.6,
+        style=ArchitecturalStyle.ENDUSTRIYEL,
+        facade=FacadeMaterial.BETON,
+        age_range=(2, 40),
+        window_ratio=0.02,
+        typical_floor_range=(1, 6),
+    ),
+    "_default": dict(
+        floor_h=3.2,
+        style=ArchitecturalStyle.MODERN,
+        facade=FacadeMaterial.BETON,
+        age_range=(5, 40),
+        window_ratio=0.3,
+        typical_floor_range=(1, 10),
+    ),
 }
 
 
@@ -126,7 +238,7 @@ class HeuristicPredictor:
         else:
             # Alan büyüdükçe (ticari/endüstriyel bina varsayımıyla) kat
             # sayısı tahmini kaba bir log-ölçek kuralı ile.
-            floor_count = max(1, min(40, round(1 + (area ** 0.5) / 12)))
+            floor_count = max(1, min(40, round(1 + (area**0.5) / 12)))
             height = floor_count * floor_h
 
         age_low, age_high = stats["age_range"]

@@ -26,9 +26,8 @@ yalnızca burada bir araya getiriliyor (orkestrasyon katmanı).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any
 
-from ..core_engine.geometry_engine import Point2D
 from ..data_engine.spatial_index import AABB2D
 from ..digital_twin.hierarchy import TwinHierarchy
 from ..performance.simulation_lod import AgentSpatialHash, _xy
@@ -77,13 +76,9 @@ def bridge_building_to_outdoor_graph(
     binanın kendi iç tahliyesi bu köprüden bağımsız çalışmaya devam eder.
     """
     if not building.graph.has_node(exit_node_id):
-        raise CityScaleEvacuationError(
-            f"bina graf'ında bulunamayan çıkış düğümü: {exit_node_id}"
-        )
+        raise CityScaleEvacuationError(f"bina graf'ında bulunamayan çıkış düğümü: {exit_node_id}")
     if not outdoor_graph.has_node(outdoor_node_id):
-        raise CityScaleEvacuationError(
-            f"dış graf'ta bulunamayan düğüm: {outdoor_node_id}"
-        )
+        raise CityScaleEvacuationError(f"dış graf'ta bulunamayan düğüm: {outdoor_node_id}")
     exit_position = building.graph.positions[exit_node_id]
     bridge_node_id = f"bridge::{exit_node_id}"
     if not outdoor_graph.has_node(bridge_node_id):
@@ -129,6 +124,7 @@ def route_evacuated_agents_to_assembly_point(
 # Şehir ölçeği performans — spatial hashing köprüsü (Katman 8.1 madde 2)
 # ========================================================================== #
 
+
 @dataclass(slots=True)
 class CityScaleAgentIndex:
     """Roadmap'in O.6'da hazırlanan `AgentSpatialHash`'i (yeni bir yapı
@@ -143,7 +139,7 @@ class CityScaleAgentIndex:
     """
 
     margin_m: float = 50.0
-    _hash: Optional[AgentSpatialHash] = field(default=None, init=False)
+    _hash: AgentSpatialHash | None = field(default=None, init=False)
     _agent_building: dict = field(default_factory=dict, init=False)
 
     def rebuild(self, agents_by_building: dict[str, list]) -> None:
@@ -169,8 +165,10 @@ class CityScaleAgentIndex:
             self._hash = None
             return
         bounds = AABB2D(
-            min(xs) - self.margin_m, min(ys) - self.margin_m,
-            max(xs) + self.margin_m, max(ys) + self.margin_m,
+            min(xs) - self.margin_m,
+            min(ys) - self.margin_m,
+            max(xs) + self.margin_m,
+            max(ys) + self.margin_m,
         )
         self._hash = AgentSpatialHash(bounds)
         for agents in agents_by_building.values():
@@ -190,6 +188,7 @@ class CityScaleAgentIndex:
 # ========================================================================== #
 # Bölgesel yığılma tespiti (Katman 8.1 madde 3)
 # ========================================================================== #
+
 
 def regional_agent_density(
     hierarchy: TwinHierarchy,
@@ -212,7 +211,8 @@ def regional_agent_density(
     `direct_leaf_sum`'ın izlediği aynı traversal) motor tekrar yazılmadı.
     """
     leaves = [
-        d for d in ([region_twin_id] + hierarchy.descendants(region_twin_id))
+        d
+        for d in ([region_twin_id] + hierarchy.descendants(region_twin_id))
         if hierarchy.is_leaf(d)
     ]
     return sum(agent_counts_by_twin.get(leaf, 0) for leaf in leaves)
@@ -222,11 +222,11 @@ def most_congested_region(
     hierarchy: TwinHierarchy,
     candidate_region_ids: list[str],
     agent_counts_by_twin: dict[str, int],
-) -> tuple[Optional[str], int]:
+) -> tuple[str | None, int]:
     """Roadmap'in "bu mahallede toplam X kişi tahliye oluyor, en yoğun
     blok Y" ifadesinin karşılığı — verilen aday bölgeler arasından en
     yüksek toplam agent sayısına sahip olanı döndürür."""
-    best_id: Optional[str] = None
+    best_id: str | None = None
     best_count = -1
     for region_id in candidate_region_ids:
         count = regional_agent_density(hierarchy, region_id, agent_counts_by_twin)
@@ -239,6 +239,7 @@ def most_congested_region(
 # ========================================================================== #
 # Urban digital twin senkronu (Katman 8.1 madde 4)
 # ========================================================================== #
+
 
 def initial_agent_count_from_iot(
     latest_sensor_value: float | None,

@@ -94,20 +94,40 @@ class CommercePropsGenerator:
         çatı yerine düz eğik levha - düşük-poly, roadmap'in "basit"
         vurgusuyla tutarlı)."""
         table = MeshBuilder.build_box(
-            1.4, 0.8, 0.85, center_x=position.x, center_y=position.y,
-            base_z=ground_z, name="market_stall_table",
+            1.4,
+            0.8,
+            0.85,
+            center_x=position.x,
+            center_y=position.y,
+            base_z=ground_z,
+            name="market_stall_table",
         )
         post_a = MeshBuilder.build_cylinder(
-            radius=0.03, height=2.1, center_x=position.x - 0.6, center_y=position.y - 0.35,
-            base_z=ground_z, segments=6, name="market_stall_post_a",
+            radius=0.03,
+            height=2.1,
+            center_x=position.x - 0.6,
+            center_y=position.y - 0.35,
+            base_z=ground_z,
+            segments=6,
+            name="market_stall_post_a",
         )
         post_b = MeshBuilder.build_cylinder(
-            radius=0.03, height=2.1, center_x=position.x + 0.6, center_y=position.y - 0.35,
-            base_z=ground_z, segments=6, name="market_stall_post_b",
+            radius=0.03,
+            height=2.1,
+            center_x=position.x + 0.6,
+            center_y=position.y - 0.35,
+            base_z=ground_z,
+            segments=6,
+            name="market_stall_post_b",
         )
         canopy = MeshBuilder.build_box(
-            1.6, 1.0, 0.05, center_x=position.x, center_y=position.y,
-            base_z=ground_z + 2.05, name="market_stall_canopy",
+            1.6,
+            1.0,
+            0.05,
+            center_x=position.x,
+            center_y=position.y,
+            base_z=ground_z + 2.05,
+            name="market_stall_canopy",
         )
         return MeshMerger.merge([table, post_a, post_b, canopy], name="market_stall")
 
@@ -122,16 +142,31 @@ class CommercePropsGenerator:
             tx = item.position.x + offset
             ty = item.position.y
             table = MeshBuilder.build_cylinder(
-                radius=0.4, height=0.75, center_x=tx, center_y=ty,
-                base_z=item.ground_z, segments=10, name=f"outdoor_table_{i}",
+                radius=0.4,
+                height=0.75,
+                center_x=tx,
+                center_y=ty,
+                base_z=item.ground_z,
+                segments=10,
+                name=f"outdoor_table_{i}",
             )
             chair_a = MeshBuilder.build_box(
-                0.4, 0.4, 0.45, center_x=tx - 0.55, center_y=ty,
-                base_z=item.ground_z, name=f"outdoor_chair_{i}_a",
+                0.4,
+                0.4,
+                0.45,
+                center_x=tx - 0.55,
+                center_y=ty,
+                base_z=item.ground_z,
+                name=f"outdoor_chair_{i}_a",
             )
             chair_b = MeshBuilder.build_box(
-                0.4, 0.4, 0.45, center_x=tx + 0.55, center_y=ty,
-                base_z=item.ground_z, name=f"outdoor_chair_{i}_b",
+                0.4,
+                0.4,
+                0.45,
+                center_x=tx + 0.55,
+                center_y=ty,
+                base_z=item.ground_z,
+                name=f"outdoor_chair_{i}_b",
             )
             meshes.extend([table, chair_a, chair_b])
         return MeshMerger.merge(meshes, name="outdoor_seating_set")
@@ -193,6 +228,7 @@ class CommercePropsGenerator:
         Cephe/pencere detayı bilinçli olarak üretilmez (bkz. `BuildingVolume`
         docstring'i)."""
         from ..mesh_engine import MeshBuilder as _MB  # local: döngüsel import yok, tutarlılık için
+
         return _MB.extrude_polygon(
             volume.footprint,
             base_z=volume.ground_z,

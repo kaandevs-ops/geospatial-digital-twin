@@ -35,11 +35,9 @@ import urllib.request
 import zipfile
 
 import pytest
-
 from harita.app_shell import AppSession
 from harita.app_shell.server import MAX_REQUEST_BODY_BYTES, make_server
 from harita.core_engine.gis_core import GISParseError, KMZParser
-
 
 # ---------------------------------------------------------------------------
 # 1a. Güvenlik — HTTP body-size DoS
@@ -136,7 +134,7 @@ def test_kmz_zipbomb_declared_size_rejected(tmp_path):
     # uncompressed_size(4) -> uncompressed_size offset'i imzadan itibaren 24.
     size_offset = idx + 24
     huge_size = KMZParser.MAX_UNCOMPRESSED_KML_BYTES + 1
-    raw[size_offset:size_offset + 4] = struct.pack("<I", huge_size)
+    raw[size_offset : size_offset + 4] = struct.pack("<I", huge_size)
     kmz_path.write_bytes(bytes(raw))
 
     with pytest.raises(GISParseError) as excinfo:
@@ -181,7 +179,9 @@ def test_kmz_normal_file_still_parses(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def _make_grid_footprint(index: int, spacing: float = 20.0, width: float = 10.0) -> list[tuple[float, float]]:
+def _make_grid_footprint(
+    index: int, spacing: float = 20.0, width: float = 10.0
+) -> list[tuple[float, float]]:
     """Basit ızgara düzeninde, çakışmayan dikdörtgen bina taban izleri üretir."""
     cols = 200
     row, col = divmod(index, cols)
@@ -198,10 +198,10 @@ def test_city_scale_pipeline_10000_buildings_end_to_end():
     ölçülüp oranın 4x'in belirgin altında kaldığı doğrulanır (spatial index
     O(log n) insert + O(1)'e yakın procedural üretim maliyeti sayesinde).
     """
-    from harita.building_reconstruction.procedural_generator import ProceduralBuildingGenerator
     from harita.building_reconstruction.footprint_parser import Footprint
-    from harita.data_engine.spatial_index import RTree, AABB2D
-    from harita.core_engine.geometry_engine import Polygon, Point2D
+    from harita.building_reconstruction.procedural_generator import ProceduralBuildingGenerator
+    from harita.core_engine.geometry_engine import Point2D, Polygon
+    from harita.data_engine.spatial_index import AABB2D, RTree
 
     def run_pipeline(n_buildings: int) -> float:
         index: RTree = RTree()

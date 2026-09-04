@@ -14,6 +14,7 @@ fazladır. Bu modül, ağırlıklı-örnekleme (weighted sampling, tekrarlı)
 ile hücreleri seçtiği için bu özelliği **istatistiksel olarak** garanti
 eder (bkz. `tests/test_phaseE18_vegetation.py`).
 """
+
 from __future__ import annotations
 
 import math
@@ -125,7 +126,9 @@ class VegetationScatterer:
             instances.append(
                 VegetationInstance(
                     species=species,
-                    x=x, y=y, z=z,
+                    x=x,
+                    y=y,
+                    z=z,
                     height=height,
                     canopy_radius=canopy_radius,
                     rotation_deg=rotation_deg,
@@ -142,7 +145,7 @@ class VegetationScatterer:
 
     @staticmethod
     def scatter_polygon_poisson_disc(
-        polygon: "Polygon",
+        polygon: Polygon,
         min_distance_m: float,
         seed: int = 0,
         species: TreeSpecies = TreeSpecies.GENERIC,
@@ -214,7 +217,9 @@ class VegetationScatterer:
             instances.append(
                 VegetationInstance(
                     species=species,
-                    x=point.x, y=point.y, z=z,
+                    x=point.x,
+                    y=point.y,
+                    z=z,
                     height=inst_rng.uniform(*height_range),
                     canopy_radius=inst_rng.uniform(*canopy_radius_range),
                     rotation_deg=inst_rng.uniform(0.0, 360.0),

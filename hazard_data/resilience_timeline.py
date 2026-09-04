@@ -27,13 +27,13 @@ economic_resilience`'in ürettiği olaylarla besleniyor. Önceki oturumun
 bilinçli kapsam sınırı (bu satırın icat edilmemiş olması) böylece
 kapatılmıştır.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 from ..extensibility.city_events import CityEventType
-from ..extensibility.event_system import Event, EventSystem
+from ..extensibility.event_system import EventSystem
 
 
 @dataclass(slots=True, frozen=True)
@@ -53,8 +53,12 @@ class SystemRecoveryPair:
 SYSTEM_EVENT_PAIRS: tuple[SystemRecoveryPair, ...] = (
     SystemRecoveryPair("elektrik", CityEventType.POWER_OUTAGE, CityEventType.POWER_RESTORED),
     SystemRecoveryPair("yollar", CityEventType.ROAD_CLOSED, CityEventType.ROAD_REOPENED),
-    SystemRecoveryPair("toplu_tasima", CityEventType.TRANSIT_DISRUPTED, CityEventType.TRANSIT_RESTORED),
-    SystemRecoveryPair("tahliye", CityEventType.EVACUATION_STARTED, CityEventType.EVACUATION_COMPLETED),
+    SystemRecoveryPair(
+        "toplu_tasima", CityEventType.TRANSIT_DISRUPTED, CityEventType.TRANSIT_RESTORED
+    ),
+    SystemRecoveryPair(
+        "tahliye", CityEventType.EVACUATION_STARTED, CityEventType.EVACUATION_COMPLETED
+    ),
     SystemRecoveryPair("ticaret", CityEventType.COMMERCE_CLOSED, CityEventType.COMMERCE_REOPENED),
 )
 
@@ -67,10 +71,10 @@ class RecoveryRecord:
 
     system_name: str
     disrupted_at: float
-    recovered_at: Optional[float]
-    recovery_seconds: Optional[float]
+    recovered_at: float | None
+    recovery_seconds: float | None
     recovered: bool
-    disruption_source: Optional[str]
+    disruption_source: str | None
 
 
 @dataclass(slots=True, frozen=True)
@@ -81,13 +85,13 @@ class ResilienceReport:
     düz veri yapısı."""
 
     window_start: float
-    window_end: Optional[float]
+    window_end: float | None
     records: list[RecoveryRecord]
 
     def by_system(self, system_name: str) -> list[RecoveryRecord]:
         return [r for r in self.records if r.system_name == system_name]
 
-    def slowest_system(self) -> Optional[RecoveryRecord]:
+    def slowest_system(self) -> RecoveryRecord | None:
         """En uzun toparlanma süresine sahip (toparlanmış) kaydı döner -
         "hangi sistem en yavaş normale döndü" sorusu için (roadmap'in
         "Z haftada" karşılaştırma diliyle tutarlı). Hiç toparlanmış kayıt
@@ -107,7 +111,7 @@ def build_resilience_report(
     bus: EventSystem,
     *,
     window_start: float = 0.0,
-    window_end: Optional[float] = None,
+    window_end: float | None = None,
     pairs: tuple[SystemRecoveryPair, ...] = SYSTEM_EVENT_PAIRS,
 ) -> ResilienceReport:
     """`EventSystem.history()`'yi (yeni bir kayıt mekanizması icat
@@ -121,7 +125,8 @@ def build_resilience_report(
     records: list[RecoveryRecord] = []
     for pair in pairs:
         disruptions = [
-            e for e in bus.history(str(pair.disruption_type.value))
+            e
+            for e in bus.history(str(pair.disruption_type.value))
             if window_start <= e.timestamp and (window_end is None or e.timestamp <= window_end)
         ]
         if not disruptions:
@@ -129,22 +134,33 @@ def build_resilience_report(
         disruption = min(disruptions, key=lambda e: e.timestamp)
 
         recoveries = [
-            e for e in bus.history(str(pair.recovery_type.value))
+            e
+            for e in bus.history(str(pair.recovery_type.value))
             if e.timestamp >= disruption.timestamp
             and (window_end is None or e.timestamp <= window_end)
         ]
         if recoveries:
             recovery = min(recoveries, key=lambda e: e.timestamp)
             duration = recovery.timestamp - disruption.timestamp
-            records.append(RecoveryRecord(
-                system_name=pair.system_name, disrupted_at=disruption.timestamp,
-                recovered_at=recovery.timestamp, recovery_seconds=duration,
-                recovered=True, disruption_source=disruption.source,
-            ))
+            records.append(
+                RecoveryRecord(
+                    system_name=pair.system_name,
+                    disrupted_at=disruption.timestamp,
+                    recovered_at=recovery.timestamp,
+                    recovery_seconds=duration,
+                    recovered=True,
+                    disruption_source=disruption.source,
+                )
+            )
         else:
-            records.append(RecoveryRecord(
-                system_name=pair.system_name, disrupted_at=disruption.timestamp,
-                recovered_at=None, recovery_seconds=None,
-                recovered=False, disruption_source=disruption.source,
-            ))
+            records.append(
+                RecoveryRecord(
+                    system_name=pair.system_name,
+                    disrupted_at=disruption.timestamp,
+                    recovered_at=None,
+                    recovery_seconds=None,
+                    recovered=False,
+                    disruption_source=disruption.source,
+                )
+            )
     return ResilienceReport(window_start=window_start, window_end=window_end, records=records)

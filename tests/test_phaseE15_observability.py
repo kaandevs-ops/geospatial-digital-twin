@@ -17,16 +17,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.app_shell import AppSession, build_app_router
 from harita.observability import InstrumentedRouter, MetricsRegistry, StructuredLogger
 from harita.observability.metrics import DEFAULT_HISTOGRAM_BUCKETS
 from harita.performance.profiler import MemoryProfiler
 
-
 # ---------------------------------------------------------------------------
 # StructuredLogger
 # ---------------------------------------------------------------------------
+
 
 class TestStructuredLogger:
     def test_log_lines_are_valid_json(self) -> None:
@@ -52,7 +51,10 @@ class TestStructuredLogger:
     def test_log_request_schema_has_required_fields(self) -> None:
         logger = StructuredLogger(name="test.e15.req", stream=io.StringIO())
         record = logger.log_request(
-            method="GET", path="/api/health", status=200, duration_ms=12.345,
+            method="GET",
+            path="/api/health",
+            status=200,
+            duration_ms=12.345,
         )
         assert record["event"] == "http_request"
         assert record["method"] == "GET"
@@ -79,6 +81,7 @@ class TestStructuredLogger:
 # ---------------------------------------------------------------------------
 # MetricsRegistry
 # ---------------------------------------------------------------------------
+
 
 class TestMetricsRegistry:
     def test_counter_increments(self) -> None:
@@ -157,6 +160,7 @@ class TestMetricsRegistry:
 # InstrumentedRouter <-> app_shell entegrasyonu
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def session(tmp_path):
     registry = tmp_path / "registry.hprojreg"
@@ -231,8 +235,12 @@ class TestInstrumentedRouterAppShellIntegration:
         # ki en az 5 farklı metrik adı gerçekten dolu olsun.
         router.dispatch("GET", "/api/health")
         router.dispatch("GET", "/api/projects")
-        metrics.inc_counter("http_requests_total", labels={"method": "GET", "path": "/api/health", "status": "200"})
-        metrics.observe_histogram("http_request_duration_seconds", 0.01, labels={"method": "GET", "path": "/api/health"})
+        metrics.inc_counter(
+            "http_requests_total", labels={"method": "GET", "path": "/api/health", "status": "200"}
+        )
+        metrics.observe_histogram(
+            "http_request_duration_seconds", 0.01, labels={"method": "GET", "path": "/api/health"}
+        )
         metrics.set_gauge("cache_hit_rate", 0.75)
         profiler = MemoryProfiler()
         profiler.start()
@@ -243,9 +251,7 @@ class TestInstrumentedRouterAppShellIntegration:
         assert response.headers["Content-Type"].startswith("text/plain")
         text = response.body
         assert "# TYPE" in text
-        distinct_metrics = {
-            name for name in metrics.metric_names()
-        }
+        distinct_metrics = {name for name in metrics.metric_names()}
         assert len(distinct_metrics) >= 5, distinct_metrics
 
     def test_metrics_endpoint_absent_when_metrics_not_provided(self, session) -> None:

@@ -20,6 +20,7 @@ Kullanım::
     python3 scripts/visual_regression.py                  # baseline ile karşılaştır
     python3 scripts/visual_regression.py --update-baseline # baseline'ı yeniden üret
 """
+
 from __future__ import annotations
 
 import json
@@ -30,36 +31,102 @@ ROOT = Path(__file__).resolve().parent.parent.parent  # repo kökü (harita/'nı
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.building_reconstruction import (
-    BuildingType, Footprint, ProceduralBuildingGenerator,
+    BuildingType,
+    Footprint,
+    ProceduralBuildingGenerator,
 )
+from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.mesh_engine.quality_metrics import MeshQualityAnalyzer
 
-BASELINE_PATH = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "visual_regression_baseline.json"
+BASELINE_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "tests"
+    / "fixtures"
+    / "visual_regression_baseline.json"
+)
 
 # Sabit, deterministik bir demo bina seti (5 farklı footprint şekli / bina
 # tipi — roadmap Faz 1 kabul kriterinin "dikdörtgen, L, U, düzensiz
 # poligon" çeşitliliğinin küçük bir örneklemi).
 _DEMO_CASES: list[tuple[str, Polygon, BuildingType, int, float]] = [
-    ("dikdortgen_apartman", Polygon([
-        Point2D(0, 0), Point2D(20, 0), Point2D(20, 15), Point2D(0, 15),
-    ]), BuildingType.APARTMAN, 5, 15.0),
-    ("l_sekli_ofis", Polygon([
-        Point2D(0, 0), Point2D(18, 0), Point2D(18, 8), Point2D(10, 8),
-        Point2D(10, 16), Point2D(0, 16),
-    ]), BuildingType.OFIS, 6, 21.0),
-    ("u_sekli_okul", Polygon([
-        Point2D(0, 0), Point2D(24, 0), Point2D(24, 10), Point2D(16, 10),
-        Point2D(16, 4), Point2D(8, 4), Point2D(8, 10), Point2D(0, 10),
-    ]), BuildingType.OKUL, 3, 10.5),
-    ("duzensiz_villa", Polygon([
-        Point2D(0, 0), Point2D(11, 2), Point2D(13, 9), Point2D(6, 12),
-        Point2D(-1, 7),
-    ]), BuildingType.VILLA, 2, 6.0),
-    ("kare_depo", Polygon([
-        Point2D(0, 0), Point2D(16, 0), Point2D(16, 16), Point2D(0, 16),
-    ]), BuildingType.DEPO, 1, 6.0),
+    (
+        "dikdortgen_apartman",
+        Polygon(
+            [
+                Point2D(0, 0),
+                Point2D(20, 0),
+                Point2D(20, 15),
+                Point2D(0, 15),
+            ]
+        ),
+        BuildingType.APARTMAN,
+        5,
+        15.0,
+    ),
+    (
+        "l_sekli_ofis",
+        Polygon(
+            [
+                Point2D(0, 0),
+                Point2D(18, 0),
+                Point2D(18, 8),
+                Point2D(10, 8),
+                Point2D(10, 16),
+                Point2D(0, 16),
+            ]
+        ),
+        BuildingType.OFIS,
+        6,
+        21.0,
+    ),
+    (
+        "u_sekli_okul",
+        Polygon(
+            [
+                Point2D(0, 0),
+                Point2D(24, 0),
+                Point2D(24, 10),
+                Point2D(16, 10),
+                Point2D(16, 4),
+                Point2D(8, 4),
+                Point2D(8, 10),
+                Point2D(0, 10),
+            ]
+        ),
+        BuildingType.OKUL,
+        3,
+        10.5,
+    ),
+    (
+        "duzensiz_villa",
+        Polygon(
+            [
+                Point2D(0, 0),
+                Point2D(11, 2),
+                Point2D(13, 9),
+                Point2D(6, 12),
+                Point2D(-1, 7),
+            ]
+        ),
+        BuildingType.VILLA,
+        2,
+        6.0,
+    ),
+    (
+        "kare_depo",
+        Polygon(
+            [
+                Point2D(0, 0),
+                Point2D(16, 0),
+                Point2D(16, 16),
+                Point2D(0, 16),
+            ]
+        ),
+        BuildingType.DEPO,
+        1,
+        6.0,
+    ),
 ]
 
 SEED = 4242
@@ -85,7 +152,9 @@ def build_signature() -> dict:
             height_m=height_m,
         )
         building = ProceduralBuildingGenerator.generate(
-            footprint, building_type=btype, seed=SEED,
+            footprint,
+            building_type=btype,
+            seed=SEED,
         )
         mesh = building.full_mesh(include_interior=False)
         report = MeshQualityAnalyzer.analyze(mesh)
@@ -119,7 +188,12 @@ def _diff_case(name: str, baseline: dict, current: dict) -> list[str]:
     for key in sorted(keys):
         b = baseline.get(key, "<yok>")
         c = current.get(key, "<yok>")
-        if isinstance(b, (int, float)) and isinstance(c, (int, float)) and not isinstance(b, bool) and not isinstance(c, bool):
+        if (
+            isinstance(b, (int, float))
+            and isinstance(c, (int, float))
+            and not isinstance(b, bool)
+            and not isinstance(c, bool)
+        ):
             if abs(b - c) > FLOAT_TOLERANCE:
                 problems.append(f"  [{name}] {key}: baseline={b} güncel={c}")
         elif isinstance(b, (list, tuple)) and isinstance(c, (list, tuple)):
@@ -135,9 +209,13 @@ def compare(current: dict, baseline: dict) -> list[str]:
     missing = set(baseline) - set(current)
     added = set(current) - set(baseline)
     for name in sorted(missing):
-        problems.append(f"  [{name}] baseline'da vardı ama güncel çıktıda YOK (silinmiş demo case olabilir)")
+        problems.append(
+            f"  [{name}] baseline'da vardı ama güncel çıktıda YOK (silinmiş demo case olabilir)"
+        )
     for name in sorted(added):
-        problems.append(f"  [{name}] güncel çıktıda var ama baseline'da yok (yeni demo case — --update-baseline ile onaylayın)")
+        problems.append(
+            f"  [{name}] güncel çıktıda var ama baseline'da yok (yeni demo case — --update-baseline ile onaylayın)"
+        )
     for name in sorted(set(baseline) & set(current)):
         problems.extend(_diff_case(name, baseline[name], current[name]))
     return problems
@@ -149,7 +227,10 @@ def main() -> int:
 
     if update or not BASELINE_PATH.exists():
         BASELINE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        BASELINE_PATH.write_text(json.dumps(current, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+        BASELINE_PATH.write_text(
+            json.dumps(current, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
         print(f"baseline yazıldı: {BASELINE_PATH}")
         return 0
 

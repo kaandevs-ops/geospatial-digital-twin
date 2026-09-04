@@ -26,10 +26,10 @@ from ..core_engine.geometry_engine import Point2D
 from ..mesh_engine import Mesh3D, UVGenerator, Vertex3D
 from .commands import EditorCommand, FunctionCommand
 
-
 # ============================================================================ #
 # Catmull-Rom Spline
 # ============================================================================ #
+
 
 def catmull_rom_point(p0: Point2D, p1: Point2D, p2: Point2D, p3: Point2D, t: float) -> Point2D:
     """Tek bir Catmull-Rom segmentinde `t` (0..1) parametresine karşılık
@@ -51,7 +51,9 @@ def catmull_rom_point(p0: Point2D, p1: Point2D, p2: Point2D, p3: Point2D, t: flo
     return Point2D(x, y)
 
 
-def catmull_rom_spline(control_points: list[Point2D], samples_per_segment: int = 12) -> list[Point2D]:
+def catmull_rom_spline(
+    control_points: list[Point2D], samples_per_segment: int = 12
+) -> list[Point2D]:
     """Kontrol noktası dizisini yumuşak bir polylineye (samples_per_segment
     örnek/segment) dönüştürür. Uçlarda faz kaybını önlemek için ilk/son
     nokta kopyalanarak "phantom" kontrol noktaları eklenir (standart
@@ -63,9 +65,13 @@ def catmull_rom_spline(control_points: list[Point2D], samples_per_segment: int =
         # Tek segment: doğrusal enterpolasyon yeterli (spline eğrilik
         # için en az 2 komşu nokta gerektirir).
         p0, p1 = control_points
-        return [Point2D(p0.x + (p1.x - p0.x) * t / samples_per_segment,
-                         p0.y + (p1.y - p0.y) * t / samples_per_segment)
-                for t in range(samples_per_segment + 1)]
+        return [
+            Point2D(
+                p0.x + (p1.x - p0.x) * t / samples_per_segment,
+                p0.y + (p1.y - p0.y) * t / samples_per_segment,
+            )
+            for t in range(samples_per_segment + 1)
+        ]
 
     extended = [control_points[0]] + control_points + [control_points[-1]]
     result: list[Point2D] = []
@@ -82,6 +88,7 @@ def catmull_rom_spline(control_points: list[Point2D], samples_per_segment: int =
 # ============================================================================ #
 # Road
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class Road:
@@ -113,7 +120,7 @@ class Road:
                 direction = p - line[i - 1]
             else:
                 direction = line[i + 1] - line[i - 1]
-            length = (direction.x ** 2 + direction.y ** 2) ** 0.5 or 1.0
+            length = (direction.x**2 + direction.y**2) ** 0.5 or 1.0
             nx, ny = -direction.y / length, direction.x / length
             left.append(Point2D(p.x + nx * half_w, p.y + ny * half_w))
             right.append(Point2D(p.x - nx * half_w, p.y - ny * half_w))
@@ -143,6 +150,7 @@ class Road:
 # ============================================================================ #
 # RoadEditor
 # ============================================================================ #
+
 
 class RoadEditor:
     """`Road` kontrol noktaları üzerinde ekleme/taşıma/silme işlemleri.

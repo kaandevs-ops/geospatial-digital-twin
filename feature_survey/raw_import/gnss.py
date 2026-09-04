@@ -18,7 +18,7 @@ kullanıcı bilinçli override etmedikçe "kontrol/detay noktası" sayılmaz.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import Path
 
@@ -131,7 +131,22 @@ def parse_gga(sentence: str) -> GnssEpoch:
     if len(fields_) < 14 or not fields_[0].endswith("GGA"):
         raise MalformedRecordError(f"Geçerli bir GGA cümlesi değil: {sentence!r}")
 
-    _, utc_time, lat_raw, lat_hem, lon_raw, lon_hem, fix_q, num_sats, hdop, alt, alt_unit, geoid, geoid_unit, *_ = fields_
+    (
+        _,
+        utc_time,
+        lat_raw,
+        lat_hem,
+        lon_raw,
+        lon_hem,
+        fix_q,
+        num_sats,
+        hdop,
+        alt,
+        alt_unit,
+        geoid,
+        geoid_unit,
+        *_,
+    ) = fields_
 
     if not fix_q.isdigit():
         raise MalformedRecordError(f"GGA fix quality sayısal değil: {fix_q!r}")

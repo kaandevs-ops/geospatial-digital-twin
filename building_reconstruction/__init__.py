@@ -19,69 +19,135 @@ Teknik spesifikasyon: `docs/PHASE_SPECS.md` (Phase 3 bölümü).
 
 from __future__ import annotations
 
-from .footprint_parser import Footprint, FootprintParser, RoofTypeGuess, FootprintShape
-from .roof_generator import RoofGenerator, RoofType, RoofDetailGenerator, MultiPartRoofGenerator
-from .terrain_integration import (
-    TerrainFoundationGenerator, TerrainIntersectionReport, RetainingWallGenerator,
-)
-from .facade_generator import Facade, FacadeGenerator, FacadeMaterial, FacadeComplianceReport
-from .room_generator import Room, RoomGenerator, RoomType, RoomComplianceReport, RoomComplianceIssue
 from .building_elements import (
-    Balcony, BalconyGenerator,
-    BayWindow, BayWindowGenerator,
+    DOOR_TYPE_DEFAULTS,
+    WINDOW_TYPE_DEFAULTS,
+    Balcony,
+    BalconyGenerator,
+    BayWindow,
+    BayWindowGenerator,
     CorridorGenerator,
-    Door, DoorGenerator, DoorType, DOOR_TYPE_DEFAULTS,
-    ElevatorCore, ElevatorCoreGenerator,
-    EntranceCanopy, EntranceCanopyGenerator,
-    Stair, StairGenerator,
-    WindowGenerator, WindowPlacement, WindowType, WINDOW_TYPE_DEFAULTS,
+    Door,
+    DoorGenerator,
+    DoorType,
+    ElevatorCore,
+    ElevatorCoreGenerator,
+    EntranceCanopy,
+    EntranceCanopyGenerator,
+    Stair,
+    StairGenerator,
+    WindowGenerator,
+    WindowPlacement,
+    WindowType,
 )
-from .procedural_generator import (
-    Building, BuildingType, BuildingTypeRule, BuildingTypeRules,
-    Floor, ProceduralBuildingGenerator,
-)
-from .regulations import (
-    RegulationProfile,
-    default_profile as default_regulation_profile,
-    strict_reference_profile,
-    historic_zone_profile,
-    get_profile as get_regulation_profile,
-    register_profile as register_regulation_profile,
-    available_profiles as available_regulation_profiles,
-)
-from .structural_validation import (
-    IssueSeverity,
-    StructuralIssue,
-    StructuralValidationReport,
-    validate_building,
-)
+from .facade_generator import Facade, FacadeComplianceReport, FacadeGenerator, FacadeMaterial
+from .footprint_parser import Footprint, FootprintParser, FootprintShape, RoofTypeGuess
 from .permit_precheck import (
     PermitCheckItem,
     PermitPrecheckReport,
     PermitVerdict,
     precheck_building,
 )
+from .procedural_generator import (
+    Building,
+    BuildingType,
+    BuildingTypeRule,
+    BuildingTypeRules,
+    Floor,
+    ProceduralBuildingGenerator,
+)
+from .regulations import (
+    RegulationProfile,
+    historic_zone_profile,
+    strict_reference_profile,
+)
+from .regulations import (
+    available_profiles as available_regulation_profiles,
+)
+from .regulations import (
+    default_profile as default_regulation_profile,
+)
+from .regulations import (
+    get_profile as get_regulation_profile,
+)
+from .regulations import (
+    register_profile as register_regulation_profile,
+)
+from .roof_generator import MultiPartRoofGenerator, RoofDetailGenerator, RoofGenerator, RoofType
+from .room_generator import Room, RoomComplianceIssue, RoomComplianceReport, RoomGenerator, RoomType
+from .structural_validation import (
+    IssueSeverity,
+    StructuralIssue,
+    StructuralValidationReport,
+    validate_building,
+)
+from .terrain_integration import (
+    RetainingWallGenerator,
+    TerrainFoundationGenerator,
+    TerrainIntersectionReport,
+)
+
 __all__ = [
-    "Footprint", "FootprintParser", "RoofTypeGuess", "FootprintShape",
-    "RoofGenerator", "RoofType", "RoofDetailGenerator", "MultiPartRoofGenerator",
-    "TerrainFoundationGenerator", "TerrainIntersectionReport", "RetainingWallGenerator",
-    "Facade", "FacadeGenerator", "FacadeMaterial", "FacadeComplianceReport",
-    "Room", "RoomGenerator", "RoomType", "RoomComplianceReport", "RoomComplianceIssue",
-    "Balcony", "BalconyGenerator",
-    "BayWindow", "BayWindowGenerator",
+    "Footprint",
+    "FootprintParser",
+    "RoofTypeGuess",
+    "FootprintShape",
+    "RoofGenerator",
+    "RoofType",
+    "RoofDetailGenerator",
+    "MultiPartRoofGenerator",
+    "TerrainFoundationGenerator",
+    "TerrainIntersectionReport",
+    "RetainingWallGenerator",
+    "Facade",
+    "FacadeGenerator",
+    "FacadeMaterial",
+    "FacadeComplianceReport",
+    "Room",
+    "RoomGenerator",
+    "RoomType",
+    "RoomComplianceReport",
+    "RoomComplianceIssue",
+    "Balcony",
+    "BalconyGenerator",
+    "BayWindow",
+    "BayWindowGenerator",
     "CorridorGenerator",
-    "Door", "DoorGenerator", "DoorType", "DOOR_TYPE_DEFAULTS",
-    "ElevatorCore", "ElevatorCoreGenerator",
-    "EntranceCanopy", "EntranceCanopyGenerator",
-    "Stair", "StairGenerator",
-    "WindowGenerator", "WindowPlacement", "WindowType", "WINDOW_TYPE_DEFAULTS",
-    "Building", "BuildingType", "BuildingTypeRule", "BuildingTypeRules",
-    "Floor", "ProceduralBuildingGenerator",
-    "RegulationProfile", "default_regulation_profile", "strict_reference_profile",
+    "Door",
+    "DoorGenerator",
+    "DoorType",
+    "DOOR_TYPE_DEFAULTS",
+    "ElevatorCore",
+    "ElevatorCoreGenerator",
+    "EntranceCanopy",
+    "EntranceCanopyGenerator",
+    "Stair",
+    "StairGenerator",
+    "WindowGenerator",
+    "WindowPlacement",
+    "WindowType",
+    "WINDOW_TYPE_DEFAULTS",
+    "Building",
+    "BuildingType",
+    "BuildingTypeRule",
+    "BuildingTypeRules",
+    "Floor",
+    "ProceduralBuildingGenerator",
+    "RegulationProfile",
+    "default_regulation_profile",
+    "strict_reference_profile",
     "historic_zone_profile",
-    "get_regulation_profile", "register_regulation_profile", "available_regulation_profiles",
-    "IssueSeverity", "StructuralIssue", "StructuralValidationReport", "validate_building",
-    "PermitCheckItem", "PermitPrecheckReport", "PermitVerdict", "precheck_building",
+    "get_regulation_profile",
+    "register_regulation_profile",
+    "available_regulation_profiles",
+    "IssueSeverity",
+    "StructuralIssue",
+    "StructuralValidationReport",
+    "validate_building",
+    "PermitCheckItem",
+    "PermitPrecheckReport",
+    "PermitVerdict",
+    "precheck_building",
 ]
 # Not: `redevelopment` (ROADMAP_V9 Faz X / Katman 1) burada paket-seviyesi
 # eager import edilmiyor — `extensibility` paketinin tam __init__ zinciri

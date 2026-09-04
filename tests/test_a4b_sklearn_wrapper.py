@@ -13,19 +13,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.ai_reconstruction import sklearn_wrapper
 from harita.ai_reconstruction.building_analyzer import HeuristicPredictor
 from harita.ai_reconstruction.height_model import (
-    HeightRegressionModel,
     MLAssistedHeightPredictor,
-    generate_synthetic_training_set,
 )
 
 
 def test_is_available_matches_import():
     try:
         import sklearn  # noqa: F401
+
         assert sklearn_wrapper.is_available() is True
     except ImportError:
         assert sklearn_wrapper.is_available() is False
@@ -61,8 +59,12 @@ class TestRealSklearnModel:
     def test_predict_raw_returns_reasonable_height(self):
         model = sklearn_wrapper.train_default_sklearn_model(n_samples=200)
         height, uncertainty = model.predict_raw(
-            {"area_m2": 400.0, "perimeter_m": 80.0, "aspect_ratio": 1.2,
-             "building_type": "apartments"}
+            {
+                "area_m2": 400.0,
+                "perimeter_m": 80.0,
+                "aspect_ratio": 1.2,
+                "building_type": "apartments",
+            }
         )
         assert 2.0 <= height <= 200.0
         assert uncertainty >= 0.0
@@ -72,8 +74,7 @@ class TestRealSklearnModel:
         predictor = sklearn_wrapper.as_ml_assisted_predictor(model)
         assert isinstance(predictor, MLAssistedHeightPredictor)
         result = predictor.predict(
-            {"area_m2": 300.0, "perimeter_m": 70.0, "aspect_ratio": 1.5,
-             "building_type": "office"}
+            {"area_m2": 300.0, "perimeter_m": 70.0, "aspect_ratio": 1.5, "building_type": "office"}
         )
         assert "height_m" in result
         assert "floor_count" in result
@@ -86,8 +87,12 @@ class TestRealSklearnModel:
         # is_trained False oldugundan MLAssistedHeightPredictor heuristic'e duser
         predictor = MLAssistedHeightPredictor(model=untrained)  # type: ignore[arg-type]
         heuristic = HeuristicPredictor()
-        features = {"area_m2": 150.0, "perimeter_m": 50.0, "aspect_ratio": 1.1,
-                    "building_type": "house"}
+        features = {
+            "area_m2": 150.0,
+            "perimeter_m": 50.0,
+            "aspect_ratio": 1.1,
+            "building_type": "house",
+        }
         h_result = heuristic.predict(features)
         p_result = predictor.predict(features)
         assert p_result["height_m"] == h_result["height_m"]

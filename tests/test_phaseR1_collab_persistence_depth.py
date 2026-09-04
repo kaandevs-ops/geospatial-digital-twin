@@ -16,12 +16,12 @@ V4'ün kendi R1 kabul kriterini ("tüm `LWWRegister` alanları + `ORSet`
 derinlikte bir testle **ayrıca ve açıkça** kanıtlar — mevcut D18 testine
 ek, onun yerine geçmez.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
 
 import pytest
-
 from harita.collaboration.auth import AuthService, Role
 from harita.collaboration.collab_session import CollaborationHub
 from harita.persistence.db_backend import ProjectDatabase
@@ -66,8 +66,12 @@ class TestR1FullDepthPersistenceAcrossRestart:
         }
         for i, (name, value) in enumerate(fields.items()):
             hub1.apply_field_edit(
-                conn1, project_id="proj-r1", building_key="bina-r1",
-                field_name=name, value=value, timestamp=float(i + 1),
+                conn1,
+                project_id="proj-r1",
+                building_key="bina-r1",
+                field_name=name,
+                value=value,
+                timestamp=float(i + 1),
             )
 
         # "Sunucu yeniden başlatılır" - yepyeni bir CollaborationHub, aynı DB.
@@ -92,13 +96,22 @@ class TestR1FullDepthPersistenceAcrossRestart:
         # tamamı diskten doğru geri yüklenmeli.
         for floor_id in ["zemin", "kat-1", "kat-2", "kat-3", "cati"]:
             hub1.apply_add_floor(
-                conn1, project_id="proj-r1", building_key="bina-r1", floor_id=floor_id,
+                conn1,
+                project_id="proj-r1",
+                building_key="bina-r1",
+                floor_id=floor_id,
             )
         hub1.apply_remove_floor(
-            conn1, project_id="proj-r1", building_key="bina-r1", floor_id="kat-1",
+            conn1,
+            project_id="proj-r1",
+            building_key="bina-r1",
+            floor_id="kat-1",
         )
         hub1.apply_remove_floor(
-            conn1, project_id="proj-r1", building_key="bina-r1", floor_id="kat-3",
+            conn1,
+            project_id="proj-r1",
+            building_key="bina-r1",
+            floor_id="kat-3",
         )
 
         hub2 = CollaborationHub(auth, db=db)
@@ -119,7 +132,9 @@ class TestR1FullDepthPersistenceAcrossRestart:
         hub1.join(conn1, token=token, project_id="proj-r1", building_key="bina-r1")
 
         hub1.apply_add_floor(conn1, project_id="proj-r1", building_key="bina-r1", floor_id="kat-x")
-        hub1.apply_remove_floor(conn1, project_id="proj-r1", building_key="bina-r1", floor_id="kat-x")
+        hub1.apply_remove_floor(
+            conn1, project_id="proj-r1", building_key="bina-r1", floor_id="kat-x"
+        )
         hub1.apply_add_floor(conn1, project_id="proj-r1", building_key="bina-r1", floor_id="kat-x")
 
         hub2 = CollaborationHub(auth, db=db)
@@ -135,8 +150,12 @@ class TestR1FullDepthPersistenceAcrossRestart:
         conn1 = hub1.router.connect()
         hub1.join(conn1, token=token, project_id="proj-r1", building_key="bina-r1")
         hub1.apply_field_edit(
-            conn1, project_id="proj-r1", building_key="bina-r1",
-            field_name="v", value=1, timestamp=1.0,
+            conn1,
+            project_id="proj-r1",
+            building_key="bina-r1",
+            field_name="v",
+            value=1,
+            timestamp=1.0,
         )
 
         for restart_value in (2, 3, 4):
@@ -145,8 +164,12 @@ class TestR1FullDepthPersistenceAcrossRestart:
             room_n = hub_n.join(conn_n, token=token, project_id="proj-r1", building_key="bina-r1")
             assert room_n.state.get_field("v") == restart_value - 1
             hub_n.apply_field_edit(
-                conn_n, project_id="proj-r1", building_key="bina-r1",
-                field_name="v", value=restart_value, timestamp=float(restart_value),
+                conn_n,
+                project_id="proj-r1",
+                building_key="bina-r1",
+                field_name="v",
+                value=restart_value,
+                timestamp=float(restart_value),
             )
 
         hub_final = CollaborationHub(auth, db=db)

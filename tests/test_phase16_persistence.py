@@ -11,7 +11,6 @@ import sqlite3
 import time
 
 import pytest
-
 from harita.persistence import (
     FORMAT_VERSION,
     MigrationError,
@@ -24,16 +23,13 @@ from harita.persistence import (
     migrate_schema,
 )
 
-
 # ---------------------------------------------------------------------------
 # ProjectManifest
 # ---------------------------------------------------------------------------
 
 
 def test_manifest_roundtrip_dict():
-    m = ProjectManifest(
-        name="Ankara Kızılay", project_id="p1", description="test", tags=("a", "b")
-    )
+    m = ProjectManifest(name="Ankara Kızılay", project_id="p1", description="test", tags=("a", "b"))
     d = m.to_dict()
     m2 = ProjectManifest.from_dict(d)
     assert m2.name == m.name

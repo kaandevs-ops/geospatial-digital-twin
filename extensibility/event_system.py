@@ -14,8 +14,9 @@ from __future__ import annotations
 
 import fnmatch
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -23,7 +24,7 @@ class Event:
     name: str
     payload: Any = None
     timestamp: float = field(default_factory=time.time)
-    source: Optional[str] = None
+    source: str | None = None
 
 
 Listener = Callable[[Event], None]
@@ -33,10 +34,10 @@ class EventSystem:
     """Senkron, isim-bazlı (glob destekli) pub/sub olay veri yolu."""
 
     def __init__(self) -> None:
-        self._listeners: Dict[str, List[Listener]] = {}
-        self._history: List[Event] = []
+        self._listeners: dict[str, list[Listener]] = {}
+        self._history: list[Event] = []
         self._history_limit = 500
-        self._bridges: List[Callable[[Event], None]] = []
+        self._bridges: list[Callable[[Event], None]] = []
 
     def subscribe(self, pattern: str, listener: Listener) -> Callable[[], None]:
         """`pattern` bir tam isim ya da glob (`building.*`, `*`) olabilir.
@@ -55,7 +56,7 @@ class EventSystem:
     def unsubscribe_all(self, pattern: str) -> None:
         self._listeners.pop(pattern, None)
 
-    def emit(self, name: str, payload: Any = None, source: Optional[str] = None) -> Event:
+    def emit(self, name: str, payload: Any = None, source: str | None = None) -> Event:
         event = Event(name=name, payload=payload, source=source)
         self._record(event)
         for pattern, listeners in list(self._listeners.items()):
@@ -71,7 +72,7 @@ class EventSystem:
         if len(self._history) > self._history_limit:
             self._history.pop(0)
 
-    def history(self, pattern: str = "*") -> List[Event]:
+    def history(self, pattern: str = "*") -> list[Event]:
         return [e for e in self._history if fnmatch.fnmatchcase(e.name, pattern)]
 
     def bridge_to(self, sink: Callable[[Event], None]) -> None:

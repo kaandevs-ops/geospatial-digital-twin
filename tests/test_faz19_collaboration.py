@@ -20,7 +20,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.collaboration.auth import (
     AuthService,
     InvalidCredentialsError,
@@ -32,12 +31,11 @@ from harita.collaboration.auth import (
 )
 from harita.collaboration.collab_session import CollaborationHub, RoomNotFoundError
 from harita.collaboration.crdt import CRDTBuildingState, LWWRegister, ORSet
-from harita.extensibility.websocket_api import WSConnection
-
 
 # ------------------------------------------------------------------ #
 # auth.AuthService
 # ------------------------------------------------------------------ #
+
 
 def test_register_and_login_success():
     auth = AuthService()
@@ -121,6 +119,7 @@ def test_members_lists_all_project_memberships():
 # ------------------------------------------------------------------ #
 # crdt — matematiksel garantiler (kabul kriterinin çekirdeği)
 # ------------------------------------------------------------------ #
+
 
 def test_lww_register_later_timestamp_wins():
     a = LWWRegister(value=10.0, timestamp=1.0, actor_id="alice")
@@ -238,6 +237,7 @@ def test_crdt_no_conflict_case_both_fields_preserved():
 # collab_session.CollaborationHub — uçtan uca senaryo
 # ------------------------------------------------------------------ #
 
+
 @pytest.fixture
 def hub_with_two_editors():
     auth = AuthService()
@@ -276,8 +276,11 @@ def test_viewer_cannot_apply_edit():
     hub.join(conn, token=token, project_id="proj1", building_key="bina-a")
     with pytest.raises(PermissionDeniedError):
         hub.apply_field_edit(
-            conn, project_id="proj1", building_key="bina-a",
-            field_name="height_m", value=99.0,
+            conn,
+            project_id="proj1",
+            building_key="bina-a",
+            field_name="height_m",
+            value=99.0,
         )
 
 
@@ -296,12 +299,20 @@ def test_two_editors_concurrent_conflicting_edit_converges(hub_with_two_editors)
 
     fixed_ts = 1000.0
     hub.apply_field_edit(
-        conn_alice, project_id="proj1", building_key="bina-a",
-        field_name="height_m", value=30.0, timestamp=fixed_ts,
+        conn_alice,
+        project_id="proj1",
+        building_key="bina-a",
+        field_name="height_m",
+        value=30.0,
+        timestamp=fixed_ts,
     )
     hub.apply_field_edit(
-        conn_bob, project_id="proj1", building_key="bina-a",
-        field_name="height_m", value=45.0, timestamp=fixed_ts,
+        conn_bob,
+        project_id="proj1",
+        building_key="bina-a",
+        field_name="height_m",
+        value=45.0,
+        timestamp=fixed_ts,
     )
 
     # Sunucu tarafindaki paylasilan oda state'i tek bir CRDT oldugundan
@@ -331,8 +342,11 @@ def test_alice_receives_bobs_edit_via_broadcast(hub_with_two_editors):
     hub.join(conn_bob, token=bob_token, project_id="proj1", building_key="bina-a")
 
     hub.apply_field_edit(
-        conn_bob, project_id="proj1", building_key="bina-a",
-        field_name="height_m", value=50.0,
+        conn_bob,
+        project_id="proj1",
+        building_key="bina-a",
+        field_name="height_m",
+        value=50.0,
     )
     # alice'in outbox'ina bir crdt_patch mesaji dusmus olmali (bob haric broadcast)
     patch_messages = [m for m in conn_alice.outbox if m.type == "crdt_patch"]
@@ -348,8 +362,11 @@ def test_apply_edit_on_unknown_room_raises():
     conn = hub.router.connect()
     with pytest.raises(RoomNotFoundError):
         hub.apply_field_edit(
-            conn, project_id="proj-x", building_key="bina-x",
-            field_name="height_m", value=1.0,
+            conn,
+            project_id="proj-x",
+            building_key="bina-x",
+            field_name="height_m",
+            value=1.0,
         )
 
 
@@ -383,9 +400,14 @@ def test_ws_handlers_registered_for_join_and_edit(hub_with_two_editors):
 
     reply = hub.router.dispatch(
         conn,
-        WSMessage(type="collab.join", payload={
-            "token": alice_token, "project_id": "proj1", "building_key": "bina-a",
-        }),
+        WSMessage(
+            type="collab.join",
+            payload={
+                "token": alice_token,
+                "project_id": "proj1",
+                "building_key": "bina-a",
+            },
+        ),
     )
     assert reply is not None
     assert reply.type == "collab.join.reply"

@@ -37,15 +37,16 @@ from __future__ import annotations
 import re
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any
 
 from . import DigitalTwin
-
 
 # ========================================================================== #
 # Hatalar
 # ========================================================================== #
+
 
 class MqttBackendUnavailable(Exception):
     """`paho-mqtt` kurulu değil veya gerçek bir broker'a bağlanılamadı."""
@@ -54,6 +55,7 @@ class MqttBackendUnavailable(Exception):
 # ========================================================================== #
 # TopicBus - MQTT-benzeri topic/payload pub/sub (stdlib-only)
 # ========================================================================== #
+
 
 def _topic_pattern_to_regex(pattern: str) -> re.Pattern:
     """MQTT joker karakterlerini (`+` = tek seviye, `#` = çoklu seviye,
@@ -93,7 +95,9 @@ class TopicBus:
         self._history: list[IotMessage] = []
         self._next_id = 0
 
-    def subscribe(self, topic_pattern: str, listener: Callable[[IotMessage], None]) -> Callable[[], None]:
+    def subscribe(
+        self, topic_pattern: str, listener: Callable[[IotMessage], None]
+    ) -> Callable[[], None]:
         """`topic_pattern` içindeki bir mesaj yayınlandığında `listener` çağrılır.
         Geriye, aboneliği iptal eden bir fonksiyon döner."""
         regex = _topic_pattern_to_regex(topic_pattern)
@@ -115,8 +119,7 @@ class TopicBus:
         with self._lock:
             self._history.append(msg)
             matched = [
-                listener for (regex, listener) in self._subscriptions.values()
-                if regex.match(topic)
+                listener for (regex, listener) in self._subscriptions.values() if regex.match(topic)
             ]
         for listener in matched:
             listener(msg)
@@ -134,6 +137,7 @@ class TopicBus:
 # MqttBridge - opsiyonel gerçek MQTT broker entegrasyonu ([iot] extra)
 # ========================================================================== #
 
+
 class MqttBridge:
     """`paho-mqtt` (opsiyonel `[iot]` extra) kuruluysa gerçek bir MQTT
     broker'ına bağlanır ve gelen mesajları verilen `TopicBus`'a köprüler.
@@ -149,8 +153,13 @@ class MqttBridge:
         self._client: Any = None
         self._connected = False
 
-    def connect(self, host: str = "localhost", port: int = 1883,
-                topics: Optional[list[str]] = None, timeout_s: float = 5.0) -> None:
+    def connect(
+        self,
+        host: str = "localhost",
+        port: int = 1883,
+        topics: list[str] | None = None,
+        timeout_s: float = 5.0,
+    ) -> None:
         try:
             import paho.mqtt.client as mqtt  # type: ignore
         except ImportError as exc:
@@ -177,7 +186,7 @@ class MqttBridge:
                 f"MQTT broker'a bağlanılamadı ({host}:{port}): {exc}"
             ) from exc
 
-        for topic in (topics or ["#"]):
+        for topic in topics or ["#"]:
             client.subscribe(topic)
 
         client.loop_start()
@@ -199,6 +208,7 @@ class MqttBridge:
 # SensorIotBinding - TopicBus <-> DigitalTwin.SensorBinding köprüsü
 # ========================================================================== #
 
+
 class SensorIotBinding:
     """Bir `DigitalTwin`'in belirli bir sensörünü, `TopicBus`'daki bir
     konuya abone eder. Gelen her mesaj (sayısal veya `{"value": ...}`
@@ -212,7 +222,7 @@ class SensorIotBinding:
         self._twin = twin
         self._sensor_id = sensor_id
         self._topic = topic
-        self._unsubscribe: Optional[Callable[[], None]] = None
+        self._unsubscribe: Callable[[], None] | None = None
         self._message_count = 0
 
     def bind(self) -> None:
@@ -234,7 +244,7 @@ class SensorIotBinding:
         return self._message_count
 
     @staticmethod
-    def _extract_value(payload: Any) -> Optional[float]:
+    def _extract_value(payload: Any) -> float | None:
         if isinstance(payload, (int, float)):
             return float(payload)
         if isinstance(payload, dict) and "value" in payload:

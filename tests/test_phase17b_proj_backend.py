@@ -10,21 +10,21 @@ doğrulanır (`pytest.importorskip` YERİNE bilinçli olarak `skip` etmiyoruz,
 
 from __future__ import annotations
 
-import pytest
-
 import sys
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from harita.core_engine.coordinate_systems import GeoPoint
-from harita.core_engine.geo_reference import REFERENCE_LOCATIONS
-from harita.core_engine.geo_reference import proj_backend
+from harita.core_engine.geo_reference import REFERENCE_LOCATIONS, proj_backend
 
 
 def test_is_available_matches_import():
     try:
         import pyproj  # noqa: F401
+
         assert proj_backend.is_available() is True
     except ImportError:
         assert proj_backend.is_available() is False

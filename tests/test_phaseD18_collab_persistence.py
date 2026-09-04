@@ -15,7 +15,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.collaboration.auth import AuthService, Role
 from harita.collaboration.collab_session import CollaborationHub
 from harita.collaboration.crdt import CRDTBuildingState, LWWRegister, ORSet
@@ -71,8 +70,12 @@ class TestHubPersistenceAcrossRestart:
         conn1 = hub1.router.connect()
         hub1.join(conn1, token=token, project_id="proj1", building_key="bina-a")
         hub1.apply_field_edit(
-            conn1, project_id="proj1", building_key="bina-a",
-            field_name="height_m", value=42.0, timestamp=1.0,
+            conn1,
+            project_id="proj1",
+            building_key="bina-a",
+            field_name="height_m",
+            value=42.0,
+            timestamp=1.0,
         )
         hub1.apply_add_floor(conn1, project_id="proj1", building_key="bina-a", floor_id="kat-1")
 
@@ -96,8 +99,12 @@ class TestHubPersistenceAcrossRestart:
         conn1 = hub1.router.connect()
         hub1.join(conn1, token=token, project_id="proj1", building_key="bina-a")
         hub1.apply_field_edit(
-            conn1, project_id="proj1", building_key="bina-a",
-            field_name="height_m", value=42.0, timestamp=1.0,
+            conn1,
+            project_id="proj1",
+            building_key="bina-a",
+            field_name="height_m",
+            value=42.0,
+            timestamp=1.0,
         )
 
         hub2 = CollaborationHub(auth)  # yeni hub, hicbir db paylasilmiyor
@@ -133,14 +140,22 @@ class TestHubPersistenceAcrossRestart:
         conn1 = hub1.router.connect()
         hub1.join(conn1, token=token, project_id="proj1", building_key="bina-a")
         hub1.apply_field_edit(
-            conn1, project_id="proj1", building_key="bina-a",
-            field_name="height_m", value=10.0, timestamp=1.0,
+            conn1,
+            project_id="proj1",
+            building_key="bina-a",
+            field_name="height_m",
+            value=10.0,
+            timestamp=1.0,
         )
         conn2 = hub1.router.connect()
         hub1.join(conn2, token=token, project_id="proj1", building_key="bina-b")
         hub1.apply_field_edit(
-            conn2, project_id="proj1", building_key="bina-b",
-            field_name="height_m", value=20.0, timestamp=1.0,
+            conn2,
+            project_id="proj1",
+            building_key="bina-b",
+            field_name="height_m",
+            value=20.0,
+            timestamp=1.0,
         )
 
         hub2 = CollaborationHub(auth, db=db)

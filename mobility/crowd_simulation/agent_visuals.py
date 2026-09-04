@@ -59,9 +59,9 @@ class AgentVisualLevel(str, Enum):
     girdisini paylaşır (roadmap 2.3.4: "üçlü LOD zinciri").
     """
 
-    BILLBOARD = "billboard"    # Seviye 1 — sprite, instancing, durum-renk tint
-    CAPSULE = "capsule"        # Seviye 2 — kapsül+küre low-poly, hafif bobbing
-    SKELETAL = "skeletal"      # Seviye 3 — tam iskelet animasyonu, GPU skinning
+    BILLBOARD = "billboard"  # Seviye 1 — sprite, instancing, durum-renk tint
+    CAPSULE = "capsule"  # Seviye 2 — kapsül+küre low-poly, hafif bobbing
+    SKELETAL = "skeletal"  # Seviye 3 — tam iskelet animasyonu, GPU skinning
 
 
 #: Roadmap 2.3.4 varsayılan mesafe eşikleri (metre). Açıkça isimlendirilmiş
@@ -112,15 +112,15 @@ class AnimationClip(str, Enum):
     IDLE = "idle"
     WALK = "walk"
     RUN = "run"
-    PANIC_RUN = "panic_run"                    # 2.3.3 — PANIC durumu
-    WAIT = "wait"                               # bekleme/duraklama
+    PANIC_RUN = "panic_run"  # 2.3.3 — PANIC durumu
+    WAIT = "wait"  # bekleme/duraklama
     STAIR_UP = "stair_up"
     STAIR_DOWN = "stair_down"
     # -- Roadmap 2.6: Duygu/korku ifadesi -------------------------------- #
-    COWER = "cower"                             # çömelme
+    COWER = "cower"  # çömelme
     LOOK_AROUND_PANICKED = "look_around_panicked"  # koşarken etrafa bakınma
-    COVER_HEAD = "cover_head"                   # elleri başında koruma pozu
-    STUMBLE_RECOVER = "stumble_recover"         # düşüp kalkma
+    COVER_HEAD = "cover_head"  # elleri başında koruma pozu
+    STUMBLE_RECOVER = "stumble_recover"  # düşüp kalkma
 
 
 #: Roadmap 2.3.3 — `AgentBehavior` → temel hareket clip'i eşlemesi (durum
@@ -183,13 +183,16 @@ class CrowdPressureLevel(str, Enum):
     `agent_repulsion_a=2.0` ölçeğine göre kalibre edildi (tipik serbest
     yürüyüşte ~0, dar geçit/darboğazda önemli ölçüde büyür)."""
 
-    NONE = "none"        # serbest hareket, görsel etki yok
-    MILD = "mild"         # hafif yavaşlama/duruş sıkılaşması
-    SQUEEZE = "squeeze"   # belirgin sıkışma, omuz/duruş daralması
+    NONE = "none"  # serbest hareket, görsel etki yok
+    MILD = "mild"  # hafif yavaşlama/duruş sıkılaşması
+    SQUEEZE = "squeeze"  # belirgin sıkışma, omuz/duruş daralması
 
 
 def crowd_pressure_level(
-    agent: Agent, *, mild_threshold: float = 1.0, squeeze_threshold: float = 4.0,
+    agent: Agent,
+    *,
+    mild_threshold: float = 1.0,
+    squeeze_threshold: float = 4.0,
 ) -> CrowdPressureLevel:
     """Roadmap 2.5: SocialForceModel'in zaten hesapladığı itme kuvvetini
     (bkz. `crowd_simulation.SocialForceModel.step` → `agent.crowd_pressure`)
@@ -207,13 +210,24 @@ def crowd_pressure_level(
 #: mesh/doku dosyalarına eşler (bu modül dosya yolu bilmez — yalnızca
 #: deterministik bir etiket üretir, tek sorumluluk ilkesi).
 AGENT_MESH_VARIANTS: tuple[str, ...] = (
-    "civilian_a", "civilian_b", "civilian_c", "civilian_d", "civilian_e", "civilian_f",
+    "civilian_a",
+    "civilian_b",
+    "civilian_c",
+    "civilian_d",
+    "civilian_e",
+    "civilian_f",
 )
 
 #: Roadmap 2.4 — "renk paleti rastgele ama seed'e bağlı". Sabit, sonlu bir
 #: palet (kara kutu rastgelelik değil, açık liste).
 AGENT_COLOR_PALETTE: tuple[str, ...] = (
-    "#3B4A5A", "#7A5230", "#5C6B4A", "#4A4A4A", "#6B3B3B", "#3B5A5A", "#5A4A6B",
+    "#3B4A5A",
+    "#7A5230",
+    "#5C6B4A",
+    "#4A4A4A",
+    "#6B3B3B",
+    "#3B5A5A",
+    "#5A4A6B",
 )
 
 
@@ -225,7 +239,7 @@ def agent_visual_variant(agent_id: int, seed: int = 0) -> tuple[str, str]:
     modülünün global durumuna bağlı değil, saf bir hash - koşu sırası veya
     başka bir agent'ın kaç kez rastgele sayı çektiğinden etkilenmez).
     """
-    digest = hashlib.sha256(f"{seed}:{agent_id}".encode("utf-8")).digest()
+    digest = hashlib.sha256(f"{seed}:{agent_id}".encode()).digest()
     mesh = AGENT_MESH_VARIANTS[digest[0] % len(AGENT_MESH_VARIANTS)]
     color = AGENT_COLOR_PALETTE[digest[1] % len(AGENT_COLOR_PALETTE)]
     return mesh, color

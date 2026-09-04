@@ -38,20 +38,41 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Bir harita projesini export edip somut bir manifest.json üretir.",
     )
-    parser.add_argument("project_path", type=str, nargs="?", default=None, help="Açılacak .harita proje dosyasının yolu (--verify modunda gerekli değil)")
     parser.add_argument(
-        "--format", "-f", dest="formats", action="append", default=[],
+        "project_path",
+        type=str,
+        nargs="?",
+        default=None,
+        help="Açılacak .harita proje dosyasının yolu (--verify modunda gerekli değil)",
+    )
+    parser.add_argument(
+        "--format",
+        "-f",
+        dest="formats",
+        action="append",
+        default=[],
         choices=sorted(_VALID_FORMATS),
         help="Export edilecek format (birden fazla kez verilebilir). Varsayılan: obj, gltf.",
     )
-    parser.add_argument("--out-dir", type=str, default=None, help="Export hedef dizini (proje köküne göreli)")
-    parser.add_argument("--crs", type=str, default=None, help="Manifest'e yazılacak koordinat referans sistemi etiketi (örn. EPSG:4326)")
     parser.add_argument(
-        "--no-checksums", action="store_true",
+        "--out-dir", type=str, default=None, help="Export hedef dizini (proje köküne göreli)"
+    )
+    parser.add_argument(
+        "--crs",
+        type=str,
+        default=None,
+        help="Manifest'e yazılacak koordinat referans sistemi etiketi (örn. EPSG:4326)",
+    )
+    parser.add_argument(
+        "--no-checksums",
+        action="store_true",
         help="SHA-256 checksum hesaplamayı atla (büyük 3D Tiles dizinlerinde hızlandırmak için)",
     )
     parser.add_argument(
-        "--verify", type=str, default=None, metavar="MANIFEST.json",
+        "--verify",
+        type=str,
+        default=None,
+        metavar="MANIFEST.json",
         help="Export yapmadan, var olan bir manifest.json'un checksum'larını diskle karşılaştırıp doğrula",
     )
     return parser
@@ -99,8 +120,10 @@ def main(argv: list[str] | None = None) -> int:
 
         try:
             result = session.export_manifest(
-                project_id, formats,
-                out_dir=args.out_dir, crs=args.crs,
+                project_id,
+                formats,
+                out_dir=args.out_dir,
+                crs=args.crs,
                 compute_checksums=not args.no_checksums,
             )
         except AppSessionError as exc:

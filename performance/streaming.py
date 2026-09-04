@@ -30,8 +30,8 @@ saglanir.
 from __future__ import annotations
 
 import math
+from collections.abc import Generator, Iterable
 from dataclasses import dataclass, field
-from typing import Generator, Iterable
 
 from ..mesh_engine import Mesh3D, Triangle, Vertex3D
 
@@ -42,12 +42,15 @@ Vec3 = tuple[float, float, float]
 # Incremental Mesh Generation
 # ============================================================================ #
 
+
 class IncrementalMeshGenerator:
     """`triangles_source`'tan (herhangi bir iterable üçgen üreticisi;
     orn. bir procedural building generator'in ic ureticisi) `chunk_size`
     ucgenlik parcalar halinde `Mesh3D` uretir."""
 
-    def __init__(self, vertices: list[Vertex3D], triangles: Iterable[Triangle], chunk_size: int = 256) -> None:
+    def __init__(
+        self, vertices: list[Vertex3D], triangles: Iterable[Triangle], chunk_size: int = 256
+    ) -> None:
         self._vertices = vertices
         self._triangles = list(triangles)
         self.chunk_size = max(1, chunk_size)
@@ -56,7 +59,11 @@ class IncrementalMeshGenerator:
         total = len(self._triangles)
         for start in range(0, total, self.chunk_size):
             chunk_tris = self._triangles[start : start + self.chunk_size]
-            yield Mesh3D(vertices=self._vertices, triangles=chunk_tris, name=f"{name}_chunk{start // self.chunk_size}")
+            yield Mesh3D(
+                vertices=self._vertices,
+                triangles=chunk_tris,
+                name=f"{name}_chunk{start // self.chunk_size}",
+            )
 
     @property
     def total_chunks(self) -> int:
@@ -66,6 +73,7 @@ class IncrementalMeshGenerator:
 # ============================================================================ #
 # Geometry / Scene Streaming
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class StreamingDiff:
@@ -114,6 +122,7 @@ class SceneStreaming(GeometryStreaming):
 # Texture Atlas
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class AtlasEntry:
     key: str
@@ -122,7 +131,9 @@ class AtlasEntry:
     width: int
     height: int
 
-    def uv_transform(self, atlas_width: int, atlas_height: int) -> tuple[float, float, float, float]:
+    def uv_transform(
+        self, atlas_width: int, atlas_height: int
+    ) -> tuple[float, float, float, float]:
         """(u_offset, v_offset, u_scale, v_scale) - orijinal [0,1] UV'yi
         atlas icindeki alt-bolgeye esler: `u' = u * u_scale + u_offset`."""
         return (
@@ -149,7 +160,9 @@ class TextureAtlas:
 
     def add(self, key: str, width: int, height: int) -> AtlasEntry:
         if width > self.atlas_width:
-            raise ValueError(f"Texture genisligi ({width}) atlas genisligini ({self.atlas_width}) asiyor")
+            raise ValueError(
+                f"Texture genisligi ({width}) atlas genisligini ({self.atlas_width}) asiyor"
+            )
         if self._shelf_x + width > self.atlas_width:
             # yeni rafa gec
             self._shelf_x = 0
@@ -175,6 +188,7 @@ class TextureAtlas:
 # ============================================================================ #
 # Instancing & Dynamic Batching
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class InstancingBatch:

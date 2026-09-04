@@ -5,10 +5,10 @@ offline alternatifi).
 
 Ağ gerektirmez - indirme testlerinde sahte (fake) bir `fetcher` kullanılır.
 """
+
 from __future__ import annotations
 
 import pytest
-
 from harita.core_engine.gis_core import GeoFeature, GeoFeatureCollection
 from harita.offline_cache import (
     DEFAULT_MAX_TILES_PER_DOWNLOAD,
@@ -27,10 +27,10 @@ from harita.offline_cache.local_place_index import (
     merge_indices,
 )
 
-
 # --------------------------------------------------------------------------- #
 # Slippy-map tile matematiği
 # --------------------------------------------------------------------------- #
+
 
 def test_deg2tile_known_reference_point():
     # OSM Wiki referans örneği: Zoom 18'de (lat=51.5, lon=0.0) civarı Londra.
@@ -41,7 +41,7 @@ def test_deg2tile_known_reference_point():
 
 def test_deg2tile_clamps_to_valid_range():
     x, y = deg2tile(89.9, 179.9, 3)
-    n = 2 ** 3
+    n = 2**3
     assert 0 <= x < n
     assert 0 <= y < n
 
@@ -78,6 +78,7 @@ def test_tiles_for_bbox_zoom_range_covers_all_levels():
 # TileCache
 # --------------------------------------------------------------------------- #
 
+
 def test_tile_cache_write_and_read_roundtrip(tmp_path):
     cache = TileCache(tmp_path)
     cache.write_tile(12, 5, 7, b"fake-png-bytes")
@@ -102,8 +103,14 @@ def test_tile_cache_count_and_bytes(tmp_path):
 def test_tile_cache_manifest_records_region(tmp_path):
     cache = TileCache(tmp_path)
     cache.record_region(
-        name="test-bolge", min_lat=41.0, min_lon=29.0, max_lat=41.1, max_lon=29.1,
-        zoom_min=10, zoom_max=12, tile_count=42,
+        name="test-bolge",
+        min_lat=41.0,
+        min_lon=29.0,
+        max_lat=41.1,
+        max_lon=29.1,
+        zoom_min=10,
+        zoom_max=12,
+        tile_count=42,
     )
     manifest = cache.load_manifest()
     assert len(manifest) == 1
@@ -120,6 +127,7 @@ def test_tile_cache_manifest_empty_when_no_file(tmp_path):
 # download_tiles / download_bbox - sahte fetcher, ağ gerektirmez
 # --------------------------------------------------------------------------- #
 
+
 def test_download_tiles_writes_all_to_cache(tmp_path):
     cache = TileCache(tmp_path)
     tiles = [(10, 0, 0), (10, 0, 1), (10, 1, 0)]
@@ -127,7 +135,9 @@ def test_download_tiles_writes_all_to_cache(tmp_path):
     def fake_fetcher(url: str) -> bytes:
         return f"tile-for-{url}".encode()
 
-    result = download_tiles(cache, tiles, "https://example.invalid/{z}/{x}/{y}.png", fetcher=fake_fetcher)
+    result = download_tiles(
+        cache, tiles, "https://example.invalid/{z}/{x}/{y}.png", fetcher=fake_fetcher
+    )
     assert result.downloaded == 3
     assert result.already_cached == 0
     assert result.failed == 0
@@ -144,7 +154,12 @@ def test_download_tiles_skips_already_cached(tmp_path):
         calls.append(url)
         return b"new-data"
 
-    result = download_tiles(cache, [(10, 0, 0), (10, 0, 1)], "https://example.invalid/{z}/{x}/{y}.png", fetcher=fake_fetcher)
+    result = download_tiles(
+        cache,
+        [(10, 0, 0), (10, 0, 1)],
+        "https://example.invalid/{z}/{x}/{y}.png",
+        fetcher=fake_fetcher,
+    )
     assert result.already_cached == 1
     assert result.downloaded == 1
     assert len(calls) == 1
@@ -161,7 +176,9 @@ def test_download_tiles_handles_individual_failures(tmp_path):
         return b"ok"
 
     tiles = [(10, 0, 0), (10, 1, 0)]
-    result = download_tiles(cache, tiles, "https://example.invalid/{z}/{x}/{y}.png", fetcher=flaky_fetcher)
+    result = download_tiles(
+        cache, tiles, "https://example.invalid/{z}/{x}/{y}.png", fetcher=flaky_fetcher
+    )
     assert result.downloaded == 1
     assert result.failed == 1
     assert (10, 1, 0) in result.failed_tiles
@@ -174,7 +191,9 @@ def test_download_tiles_respects_max_tiles_limit(tmp_path):
     def fake_fetcher(url: str) -> bytes:
         return b"x"
 
-    result = download_tiles(cache, tiles, "https://example.invalid/{z}/{x}/{y}.png", fetcher=fake_fetcher, max_tiles=10)
+    result = download_tiles(
+        cache, tiles, "https://example.invalid/{z}/{x}/{y}.png", fetcher=fake_fetcher, max_tiles=10
+    )
     assert result.requested == 10
     assert cache.tile_count() == 10
 
@@ -191,8 +210,12 @@ def test_download_bbox_end_to_end_records_manifest(tmp_path):
 
     result = download_bbox(
         cache,
-        min_lat=41.0, min_lon=29.0, max_lat=41.02, max_lon=29.02,
-        zoom_min=13, zoom_max=14,
+        min_lat=41.0,
+        min_lon=29.0,
+        max_lat=41.02,
+        max_lon=29.02,
+        zoom_min=13,
+        zoom_max=14,
         url_template="https://example.invalid/{z}/{x}/{y}.png",
         region_name="ankara-test",
         fetcher=fake_fetcher,
@@ -207,6 +230,7 @@ def test_download_bbox_end_to_end_records_manifest(tmp_path):
 # --------------------------------------------------------------------------- #
 # LocalPlaceIndex - offline Nominatim alternatifi
 # --------------------------------------------------------------------------- #
+
 
 def test_search_finds_case_and_turkish_char_insensitive_match():
     index = LocalPlaceIndex()
@@ -247,8 +271,14 @@ def test_load_missing_file_returns_empty_index(tmp_path):
 def test_build_index_from_collection_extracts_named_point_features():
     collection = GeoFeatureCollection(
         features=[
-            GeoFeature(geometry_type="Point", coordinates=(32.85, 39.92), properties={"name": "Kugulu Park", "amenity": "cafe"}),
-            GeoFeature(geometry_type="Point", coordinates=(32.86, 39.93), properties={}),  # isimsiz -> atlanir
+            GeoFeature(
+                geometry_type="Point",
+                coordinates=(32.85, 39.92),
+                properties={"name": "Kugulu Park", "amenity": "cafe"},
+            ),
+            GeoFeature(
+                geometry_type="Point", coordinates=(32.86, 39.93), properties={}
+            ),  # isimsiz -> atlanir
         ]
     )
     index = build_index_from_collection(collection, category="cafe")

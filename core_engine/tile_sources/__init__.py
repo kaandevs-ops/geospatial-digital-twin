@@ -43,6 +43,7 @@ class TileFetchError(Exception):
 # URL şablonları
 # ======================================================================== #
 
+
 @dataclass(frozen=True, slots=True)
 class XYZTileSource:
     """
@@ -60,8 +61,7 @@ class XYZTileSource:
     def build_url(self, coord: TileCoordinate, subdomain_index: int = 0) -> str:
         if not (0 <= coord.z <= self.max_zoom):
             raise TileSourceError(
-                f"zoom {coord.z}, '{self.name}' kaynağının max_zoom={self.max_zoom} "
-                f"sınırını aşıyor"
+                f"zoom {coord.z}, '{self.name}' kaynağının max_zoom={self.max_zoom} sınırını aşıyor"
             )
         template = self.url_template
         if "{s}" in template:
@@ -100,8 +100,12 @@ class WMTSTileSource:
         matrix = f"{self.tile_matrix_prefix}{coord.z}"
         if not self.kvp:
             return self.base_url.format(
-                TileMatrix=matrix, TileCol=coord.x, TileRow=coord.y,
-                z=coord.z, x=coord.x, y=coord.y,
+                TileMatrix=matrix,
+                TileCol=coord.x,
+                TileRow=coord.y,
+                z=coord.z,
+                x=coord.x,
+                y=coord.y,
             )
         params = {
             "SERVICE": "WMTS",
@@ -167,6 +171,7 @@ TileSource = XYZTileSource | WMTSTileSource | WMSTileSource
 # ======================================================================== #
 # Fetch soyutlaması (ağ-agnostik, test edilebilir)
 # ======================================================================== #
+
 
 class TileFetcher(Protocol):
     """Bir URL'den ham tile byte'larını getiren herhangi bir çağrılabilir."""

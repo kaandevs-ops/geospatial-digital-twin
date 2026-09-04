@@ -4,6 +4,7 @@
 ve `visualization.explosion_view` modüllerinin `AppSession`/REST API
 üzerinden gerçek bir binaya uygulandığını doğrular.
 """
+
 from __future__ import annotations
 
 import sys
@@ -12,7 +13,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.app_shell import AppSession, AppSessionError, build_app_router
 
 
@@ -33,7 +33,10 @@ def _make_project_with_building(session, tmp_path, floor_count=3, height_m=9.0):
     info = session.create_project("Proje", tmp_path / "p.hproj")
     pid = info["project_id"]
     b = session.add_building(
-        pid, [(0, 0), (10, 0), (10, 10), (0, 10)], floor_count=floor_count, height_m=height_m,
+        pid,
+        [(0, 0), (10, 0), (10, 10), (0, 10)],
+        floor_count=floor_count,
+        height_m=height_m,
     )
     return pid, b["key"]
 
@@ -41,6 +44,7 @@ def _make_project_with_building(session, tmp_path, floor_count=3, height_m=9.0):
 # ---------------------------------------------------------------------------
 # section_view_scene
 # ---------------------------------------------------------------------------
+
 
 def test_section_view_scene_cuts_mesh_in_half(session, tmp_path):
     pid, key = _make_project_with_building(session, tmp_path)
@@ -85,6 +89,7 @@ def test_section_view_via_rest_api(router, session, tmp_path):
 # explosion_view_scene
 # ---------------------------------------------------------------------------
 
+
 def test_explosion_view_scene_separates_floors(session, tmp_path):
     pid, key = _make_project_with_building(session, tmp_path, floor_count=3, height_m=9.0)
 
@@ -107,7 +112,9 @@ def test_explosion_view_scene_unknown_building_raises(session, tmp_path):
 
 def test_explosion_view_via_rest_api(router, session, tmp_path):
     pid, key = _make_project_with_building(session, tmp_path)
-    resp = router.dispatch("GET", f"/api/projects/{pid}/explosion?building={key}&progress=0.5&gap=1.5")
+    resp = router.dispatch(
+        "GET", f"/api/projects/{pid}/explosion?building={key}&progress=0.5&gap=1.5"
+    )
     assert resp.status == 200
     assert "nodes" in resp.body
 

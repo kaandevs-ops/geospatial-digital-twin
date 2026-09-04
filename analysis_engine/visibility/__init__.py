@@ -33,9 +33,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from ...core_engine.coordinate_systems import GeoPoint
+from ...data_engine.spatial_index import AABB3D, BVH, Octree
+from ...lighting import ShadowCalculator, SolarPositionCalculator, SunLight
 from ...mesh_engine import Mesh3D
-from ...lighting import SolarPositionCalculator, SunLight, ShadowCalculator
-from ...data_engine.spatial_index import BVH, AABB3D, Octree
 
 Vec3 = tuple[float, float, float]
 
@@ -43,6 +43,7 @@ Vec3 = tuple[float, float, float]
 # ============================================================================ #
 # Ray Casting
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class RayHit:
@@ -68,8 +69,13 @@ class RayCasting:
         return BVH(mesh)
 
     @staticmethod
-    def cast(origin: Vec3, direction: Vec3, mesh: Mesh3D,
-              max_distance: float = 1e6, bvh: "BVH | None" = None) -> RayHit | None:
+    def cast(
+        origin: Vec3,
+        direction: Vec3,
+        mesh: Mesh3D,
+        max_distance: float = 1e6,
+        bvh: BVH | None = None,
+    ) -> RayHit | None:
         length = math.sqrt(sum(c * c for c in direction))
         if length < 1e-12:
             return None
@@ -92,9 +98,13 @@ class RayCasting:
         return best
 
     @staticmethod
-    def cast_any(origin: Vec3, direction: Vec3, meshes: list[Mesh3D],
-                  max_distance: float = 1e6,
-                  bvhs: "list[BVH | None] | None" = None) -> RayHit | None:
+    def cast_any(
+        origin: Vec3,
+        direction: Vec3,
+        meshes: list[Mesh3D],
+        max_distance: float = 1e6,
+        bvhs: list[BVH | None] | None = None,
+    ) -> RayHit | None:
         best: RayHit | None = None
         for i, mesh in enumerate(meshes):
             bvh = bvhs[i] if bvhs is not None else None
@@ -107,6 +117,7 @@ class RayCasting:
 # ============================================================================ #
 # Line of Sight
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class LOSResult:
@@ -126,23 +137,30 @@ class LineOfSight:
     edip burada yeniden kullanmalıdır."""
 
     @staticmethod
-    def check(observer: Vec3, target: Vec3, occluders: list[Mesh3D],
-              bvhs: "list[BVH] | None" = None) -> LOSResult:
+    def check(
+        observer: Vec3, target: Vec3, occluders: list[Mesh3D], bvhs: list[BVH] | None = None
+    ) -> LOSResult:
         direction = tuple(target[i] - observer[i] for i in range(3))
         total_distance = math.sqrt(sum(c * c for c in direction))
         if total_distance < 1e-9:
             return LOSResult(visible=True, distance=0.0)
-        hit = RayCasting.cast_any(observer, direction, occluders,
-                                   max_distance=total_distance - 1e-4, bvhs=bvhs)
+        hit = RayCasting.cast_any(
+            observer, direction, occluders, max_distance=total_distance - 1e-4, bvhs=bvhs
+        )
         if hit is None:
             return LOSResult(visible=True, distance=total_distance)
-        return LOSResult(visible=False, distance=total_distance,
-                          blocked_at=hit.point, blocking_triangle=hit.triangle_index)
+        return LOSResult(
+            visible=False,
+            distance=total_distance,
+            blocked_at=hit.point,
+            blocking_triangle=hit.triangle_index,
+        )
 
 
 # ============================================================================ #
 # Shadow Analysis (Phase 2 lighting üzerine)
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class ShadowAnalysisResult:
@@ -157,19 +175,31 @@ class ShadowAnalysis:
     değerlendiren ince katman."""
 
     @staticmethod
-    def evaluate(point: Vec3, location: GeoPoint, when_utc: datetime,
-                 occluders: list[Mesh3D], max_distance: float = 500.0) -> ShadowAnalysisResult:
+    def evaluate(
+        point: Vec3,
+        location: GeoPoint,
+        when_utc: datetime,
+        occluders: list[Mesh3D],
+        max_distance: float = 500.0,
+    ) -> ShadowAnalysisResult:
         sun = SunLight.at(location, when_utc)
         if not sun.position.is_daylight:
-            return ShadowAnalysisResult(point=point, in_shadow=True,
-                                         sun_elevation_deg=sun.position.elevation_deg)
+            return ShadowAnalysisResult(
+                point=point, in_shadow=True, sun_elevation_deg=sun.position.elevation_deg
+            )
         in_shadow = ShadowCalculator.point_in_shadow(point, sun, occluders, max_distance)
-        return ShadowAnalysisResult(point=point, in_shadow=in_shadow,
-                                     sun_elevation_deg=sun.position.elevation_deg)
+        return ShadowAnalysisResult(
+            point=point, in_shadow=in_shadow, sun_elevation_deg=sun.position.elevation_deg
+        )
 
     @staticmethod
-    def daily_shadow_hours(point: Vec3, location: GeoPoint, date: datetime,
-                            occluders: list[Mesh3D], step_minutes: int = 30) -> float:
+    def daily_shadow_hours(
+        point: Vec3,
+        location: GeoPoint,
+        date: datetime,
+        occluders: list[Mesh3D],
+        step_minutes: int = 30,
+    ) -> float:
         """Bir günde noktanın kaç saat gölgede kaldığını örnekleyerek tahmin eder."""
         shadow_samples = 0
         total_daylight_samples = 0
@@ -193,6 +223,7 @@ class ShadowAnalysis:
 # Blind Spot Analysis
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class BlindSpot:
     direction_deg: float
@@ -205,9 +236,13 @@ class BlindSpotAnalysis:
     bazında tarar."""
 
     @staticmethod
-    def scan(observer: Vec3, occluders: list[Mesh3D], scan_radius: float = 200.0,
-             angle_step_deg: float = 5.0,
-             bvhs: "list[BVH] | None" = None) -> list[BlindSpot]:
+    def scan(
+        observer: Vec3,
+        occluders: list[Mesh3D],
+        scan_radius: float = 200.0,
+        angle_step_deg: float = 5.0,
+        bvhs: list[BVH] | None = None,
+    ) -> list[BlindSpot]:
         """Roadmap V3 / Faz D3: aynı `occluders` kümesi üzerinde (varsayılan
         72 açı adımı x N engelleyici) çok sayıda ray atıldığından, `bvhs`
         verilmezse fonksiyon kendi içinde **bir kez** BVH inşa edip taramanın
@@ -222,17 +257,21 @@ class BlindSpotAnalysis:
             angle_deg = i * angle_step_deg
             rad = math.radians(angle_deg)
             direction = (math.sin(rad), math.cos(rad), 0.0)
-            hit = RayCasting.cast_any(observer, direction, occluders,
-                                       max_distance=scan_radius, bvhs=bvhs)
+            hit = RayCasting.cast_any(
+                observer, direction, occluders, max_distance=scan_radius, bvhs=bvhs
+            )
             visible_distance = hit.distance if hit is not None else scan_radius
             if visible_distance < scan_radius:
-                results.append(BlindSpot(direction_deg=angle_deg, max_visible_distance=visible_distance))
+                results.append(
+                    BlindSpot(direction_deg=angle_deg, max_visible_distance=visible_distance)
+                )
         return results
 
 
 # ============================================================================ #
 # Visibility Heatmap
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class VisibilityHeatmapCell:
@@ -246,10 +285,16 @@ class VisibilityHeatmap:
     verilen gözlemci noktalarından kaçının o hücreyi görebildiğini sayar."""
 
     @staticmethod
-    def compute(observers: list[Vec3], grid_origin: tuple[float, float],
-                grid_width: int, grid_height: int, cell_size: float,
-                z: float, occluders: list[Mesh3D],
-                bvhs: "list[BVH] | None" = None) -> list[VisibilityHeatmapCell]:
+    def compute(
+        observers: list[Vec3],
+        grid_origin: tuple[float, float],
+        grid_width: int,
+        grid_height: int,
+        cell_size: float,
+        z: float,
+        occluders: list[Mesh3D],
+        bvhs: list[BVH] | None = None,
+    ) -> list[VisibilityHeatmapCell]:
         """Roadmap V3 / Faz D3: `grid_width * grid_height * len(observers)`
         adet LOS sorgusu aynı `occluders` kümesini kullandığından, BVH'ler
         (verilmemişse) bir kez inşa edilip tüm hücre/gözlemci kombinasyonları
@@ -275,6 +320,7 @@ class VisibilityHeatmap:
 # ============================================================================ #
 # Sahne Görünürlük İndeksi (broad-phase + narrow-phase BVH)
 # ============================================================================ #
+
 
 class SceneVisibilityIndex:
     """Roadmap V3 / Faz D3 - A6 kabul kriteri: "10.000 binalık sahnede

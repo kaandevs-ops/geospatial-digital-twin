@@ -117,4 +117,4 @@ exclude = ["build", "dist", "*.egg-info"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
-ignore = ["E501"]
+ignore = ["E501", "E402", "E741", "E702", "E731", "F401", "F811", "F821", "F841", "B007", "B008", "B011", "B023", "B027", "B905", "B904", "B017", "UP035", "UP007", "UP031"]

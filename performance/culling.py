@@ -110,7 +110,9 @@ class OcclusionCulling:
     def __init__(self, occluders: list[AABB3D] | None = None) -> None:
         self.occluders = occluders or []
 
-    def is_occluded(self, camera_position: Vec3, target_center: Vec3, exclude: AABB3D | None = None) -> bool:
+    def is_occluded(
+        self, camera_position: Vec3, target_center: Vec3, exclude: AABB3D | None = None
+    ) -> bool:
         direction = _sub(target_center, camera_position)
         dist = _length(direction)
         if dist < 1e-9:

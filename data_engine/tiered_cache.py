@@ -35,8 +35,8 @@ taşır (`db_backend.py` ile aynı ilke).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any
 
 from .cache import ObjectCache
 
@@ -86,7 +86,7 @@ class TieredCache:
     düşer) — `ObjectCache`'in tek başına kullanımıyla tam geriye uyumlu.
     """
 
-    def __init__(self, db: Optional["ProjectDatabase"] = None, hot_capacity: int = 256) -> None:
+    def __init__(self, db: ProjectDatabase | None = None, hot_capacity: int = 256) -> None:
         self._hot: ObjectCache[TieredCacheEntry] = ObjectCache(capacity=hot_capacity)
         self._db = db
         self.stats = TieredCacheStats()
@@ -107,11 +107,13 @@ class TieredCache:
 
     # -- okuma --------------------------------------------------------- #
 
-    def get(self, key: str) -> Optional[TieredCacheEntry]:
+    def get(self, key: str) -> TieredCacheEntry | None:
         cached = self._hot.get(key)
         if cached is not None:
             self.stats.hot_hits += 1
-            return TieredCacheEntry(key=cached.key, kind=cached.kind, value=cached.value, source="hot")
+            return TieredCacheEntry(
+                key=cached.key, kind=cached.kind, value=cached.value, source="hot"
+            )
 
         if self._db is None:
             self.stats.misses += 1

@@ -19,6 +19,7 @@ Tasarım kararı — bu, C2'nin (`fetch_category_features`) çıktısını tüke
 yeni bir OSM alan modeli icat etmez (roadmap'in "mevcut mimari korunacak"
 ilkesi).
 """
+
 from __future__ import annotations
 
 import json
@@ -73,13 +74,19 @@ class LocalPlaceIndex:
 
     def save(self, path: str | Path) -> None:
         data = [
-            {"name": e.name, "lat": e.lat, "lon": e.lon, "category": e.category, "feature_type": e.feature_type}
+            {
+                "name": e.name,
+                "lat": e.lat,
+                "lon": e.lon,
+                "category": e.category,
+                "feature_type": e.feature_type,
+            }
             for e in self.entries
         ]
         Path(path).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
     @classmethod
-    def load(cls, path: str | Path) -> "LocalPlaceIndex":
+    def load(cls, path: str | Path) -> LocalPlaceIndex:
         p = Path(path)
         if not p.is_file():
             return cls()

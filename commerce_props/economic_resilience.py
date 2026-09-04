@@ -25,11 +25,11 @@ HAZUS'un kendi kalibre edilmiş envanter/kırılganlık eğrilerinin YERİNİ
 TUTMAZ - yalnızca zaten var olan `RiskLevel` sınıflandırmasına bir "kaç
 gün kapalı kalır" mertebesi eklemek için kullanılmıştır.
 """
+
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 from ..extensibility.city_events import CityEventType, emit_city_event
 from ..extensibility.event_system import EventSystem
@@ -96,14 +96,18 @@ class ResilienceCurveReport:
     def to_dict(self) -> dict:
         return {
             "area_id": self.area_id,
-            "samples": [{"day": round(d, 2), "operational_fraction": round(f, 3)}
-                        for d, f in self.samples],
+            "samples": [
+                {"day": round(d, 2), "operational_fraction": round(f, 3)} for d, f in self.samples
+            ],
             "disclaimer": self.disclaimer,
         }
 
 
 def build_resilience_curve(
-    area: CommercialAreaResilience, *, sample_count: int = 20, horizon_days: Optional[float] = None,
+    area: CommercialAreaResilience,
+    *,
+    sample_count: int = 20,
+    horizon_days: float | None = None,
 ) -> ResilienceCurveReport:
     """`area.closure_days`'in `1.5x`'i kadar bir ufuk boyunca örnekleme -
     tam toparlanmanın ötesini de göstererek eğrinin platoya oturduğunu
@@ -125,7 +129,11 @@ def closure_days_for_risk_level(risk_level: RiskLevel) -> float:
 
 
 def start_commercial_disruption(
-    bus: EventSystem, area_id: str, risk_level: RiskLevel, *, source: Optional[str] = None,
+    bus: EventSystem,
+    area_id: str,
+    risk_level: RiskLevel,
+    *,
+    source: str | None = None,
 ) -> CommercialAreaResilience:
     """`RiskLevel`'i kapanma süresine çevirir, `COMMERCE_CLOSED` olayını
     yayınlar (zamanı `bus`'ın kendi `Event.timestamp`'inden - `resilience_
@@ -133,24 +141,34 @@ def start_commercial_disruption(
     yeni bir zaman kaynağı icat edilmedi) ve çağıran tarafın toparlanma
     eğrisi çizebilmesi için bir `CommercialAreaResilience` döner."""
     event = emit_city_event(
-        bus, CityEventType.COMMERCE_CLOSED, source=source or area_id,
-        area_id=area_id, risk_level=risk_level.value,
+        bus,
+        CityEventType.COMMERCE_CLOSED,
+        source=source or area_id,
+        area_id=area_id,
+        risk_level=risk_level.value,
     )
     closure_days = closure_days_for_risk_level(risk_level)
     return CommercialAreaResilience(
-        area_id=area_id, risk_level=risk_level, closure_days=closure_days,
+        area_id=area_id,
+        risk_level=risk_level,
+        closure_days=closure_days,
         disrupted_at=event.timestamp,
     )
 
 
 def complete_commercial_recovery(
-    bus: EventSystem, area: CommercialAreaResilience, *, source: Optional[str] = None,
+    bus: EventSystem,
+    area: CommercialAreaResilience,
+    *,
+    source: str | None = None,
 ) -> None:
     """Toparlanma tamamlandığında `COMMERCE_REOPENED` yayınlar -
     `resilience_timeline.build_resilience_report()`'un `SYSTEM_EVENT_
     PAIRS`'teki "ticaret" satırını artık doldurabilmesi için."""
     emit_city_event(
-        bus, CityEventType.COMMERCE_REOPENED, source=source or area.area_id,
+        bus,
+        CityEventType.COMMERCE_REOPENED,
+        source=source or area.area_id,
         area_id=area.area_id,
     )
 

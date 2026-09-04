@@ -36,15 +36,14 @@ Tasarım kararları
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 from ..building_reconstruction.procedural_generator import Building
 from ..editor.commands import UndoRedoStack
 from .intent import CommandIntent, IntentAction
 from .intent_parser import IntentParser
 from .llm_providers import LLMCallError, LLMProvider, ProviderUnavailableError
-from .orchestrator import AssistantOrchestrator, AssistantResult, IntentExecution
+from .orchestrator import AssistantOrchestrator, AssistantResult
 
 
 class UnknownBuildingError(Exception):
@@ -58,7 +57,7 @@ class DialogueTurn:
     user_text: str
     assistant_reply: str
     needs_clarification: bool
-    building_name: Optional[str] = None
+    building_name: str | None = None
 
 
 @dataclass(slots=True)
@@ -75,8 +74,8 @@ class DialogueResult:
 
     reply: str
     needs_clarification: bool
-    building_name: Optional[str] = None
-    assistant_result: Optional[AssistantResult] = None
+    building_name: str | None = None
+    assistant_result: AssistantResult | None = None
 
 
 class BuildingRegistry:
@@ -176,7 +175,7 @@ def _find_all_building_mentions(text: str, candidate_names: list[str]) -> list[t
     return mentions
 
 
-def _find_building_name(text: str, candidate_names: list[str]) -> Optional[str]:
+def _find_building_name(text: str, candidate_names: list[str]) -> str | None:
     """Metinde geçen bir bina adını bulur. Önce Türkçe çekim ekli
     "<ad> binası/binasına/binasını" kalıbını, sonra düz ad geçişini dener.
     En uzun eşleşen aday adı tercih edilir (örn. "A Blok" > "A")."""
@@ -208,13 +207,13 @@ class DialogueSession:
         self,
         registry: BuildingRegistry,
         parser: IntentParser | None = None,
-        llm_provider: Optional[LLMProvider] = None,
+        llm_provider: LLMProvider | None = None,
     ) -> None:
         self.registry = registry
         self.parser = parser or IntentParser()
         self.llm_provider = llm_provider
         self.history: list[DialogueTurn] = []
-        self._pending: Optional[PendingClarification] = None
+        self._pending: PendingClarification | None = None
 
     @property
     def awaiting_clarification(self) -> bool:
@@ -266,7 +265,9 @@ class DialogueSession:
         intents = parse_result.intents
 
         if not intents:
-            return DialogueResult(reply="Anlaşılamadı, tekrar dener misin?", needs_clarification=False)
+            return DialogueResult(
+                reply="Anlaşılamadı, tekrar dener misin?", needs_clarification=False
+            )
 
         explicit_name = _find_building_name(text, names) if names else None
 
@@ -296,9 +297,7 @@ class DialogueSession:
         if resolved is None:
             options = ", ".join(names)
             return DialogueResult(
-                reply=(
-                    f"Anlayamadım — lütfen şu isimlerden birini söyle: {options}"
-                ),
+                reply=(f"Anlayamadım — lütfen şu isimlerden birini söyle: {options}"),
                 needs_clarification=True,
             )
         pending = self._pending
@@ -316,9 +315,7 @@ class DialogueSession:
             assistant_result=assistant_result,
         )
 
-    def _handle_multi_target(
-        self, text: str, mentions: list[tuple[int, str]]
-    ) -> DialogueResult:
+    def _handle_multi_target(self, text: str, mentions: list[tuple[int, str]]) -> DialogueResult:
         """Ayni mesajda 2+ farkli binaya yonlendirilen komutlari, her
         bina icin ayri bir metin segmentine bolerek isler.
 
@@ -338,13 +335,15 @@ class DialogueSession:
 
         last_intents: list[CommandIntent] | None = None
         replies: list[str] = []
-        last_result: Optional[DialogueResult] = None
+        last_result: DialogueResult | None = None
         touched_names: list[str] = []
 
         for name, segment in segments:
             parse_result = self.parser.parse(segment)
             actionable = [
-                intent for intent in parse_result.intents if intent.action is not IntentAction.UNKNOWN
+                intent
+                for intent in parse_result.intents
+                if intent.action is not IntentAction.UNKNOWN
             ]
 
             if not actionable and _COREFERENCE_RE.search(segment) and last_intents is not None:
@@ -371,7 +370,7 @@ class DialogueSession:
             assistant_result=last_result.assistant_result if last_result else None,
         )
 
-    def answer_question(self, text: str, building_name: Optional[str] = None) -> str:
+    def answer_question(self, text: str, building_name: str | None = None) -> str:
         """`docs/AI_INTEGRATION_MAP.md` fırsat #2: komut değil, açıklayıcı
         bir soruyu ("neden bu binanın çatısı hip oldu?") mevcut bina
         verisine dayanarak yanıtlar. `IntentParser`/`AssistantOrchestrator`
@@ -386,10 +385,7 @@ class DialogueSession:
             self.registry.names()[0] if len(self.registry) == 1 else None
         )
         if building_name is None or building_name not in self.registry:
-            return (
-                "Hangi binayı kastettiğini anlayamadım - lütfen bina adını "
-                "belirt."
-            )
+            return "Hangi binayı kastettiğini anlayamadım - lütfen bina adını belirt."
         building = self.registry.get_building(building_name)
         fallback = (
             f"{building_name}: bu soruya şu an yalnızca bina verisiyle "
@@ -399,10 +395,7 @@ class DialogueSession:
         )
         if self.llm_provider is None:
             return fallback
-        prompt = (
-            f"Bina verisi: {_building_context_summary(building)}\n\n"
-            f"Kullanıcı sorusu: {text}"
-        )
+        prompt = f"Bina verisi: {_building_context_summary(building)}\n\nKullanıcı sorusu: {text}"
         try:
             reply = self.llm_provider.complete(prompt, system=_EXPLAIN_SYSTEM_PROMPT).strip()
         except (ProviderUnavailableError, LLMCallError):

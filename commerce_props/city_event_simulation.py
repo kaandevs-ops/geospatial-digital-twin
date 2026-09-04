@@ -27,11 +27,11 @@ modeli gibi tam bir kalabalık-akış simülasyonu DEĞİLDİR (roadmap'in kendi
 notuyla tutarlı bilinçli basitleştirme, "en çok mühendislik" burada değil
 Katman 7.2'de harcanmıştı).
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 from ..extensibility.city_events import CityEventType, emit_city_event
 from ..extensibility.event_system import EventSystem
@@ -54,7 +54,7 @@ class CityEventProfile:
     category: CityEventCategory
     location_ref: str  # ör. bir sport_recreation/commerce_props nesne id'si
     expected_attendance: int
-    start_hour: float          # 0-24 ondalık saat
+    start_hour: float  # 0-24 ondalık saat
     duration_h: float
     ramp_fraction: float = 0.15  # başlangıç/bitişteki yoğunluk-artış payı
 
@@ -99,16 +99,20 @@ class CityEventSimulator:
     değiştirilmedi) üzerine `extensibility.city_events.emit_city_event`
     (O.4, değiştirilmedi) ile ince bir sarmalayıcı."""
 
-    def __init__(self, bus: Optional[EventSystem] = None):
+    def __init__(self, bus: EventSystem | None = None):
         self.bus = bus
         self.triggered_log: list[CityEventProfile] = []
 
-    def trigger(self, profile: CityEventProfile, *, source: Optional[str] = None) -> list[AttendanceCurvePoint]:
+    def trigger(
+        self, profile: CityEventProfile, *, source: str | None = None
+    ) -> list[AttendanceCurvePoint]:
         curve = attendance_curve(profile)
         self.triggered_log.append(profile)
         if self.bus is not None:
             emit_city_event(
-                self.bus, CityEventType.CROWD_SURGE, source=source or profile.location_ref,
+                self.bus,
+                CityEventType.CROWD_SURGE,
+                source=source or profile.location_ref,
                 event_id=profile.event_id,
                 category=profile.category.value,
                 location_ref=profile.location_ref,

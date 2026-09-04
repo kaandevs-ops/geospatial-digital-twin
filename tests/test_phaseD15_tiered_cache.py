@@ -11,12 +11,10 @@ bağımsız, `hot_capacity` ile sınırlı kalır.
 from __future__ import annotations
 
 import random
-import tempfile
 from pathlib import Path
 
 import pytest
-
-from harita.data_engine.tiered_cache import TieredCache, TieredCacheEntry
+from harita.data_engine.tiered_cache import TieredCache
 from harita.persistence.db_backend import ProjectDatabase
 from harita.persistence.project_format import ProjectManifest
 

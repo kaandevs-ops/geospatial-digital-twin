@@ -55,7 +55,7 @@ def _sample_mesh_surface(mesh: Mesh3D, target_spacing: float | None = None) -> l
     if not mesh.triangles:
         raise ComparisonError("Mesh üçgen içermiyor — karşılaştırma için boş yüzey kullanılamaz.")
     samples: list[Point3] = []
-    for (i, j, k) in mesh.triangles:
+    for i, j, k in mesh.triangles:
         a = mesh.vertices[i].as_tuple()
         b = mesh.vertices[j].as_tuple()
         c = mesh.vertices[k].as_tuple()
@@ -141,8 +141,12 @@ def _point_to_mesh_distance(p: Point3, mesh: Mesh3D) -> float:
     `data_engine.spatial_index.BVH` ile hızlandırma ileride eklenebilir
     (bu fonksiyonun imzasını değiştirmeden — mimari buna izin veriyor)."""
     best = math.inf
-    for (i, j, k) in mesh.triangles:
-        a, b, c = mesh.vertices[i].as_tuple(), mesh.vertices[j].as_tuple(), mesh.vertices[k].as_tuple()
+    for i, j, k in mesh.triangles:
+        a, b, c = (
+            mesh.vertices[i].as_tuple(),
+            mesh.vertices[j].as_tuple(),
+            mesh.vertices[k].as_tuple(),
+        )
         cp = _closest_point_on_triangle(p, a, b, c)
         d = _dist(p, cp)
         if d < best:
@@ -182,10 +186,14 @@ def compare_pointcloud_to_mesh(
     # aralığı türet — mesh örneklemesi bulutun kendi çözünürlüğünden daha
     # kaba olmasın (yoksa Hausdorff yapay olarak şişer).
     sample_size = min(len(pointcloud_points), 30)
-    nn_dists = [math.sqrt(tree_cloud.nearest_k(p, 2)[-1][2]) for p in pointcloud_points[:sample_size]]
+    nn_dists = [
+        math.sqrt(tree_cloud.nearest_k(p, 2)[-1][2]) for p in pointcloud_points[:sample_size]
+    ]
     target_spacing = (sum(nn_dists) / len(nn_dists)) if nn_dists else None
 
-    mesh_samples = _sample_mesh_surface(mesh, target_spacing)  # boş mesh -> ComparisonError burada fırlar
+    mesh_samples = _sample_mesh_surface(
+        mesh, target_spacing
+    )  # boş mesh -> ComparisonError burada fırlar
 
     sq_dists = [_point_to_mesh_distance(p, mesh) ** 2 for p in pointcloud_points]
     rms = math.sqrt(sum(sq_dists) / len(sq_dists))

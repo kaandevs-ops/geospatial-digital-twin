@@ -61,10 +61,16 @@ except ImportError:  # pragma: no cover - opsiyonel
 
 
 _KERAS_APPLICATIONS = {
-    "mobilenet_v3_small": (keras.applications.MobileNetV3Small, keras.applications.mobilenet_v3.preprocess_input),
+    "mobilenet_v3_small": (
+        keras.applications.MobileNetV3Small,
+        keras.applications.mobilenet_v3.preprocess_input,
+    ),
     "resnet18": None,  # keras.applications'ta yok; en yakın: resnet50 ile değiştir
     "resnet50": (keras.applications.ResNet50, keras.applications.resnet.preprocess_input),
-    "efficientnet_b0": (keras.applications.EfficientNetB0, keras.applications.efficientnet.preprocess_input),
+    "efficientnet_b0": (
+        keras.applications.EfficientNetB0,
+        keras.applications.efficientnet.preprocess_input,
+    ),
 }
 
 
@@ -91,7 +97,10 @@ def _build_scratch_model(image_size: tuple[int, int], n_roof_types: int) -> kera
 
 
 def _build_finetune_model(
-    backbone_name: str, image_size: tuple[int, int], n_roof_types: int, freeze_backbone: bool,
+    backbone_name: str,
+    image_size: tuple[int, int],
+    n_roof_types: int,
+    freeze_backbone: bool,
 ) -> tuple[keras.Model, Any]:
     entry = _KERAS_APPLICATIONS.get(backbone_name)
     if entry is None:
@@ -100,7 +109,9 @@ def _build_finetune_model(
             f"Desteklenenler: {[k for k, v in _KERAS_APPLICATIONS.items() if v]}"
         )
     app_cls, preprocess_fn = entry
-    backbone = app_cls(include_top=False, weights="imagenet", input_shape=(*image_size, 3), pooling="avg")
+    backbone = app_cls(
+        include_top=False, weights="imagenet", input_shape=(*image_size, 3), pooling="avg"
+    )
     backbone.trainable = not freeze_backbone
 
     inputs = keras.Input(shape=(*image_size, 3))
@@ -119,10 +130,13 @@ def _make_model(config: TrainingConfig) -> tuple[keras.Model, Any]:
     if config.mode == "scratch":
         return _build_scratch_model(config.image_size, n_roof), None
     model, backbone = _build_finetune_model(
-        config.pretrained_backbone, config.image_size, n_roof, config.freeze_backbone,
+        config.pretrained_backbone,
+        config.image_size,
+        n_roof,
+        config.freeze_backbone,
     )
     if not config.freeze_backbone:
-        for layer in backbone.layers[:-config.unfreeze_last_n_blocks]:
+        for layer in backbone.layers[: -config.unfreeze_last_n_blocks]:
             layer.trainable = False
     return model, backbone
 
@@ -163,18 +177,27 @@ class TensorFlowTrainerBackend:
         rows = load_manifest(config.manifest_path)
         summary = dataset_summary(rows)
         train_rows, val_rows, _test_rows = split_manifest(
-            rows, config.val_split, config.test_split, seed=config.seed,
+            rows,
+            config.val_split,
+            config.test_split,
+            seed=config.seed,
         )
         roof_to_idx = {name: i for i, name in enumerate(config.roof_types)}
         has_roof = config.task in ("roof_classification", "multi_task")
 
         x_train, h_train, r_train, m_train = _to_numpy_dataset(
-            train_rows, config.images_root, config.image_size, roof_to_idx,
+            train_rows,
+            config.images_root,
+            config.image_size,
+            roof_to_idx,
         )
         val_data = None
         if val_rows:
             x_val, h_val, r_val, m_val = _to_numpy_dataset(
-                val_rows, config.images_root, config.image_size, roof_to_idx,
+                val_rows,
+                config.images_root,
+                config.image_size,
+                roof_to_idx,
             )
             val_targets = [h_val] + ([r_val] if has_roof else [])
             val_data = (x_val, val_targets)
@@ -189,7 +212,8 @@ class TensorFlowTrainerBackend:
 
         model.compile(
             optimizer=keras.optimizers.Adam(learning_rate=config.learning_rate),
-            loss=losses, loss_weights=loss_weights,
+            loss=losses,
+            loss_weights=loss_weights,
         )
 
         train_targets = {"height_m": h_train}
@@ -199,39 +223,63 @@ class TensorFlowTrainerBackend:
         callbacks = [
             keras.callbacks.EarlyStopping(
                 monitor="val_loss" if val_data else "loss",
-                patience=config.early_stopping_patience, restore_best_weights=True,
+                patience=config.early_stopping_patience,
+                restore_best_weights=True,
             ),
         ]
 
         history_obj = model.fit(
-            x_train, train_targets,
-            validation_data=(val_data[0], {"height_m": val_data[1][0], **(
-                {"roof_logits": val_data[1][1]} if has_roof else {}
-            )}) if val_data else None,
-            epochs=config.epochs, batch_size=config.batch_size, callbacks=callbacks, verbose=0,
+            x_train,
+            train_targets,
+            validation_data=(
+                val_data[0],
+                {
+                    "height_m": val_data[1][0],
+                    **({"roof_logits": val_data[1][1]} if has_roof else {}),
+                },
+            )
+            if val_data
+            else None,
+            epochs=config.epochs,
+            batch_size=config.batch_size,
+            callbacks=callbacks,
+            verbose=0,
         )
 
         # Fine-tune ikinci aşama: backbone'u düşük LR ile çöz.
         if config.mode == "finetune" and not config.freeze_backbone and backbone is not None:
             model.compile(
                 optimizer=keras.optimizers.Adam(learning_rate=config.finetune_learning_rate),
-                loss=losses, loss_weights=loss_weights,
+                loss=losses,
+                loss_weights=loss_weights,
             )
             history_obj = model.fit(
-                x_train, train_targets,
-                validation_data=(val_data[0], {"height_m": val_data[1][0], **(
-                    {"roof_logits": val_data[1][1]} if has_roof else {}
-                )}) if val_data else None,
-                epochs=max(1, config.epochs // 2), batch_size=config.batch_size,
-                callbacks=callbacks, verbose=0,
+                x_train,
+                train_targets,
+                validation_data=(
+                    val_data[0],
+                    {
+                        "height_m": val_data[1][0],
+                        **({"roof_logits": val_data[1][1]} if has_roof else {}),
+                    },
+                )
+                if val_data
+                else None,
+                epochs=max(1, config.epochs // 2),
+                batch_size=config.batch_size,
+                callbacks=callbacks,
+                verbose=0,
             )
 
         raw_history = history_obj.history
         best_val_loss = min(raw_history.get("val_loss", raw_history.get("loss", [float("inf")])))
         n_epochs = len(raw_history.get("loss", []))
         history = [
-            {"epoch": i + 1, "train_loss": raw_history["loss"][i],
-             "val_loss": raw_history.get("val_loss", raw_history["loss"])[i]}
+            {
+                "epoch": i + 1,
+                "train_loss": raw_history["loss"][i],
+                "val_loss": raw_history.get("val_loss", raw_history["loss"])[i],
+            }
             for i in range(n_epochs)
         ]
 
@@ -239,7 +287,9 @@ class TensorFlowTrainerBackend:
         out_dir.mkdir(parents=True, exist_ok=True)
         checkpoint_path = str(out_dir / "model.keras")
         model.save(checkpoint_path)
-        (out_dir / "dataset_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False))
+        (out_dir / "dataset_summary.json").write_text(
+            json.dumps(summary, indent=2, ensure_ascii=False)
+        )
         (out_dir / "history.json").write_text(json.dumps(history, indent=2, ensure_ascii=False))
         config.to_json(out_dir / "config.json")
 
@@ -255,8 +305,12 @@ class TensorFlowTrainerBackend:
                 _export_onnx(model, config, onnx_path)
 
         return TrainingResult(
-            backend=self.name, epochs_run=n_epochs, best_val_loss=float(best_val_loss),
-            checkpoint_path=checkpoint_path, onnx_path=onnx_path, history=history,
+            backend=self.name,
+            epochs_run=n_epochs,
+            best_val_loss=float(best_val_loss),
+            checkpoint_path=checkpoint_path,
+            onnx_path=onnx_path,
+            history=history,
         )
 
     def load_and_predict(self, model_path: str, images: list[Any]) -> list[dict]:
@@ -280,13 +334,13 @@ class TensorFlowTrainerBackend:
         return results
 
 
-def _export_onnx(model: "keras.Model", config: TrainingConfig, onnx_path: str) -> None:
+def _export_onnx(model: keras.Model, config: TrainingConfig, onnx_path: str) -> None:
     """`onnx_predictor.ImageBasedPredictor` sözleşmesine uygun ONNX export
     (NCHW giriş — Keras'ın doğal NHWC'sinden dönüştürülür)."""
     h, w = config.image_size
 
     class _NCHWWrapper(tf.Module):
-        def __init__(self, inner: "keras.Model") -> None:
+        def __init__(self, inner: keras.Model) -> None:
             super().__init__()
             self.inner = inner
 

@@ -36,8 +36,8 @@ DÜRÜST DURUM TESPİTİ (doğrulanmış):
 from __future__ import annotations
 
 import math
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Callable, Optional, Sequence
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,7 +82,7 @@ class RegionalPGAEstimate:
 
     zones: Sequence[PGAZone] = DEFAULT_TURKEY_PGA_ZONES
     fallback_pga_g: float = FALLBACK_PGA_G
-    lookup_fn: Optional[Callable[[float, float], Optional[float]]] = None
+    lookup_fn: Callable[[float, float], float | None] | None = None
     max_zone_distance_km: float = 150.0
 
     #: IDW ağırlıklandırma üssü — 2.0 standart jeostatistik varsayılanı
@@ -94,12 +94,13 @@ class RegionalPGAEstimate:
     #: uzaktaki bir şehrin etkisi anlamsız olur).
     idw_neighbors: int = 3
 
-    def estimate(self, latitude: float, longitude: float) -> "PGAEstimateResult":
+    def estimate(self, latitude: float, longitude: float) -> PGAEstimateResult:
         if self.lookup_fn is not None:
             official = self.lookup_fn(latitude, longitude)
             if official is not None:
                 return PGAEstimateResult(
-                    pga_g=float(official), zone_name=None,
+                    pga_g=float(official),
+                    zone_name=None,
                     is_official_source=True,
                     note="Kullanıcı tarafından sağlanan resmi TDTH/ShakeMap verisi.",
                 )
@@ -116,7 +117,9 @@ class RegionalPGAEstimate:
         # doğrudan en yakın noktanın değerini kullan.
         if nearest_dist < 1e-6:
             return PGAEstimateResult(
-                pga_g=nearest.pga_g, zone_name=nearest.name, is_official_source=False,
+                pga_g=nearest.pga_g,
+                zone_name=nearest.name,
+                is_official_source=False,
                 note=f"{nearest.name} referans noktasıyla (neredeyse) çakışık. {nearest.source_note}",
             )
 
@@ -125,13 +128,18 @@ class RegionalPGAEstimate:
         if not neighbors:
             neighbors = [(nearest, nearest_dist)]
 
-        weights = [1.0 / (d ** self.idw_power) for _, d in neighbors]
+        weights = [1.0 / (d**self.idw_power) for _, d in neighbors]
         weight_sum = sum(weights)
         pga_interp = sum(w * z.pga_g for (z, _), w in zip(neighbors, weights)) / weight_sum
 
-        contributors = ", ".join(f"{z.name} (~{d:.0f} km, w={w/weight_sum:.2f})" for (z, d), w in zip(neighbors, weights))
+        contributors = ", ".join(
+            f"{z.name} (~{d:.0f} km, w={w / weight_sum:.2f})"
+            for (z, d), w in zip(neighbors, weights)
+        )
         return PGAEstimateResult(
-            pga_g=pga_interp, zone_name=nearest.name, is_official_source=False,
+            pga_g=pga_interp,
+            zone_name=nearest.name,
+            is_official_source=False,
             note=(
                 f"Ters-mesafe-ağırlıklı (IDW, p={self.idw_power:.1f}) enterpolasyon, "
                 f"{len(neighbors)} referans noktasından: {contributors}. "
@@ -139,9 +147,11 @@ class RegionalPGAEstimate:
             ),
         )
 
-    def _fallback_result(self) -> "PGAEstimateResult":
+    def _fallback_result(self) -> PGAEstimateResult:
         return PGAEstimateResult(
-            pga_g=self.fallback_pga_g, zone_name=None, is_official_source=False,
+            pga_g=self.fallback_pga_g,
+            zone_name=None,
+            is_official_source=False,
             note=(
                 "Bilinen hiçbir referans bölgeye yakın değil — güvenli tarafta "
                 "kalan genel varsayılan PGA kullanıldı. Resmi TDTH verisiyle "
@@ -151,13 +161,12 @@ class RegionalPGAEstimate:
 
     def _ranked_zones(self, lat: float, lon: float) -> list[tuple[PGAZone, float]]:
         scored = [
-            (zone, _haversine_km(lat, lon, zone.latitude, zone.longitude))
-            for zone in self.zones
+            (zone, _haversine_km(lat, lon, zone.latitude, zone.longitude)) for zone in self.zones
         ]
         scored.sort(key=lambda pair: pair[1])
         return scored
 
-    def _nearest_zone(self, lat: float, lon: float) -> tuple[Optional[PGAZone], float]:
+    def _nearest_zone(self, lat: float, lon: float) -> tuple[PGAZone | None, float]:
         """Geriye dönük uyumluluk için korunmuştur (tek-en-yakın-nokta)."""
         ranked = self._ranked_zones(lat, lon)
         if not ranked:
@@ -168,7 +177,7 @@ class RegionalPGAEstimate:
 @dataclass(frozen=True, slots=True)
 class PGAEstimateResult:
     pga_g: float
-    zone_name: Optional[str]
+    zone_name: str | None
     is_official_source: bool
     note: str
 
@@ -204,7 +213,7 @@ class AttenuationPGAEstimate:
     magnitude_mw: float
     distance_km: float
 
-    def estimate_g(self) -> "AttenuationEstimateResult":
+    def estimate_g(self) -> AttenuationEstimateResult:
         if self.distance_km < 0:
             raise ValueError("distance_km negatif olamaz.")
         pga_gal = 5600.0 * math.exp(0.8 * self.magnitude_mw) / (self.distance_km + 40.0) ** 2

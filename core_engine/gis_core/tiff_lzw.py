@@ -13,6 +13,7 @@ Kaynak: TIFF 6.0 Specification, Adobe Systems, 1992, §13 "LZW
 Compression" — algoritma adım adım orada tarif edilir (metin buraya
 kopyalanmadı, yalnızca algoritma uygulanmıştır).
 """
+
 from __future__ import annotations
 
 __all__ = ["LZWDecodeError", "lzw_decode"]
@@ -121,9 +122,7 @@ def lzw_decode(data: bytes, *, expected_size_hint: int | None = None) -> bytes:
                 prev = table[old_code]
                 entry = prev + prev[0:1]
             else:
-                raise LZWDecodeError(
-                    f"LZW: beklenmeyen kod {code} (tablo boyutu {len(table)})."
-                )
+                raise LZWDecodeError(f"LZW: beklenmeyen kod {code} (tablo boyutu {len(table)}).")
             out += entry
             prev = table[old_code]
             table.append(prev + entry[0:1])

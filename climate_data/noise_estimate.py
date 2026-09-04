@@ -28,11 +28,11 @@ GÖSTERGE NİTELİĞİ: risk_scoring.py ile aynı disiplin - resmi bir gürült�
 haritalama direktifi (örn. AB END 2002/49/EC, CNOSSOS-EU) hesabının yerini
 TUTMAZ; yalnızca göreli karşılaştırma için kaba bir işaret verir.
 """
+
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Optional
 
 DISCLAIMER = (
     "Gösterge niteliğindedir; CRTN (1988) temel akış terimi + basit "
@@ -51,9 +51,9 @@ _CROWD_REFERENCE_DB = 50.0
 
 @dataclass(slots=True)
 class NoiseEstimateReport:
-    traffic_db: Optional[float]
-    crowd_db: Optional[float]
-    combined_db: Optional[float]
+    traffic_db: float | None
+    crowd_db: float | None
+    combined_db: float | None
     disclaimer: str = DISCLAIMER
 
     def to_dict(self) -> dict:
@@ -95,8 +95,8 @@ def crowd_noise_db(density_people_per_m2: float) -> float:
 
 
 def estimate_noise(
-    vehicles_per_hour: Optional[float] = None,
-    density_people_per_m2: Optional[float] = None,
+    vehicles_per_hour: float | None = None,
+    density_people_per_m2: float | None = None,
 ) -> NoiseEstimateReport:
     traffic_db = traffic_noise_db(vehicles_per_hour) if vehicles_per_hour is not None else None
     crowd_db = crowd_noise_db(density_people_per_m2) if density_people_per_m2 is not None else None

@@ -29,22 +29,22 @@ class FeatureCode(str, Enum):
     """Sahada sık kullanılan feature kodları (TR harita mühendisliği
     pratiğiyle uyumlu, İngilizce kısa kod + Türkçe açıklama)."""
 
-    BUILDING_CORNER = "BLD_COR"       # bina köşesi
-    BUILDING_EAVE = "BLD_EAVE"        # bina saçak hattı
-    ROAD_EDGE = "RD_EDGE"             # yol kenarı
-    ROAD_CENTERLINE = "RD_CL"         # yol ekseni
-    CURB = "CURB"                     # bordür
-    POWER_POLE = "PWR_POLE"           # elektrik direği
-    STREETLIGHT = "STR_LIGHT"         # aydınlatma direği
-    MANHOLE = "MANHOLE"               # rögar/manhole kapağı
-    TREE = "TREE"                     # ağaç
-    HEDGE = "HEDGE"                   # çalı/çit sınırı
-    WATER_EDGE = "WTR_EDGE"           # su kenarı (dere/göl/deniz)
-    CONTROL_POINT = "CTRL_PT"         # jeodezik kontrol/nirengi noktası
-    BENCHMARK = "BM"                  # kot noktası (RS/BM)
-    FENCE = "FENCE"                   # çit hattı
-    WALL = "WALL"                     # istinat/bahçe duvarı
-    SPOT_ELEVATION = "SPOT_ELEV"      # ara nokta (arazi kotu)
+    BUILDING_CORNER = "BLD_COR"  # bina köşesi
+    BUILDING_EAVE = "BLD_EAVE"  # bina saçak hattı
+    ROAD_EDGE = "RD_EDGE"  # yol kenarı
+    ROAD_CENTERLINE = "RD_CL"  # yol ekseni
+    CURB = "CURB"  # bordür
+    POWER_POLE = "PWR_POLE"  # elektrik direği
+    STREETLIGHT = "STR_LIGHT"  # aydınlatma direği
+    MANHOLE = "MANHOLE"  # rögar/manhole kapağı
+    TREE = "TREE"  # ağaç
+    HEDGE = "HEDGE"  # çalı/çit sınırı
+    WATER_EDGE = "WTR_EDGE"  # su kenarı (dere/göl/deniz)
+    CONTROL_POINT = "CTRL_PT"  # jeodezik kontrol/nirengi noktası
+    BENCHMARK = "BM"  # kot noktası (RS/BM)
+    FENCE = "FENCE"  # çit hattı
+    WALL = "WALL"  # istinat/bahçe duvarı
+    SPOT_ELEVATION = "SPOT_ELEV"  # ara nokta (arazi kotu)
     OTHER = "OTHER"
 
     @property
@@ -79,7 +79,7 @@ _CODE_CATEGORY: dict[FeatureCode, FeatureCategory] = {
 }
 
 _CODE_GEOMETRY: dict[FeatureCode, str] = {
-    FeatureCode.BUILDING_CORNER: "Polygon",   # ardışık köşeler bina cephesini kapatır
+    FeatureCode.BUILDING_CORNER: "Polygon",  # ardışık köşeler bina cephesini kapatır
     FeatureCode.BUILDING_EAVE: "LineString",
     FeatureCode.ROAD_EDGE: "LineString",
     FeatureCode.ROAD_CENTERLINE: "LineString",

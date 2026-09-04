@@ -24,14 +24,15 @@ import json
 import sqlite3
 import threading
 import time
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any
 
 from .project_format import (
     FORMAT_VERSION,
-    ProjectManifest,
     ProjectFormatError,
+    ProjectManifest,
     migrate_schema,
 )
 
@@ -90,7 +91,7 @@ class ProjectDatabase:
     # -- yaşam döngüsü -----------------------------------------------
 
     @classmethod
-    def create(cls, path: str | Path, manifest: ProjectManifest) -> "ProjectDatabase":
+    def create(cls, path: str | Path, manifest: ProjectManifest) -> ProjectDatabase:
         path = Path(path)
         if path.exists():
             raise FileExistsError(f"Proje dosyası zaten var: {path}")
@@ -103,14 +104,12 @@ class ProjectDatabase:
         return db
 
     @classmethod
-    def open(cls, path: str | Path, *, auto_migrate: bool = True) -> "ProjectDatabase":
+    def open(cls, path: str | Path, *, auto_migrate: bool = True) -> ProjectDatabase:
         path = Path(path)
         if not path.exists():
             raise FileNotFoundError(f"Proje dosyası bulunamadı: {path}")
         conn = sqlite3.connect(str(path), check_same_thread=False)
-        cur = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='meta'"
-        )
+        cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='meta'")
         if cur.fetchone() is None:
             raise ProjectFormatError(f"Geçersiz/tanınmayan .hproj dosyası: {path}")
         db = cls(path, conn)
@@ -132,7 +131,7 @@ class ProjectDatabase:
             self._conn.commit()
             self._conn.close()
 
-    def __enter__(self) -> "ProjectDatabase":
+    def __enter__(self) -> ProjectDatabase:
         return self
 
     def __exit__(self, *exc_info: object) -> None:

@@ -25,10 +25,9 @@ elemanlarını üretir, bina gövdesinin yerine geçmez.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import Enum
-
-import math
 
 from ..core_engine.geometry_engine import Point2D, Polygon
 from ..mesh_engine import Mesh3D, MeshBuilder, MeshMerger
@@ -74,7 +73,9 @@ class ReligiousStructureGenerator:
     aynı şablon)."""
 
     @staticmethod
-    def from_osm_tags(tags: dict, position: Point2D, ground_z: float = 0.0) -> ReligiousStructureItem | None:
+    def from_osm_tags(
+        tags: dict, position: Point2D, ground_z: float = 0.0
+    ) -> ReligiousStructureItem | None:
         """Bir OSM feature'ının tag sözlüğünü `ReligiousStructureItem`'a
         çevirir. `amenity=place_of_worship` yoksa `None` döner (çağıran
         taraf sessizce atlamalı — roadmap'in "eksik veri sahneyi
@@ -84,7 +85,9 @@ class ReligiousStructureGenerator:
         religion = classify_religion(tags)
         base_height_m = _parse_height(tags.get("height")) or 8.0
         return ReligiousStructureItem(
-            religion=religion, position=position, ground_z=ground_z,
+            religion=religion,
+            position=position,
+            ground_z=ground_z,
             base_height_m=base_height_m,
         )
 
@@ -99,7 +102,9 @@ class ReligiousStructureGenerator:
         return dispatch[item.religion](item.position, item.ground_z, item.base_height_m)
 
     @staticmethod
-    def mosque_silhouette(position: Point2D, ground_z: float = 0.0, base_height_m: float = 8.0) -> Mesh3D:
+    def mosque_silhouette(
+        position: Point2D, ground_z: float = 0.0, base_height_m: float = 8.0
+    ) -> Mesh3D:
         """Kubbe (bina çatısı üstünde) + tek minare (silindir gövde +
         koni külah). Konum minarenin/kubbenin bina merkezine göreli
         yerleşimidir; gerçek yerleşim (minare genelde köşede) mimari
@@ -107,45 +112,69 @@ class ReligiousStructureGenerator:
         sabit bir ofsetle yerleştirilir."""
         dome_radius = 3.0
         dome = MeshBuilder.build_dome(
-            radius=dome_radius, height=dome_radius * 0.75,
-            center_x=position.x, center_y=position.y,
-            base_z=ground_z + base_height_m, segments=16, rings=6,
+            radius=dome_radius,
+            height=dome_radius * 0.75,
+            center_x=position.x,
+            center_y=position.y,
+            base_z=ground_z + base_height_m,
+            segments=16,
+            rings=6,
             name="mosque_dome",
         )
         minaret_x, minaret_y = position.x + dome_radius + 1.5, position.y
         shaft_height = base_height_m + 6.0
         shaft = MeshBuilder.build_cylinder(
-            radius=0.5, height=shaft_height,
-            center_x=minaret_x, center_y=minaret_y, base_z=ground_z,
-            segments=10, name="minaret_shaft",
+            radius=0.5,
+            height=shaft_height,
+            center_x=minaret_x,
+            center_y=minaret_y,
+            base_z=ground_z,
+            segments=10,
+            name="minaret_shaft",
         )
         cap = MeshBuilder.build_cone(
-            radius=0.6, height=2.5,
-            center_x=minaret_x, center_y=minaret_y, base_z=ground_z + shaft_height,
-            segments=10, name="minaret_cap",
+            radius=0.6,
+            height=2.5,
+            center_x=minaret_x,
+            center_y=minaret_y,
+            base_z=ground_z + shaft_height,
+            segments=10,
+            name="minaret_cap",
         )
         return MeshMerger.merge([dome, shaft, cap], name="mosque_silhouette")
 
     @staticmethod
-    def church_silhouette(position: Point2D, ground_z: float = 0.0, base_height_m: float = 8.0) -> Mesh3D:
+    def church_silhouette(
+        position: Point2D, ground_z: float = 0.0, base_height_m: float = 8.0
+    ) -> Mesh3D:
         """Çan kulesi (kutu gövde) + sivri çatı (koni) — B1'in "tipik
         siluet elemanları" için kilise varyantı."""
         tower_width = 3.0
         tower_height = base_height_m + 5.0
         tower = MeshBuilder.build_box(
-            tower_width, tower_width, tower_height,
-            center_x=position.x, center_y=position.y, base_z=ground_z,
+            tower_width,
+            tower_width,
+            tower_height,
+            center_x=position.x,
+            center_y=position.y,
+            base_z=ground_z,
             name="church_tower",
         )
         spire = MeshBuilder.build_cone(
-            radius=tower_width * 0.75, height=4.0,
-            center_x=position.x, center_y=position.y, base_z=ground_z + tower_height,
-            segments=4, name="church_spire",
+            radius=tower_width * 0.75,
+            height=4.0,
+            center_x=position.x,
+            center_y=position.y,
+            base_z=ground_z + tower_height,
+            segments=4,
+            name="church_spire",
         )
         return MeshMerger.merge([tower, spire], name="church_silhouette")
 
     @staticmethod
-    def synagogue_silhouette(position: Point2D, ground_z: float = 0.0, base_height_m: float = 8.0) -> Mesh3D:
+    def synagogue_silhouette(
+        position: Point2D, ground_z: float = 0.0, base_height_m: float = 8.0
+    ) -> Mesh3D:
         """ROADMAP_V8 Faz 5.6b — sinagog için ayrı, kendine özgü bir
         siluet: dörtgen kule + alçak (basık) kubbe/çatı kombinasyonu +
         kule ön yüzüne monte edilmiş düşük-poly bir Davut Yıldızı
@@ -159,8 +188,12 @@ class ReligiousStructureGenerator:
         tower_width = 3.0
         tower_height = base_height_m + 3.5
         tower = MeshBuilder.build_box(
-            tower_width, tower_width, tower_height,
-            center_x=position.x, center_y=position.y, base_z=ground_z,
+            tower_width,
+            tower_width,
+            tower_height,
+            center_x=position.x,
+            center_y=position.y,
+            base_z=ground_z,
             name="synagogue_tower",
         )
         # Alçak/basık kubbe (camininkinden belirgin şekilde daha basık
@@ -168,19 +201,27 @@ class ReligiousStructureGenerator:
         # olması için, roadmap kabul kriteri).
         dome_radius = tower_width * 0.62
         low_dome = MeshBuilder.build_dome(
-            radius=dome_radius, height=dome_radius * 0.45,
-            center_x=position.x, center_y=position.y,
-            base_z=ground_z + tower_height, segments=12, rings=4,
+            radius=dome_radius,
+            height=dome_radius * 0.45,
+            center_x=position.x,
+            center_y=position.y,
+            base_z=ground_z + tower_height,
+            segments=12,
+            rings=4,
             name="synagogue_low_dome",
         )
         star = ReligiousStructureGenerator._star_of_david_plate(
-            center_x=position.x, center_y=position.y - tower_width / 2.0 - 0.02,
-            z=ground_z + tower_height * 0.6, outer_radius=tower_width * 0.32,
+            center_x=position.x,
+            center_y=position.y - tower_width / 2.0 - 0.02,
+            z=ground_z + tower_height * 0.6,
+            outer_radius=tower_width * 0.32,
         )
         return MeshMerger.merge([tower, low_dome, star], name="synagogue_silhouette")
 
     @staticmethod
-    def _star_of_david_plate(center_x: float, center_y: float, z: float, outer_radius: float) -> Mesh3D:
+    def _star_of_david_plate(
+        center_x: float, center_y: float, z: float, outer_radius: float
+    ) -> Mesh3D:
         """İki üst üste bindirilmiş eşkenar üçgenden oluşan 12 köşeli
         hexagram anahat poligonunun ince (0.12m) bir dikey plakaya
         ekstrüzyonu — kule ön cephesine monte edilen düşük-poly süs
@@ -202,16 +243,22 @@ class ReligiousStructureGenerator:
         return mesh
 
     @staticmethod
-    def generic_dome_silhouette(position: Point2D, ground_z: float = 0.0, base_height_m: float = 8.0) -> Mesh3D:
+    def generic_dome_silhouette(
+        position: Point2D, ground_z: float = 0.0, base_height_m: float = 8.0
+    ) -> Mesh3D:
         """Yalnızca gerçekten sınıflandırılamayan (`religion` tag'i
         eksik/tanınmayan) durumlar için genel bir kubbe — belirli bir
         dinin mimarisini iddia etmeyen, yalnızca "burada dini bir yapı
         var" görsel işaretini veren en genel varyant."""
         dome_radius = 2.5
         dome = MeshBuilder.build_dome(
-            radius=dome_radius, height=dome_radius * 0.7,
-            center_x=position.x, center_y=position.y,
-            base_z=ground_z + base_height_m, segments=14, rings=5,
+            radius=dome_radius,
+            height=dome_radius * 0.7,
+            center_x=position.x,
+            center_y=position.y,
+            base_z=ground_z + base_height_m,
+            segments=14,
+            rings=5,
             name="generic_dome",
         )
         return dome
@@ -238,8 +285,8 @@ def _parse_height(raw) -> float | None:
 # tanımları hazır olduktan sonra en altta import edilir (`street_furniture`
 # paketiyle aynı döngüsel-import çözümü).
 from .osm_bridge import (  # noqa: E402
-    religious_structure_item_from_point,
     generate_religious_structures_for_collection,
+    religious_structure_item_from_point,
 )
 
 __all__ = [

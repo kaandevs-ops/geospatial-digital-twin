@@ -14,16 +14,17 @@ genisletildi (bkz. o modulun kendi degisiklik notlari); `app_shell`
 arayuzu bu sozlukten metin cekebilir (bkz. `web/index.html` dil
 degistirme dugmesi).
 """
+
 from __future__ import annotations
 
-from .translations import (
-    SUPPORTED_LANGUAGES,
-    DEFAULT_LANGUAGE,
-    TRANSLATIONS,
-    translate,
-    Translator,
-)
 from .language_detection import detect_language
+from .translations import (
+    DEFAULT_LANGUAGE,
+    SUPPORTED_LANGUAGES,
+    TRANSLATIONS,
+    Translator,
+    translate,
+)
 
 __all__ = [
     "SUPPORTED_LANGUAGES",

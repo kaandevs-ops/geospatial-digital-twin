@@ -36,11 +36,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
-_VERSION_RE = re.compile(
-    r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?:[-+].*)?$"
-)
+_VERSION_RE = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?:[-+].*)?$")
 
 _OP_RE = re.compile(r"^(>=|<=|==|!=|>|<)\s*(\d+\.\d+\.\d+)$")
 
@@ -74,12 +71,8 @@ def parse_version(text: str) -> Version:
     """`\"1.2.3\"` -> `Version(1, 2, 3)`. Pre-release/build eki yok sayılır."""
     match = _VERSION_RE.match(text.strip())
     if not match:
-        raise VersionParseError(
-            f"Geçersiz semver string'i: {text!r} (beklenen biçim: 'X.Y.Z')"
-        )
-    return Version(
-        int(match.group("major")), int(match.group("minor")), int(match.group("patch"))
-    )
+        raise VersionParseError(f"Geçersiz semver string'i: {text!r} (beklenen biçim: 'X.Y.Z')")
+    return Version(int(match.group("major")), int(match.group("minor")), int(match.group("patch")))
 
 
 @dataclass
@@ -91,21 +84,20 @@ class VersionRange:
     """
 
     raw: str
-    _clauses: Tuple[Tuple[str, Version], ...]
+    _clauses: tuple[tuple[str, Version], ...]
 
     @staticmethod
-    def parse(text: str) -> "VersionRange":
+    def parse(text: str) -> VersionRange:
         text = text.strip()
         if text == "" or text == "*":
             return VersionRange(raw=text or "*", _clauses=())
-        clauses: List[Tuple[str, Version]] = []
+        clauses: list[tuple[str, Version]] = []
         for part in text.split(","):
             part = part.strip()
             m = _OP_RE.match(part)
             if not m:
                 raise VersionParseError(
-                    f"Geçersiz versiyon aralığı ifadesi: {part!r} "
-                    f"(tüm ifade: {text!r})"
+                    f"Geçersiz versiyon aralığı ifadesi: {part!r} (tüm ifade: {text!r})"
                 )
             op, ver_text = m.group(1), m.group(2)
             clauses.append((op, parse_version(ver_text)))
@@ -133,7 +125,7 @@ class VersionRange:
         return self.raw
 
 
-def _parse_dependency_spec(spec: str) -> Tuple[str, VersionRange]:
+def _parse_dependency_spec(spec: str) -> tuple[str, VersionRange]:
     """`\"other_plugin>=1.0.0\"` -> `(\"other_plugin\", VersionRange(\">=1.0.0\"))`.
 
     Sürüm ifadesi olmayan düz bir isim (`\"other_plugin\"`) geriye uyumlu
@@ -156,7 +148,7 @@ class PluginVersionRegistry:
         self,
         meta,  # PluginMeta - dolaşan import'u önlemek için tip belirtilmedi
         harita_version: str,
-        loaded_plugin_versions: Optional[Dict[str, str]] = None,
+        loaded_plugin_versions: dict[str, str] | None = None,
     ) -> None:
         """Uyumsuzluk varsa `IncompatiblePluginError` fırlatır; aksi halde
         sessizce döner (uyumlu)."""

@@ -27,9 +27,10 @@ import os
 import sys
 import time
 import traceback
-from abc import ABC, abstractmethod
+from abc import ABC
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .plugin_signing import PluginTrustStore
@@ -41,7 +42,7 @@ class PluginMeta:
     version: str = "0.1.0"
     author: str = ""
     description: str = ""
-    depends_on: List[str] = field(default_factory=list)
+    depends_on: list[str] = field(default_factory=list)
     # ROADMAP_V4 - Faz E14: hangi `harita` sürüm aralığıyla uyumlu olduğunu
     # beyan eder (semver aralığı, örn. ">=0.10.0,<1.0.0"). Varsayılan "*"
     # (her sürüm) - geriye uyumlu, mevcut plugin'ler hiçbir değişiklik
@@ -56,7 +57,7 @@ class Plugin(ABC):
 
     meta: PluginMeta
 
-    def __init__(self, meta: Optional[PluginMeta] = None) -> None:
+    def __init__(self, meta: PluginMeta | None = None) -> None:
         self.meta = meta or PluginMeta(name=self.__class__.__name__)
         self._loaded = False
 
@@ -64,10 +65,10 @@ class Plugin(ABC):
     def loaded(self) -> bool:
         return self._loaded
 
-    def on_load(self, manager: "PluginManager") -> None:
+    def on_load(self, manager: PluginManager) -> None:
         """Plugin etkinleştirilirken çağrılır. Alt sınıflar override edebilir."""
 
-    def on_unload(self, manager: "PluginManager") -> None:
+    def on_unload(self, manager: PluginManager) -> None:
         """Plugin devre dışı bırakılırken çağrılır."""
 
 
@@ -86,8 +87,8 @@ class FunctionPlugin(Plugin):
 class PluginRecord:
     plugin: Plugin
     enabled: bool = False
-    error: Optional[str] = None
-    load_time: Optional[float] = None
+    error: str | None = None
+    load_time: float | None = None
 
 
 class PluginDependencyError(Exception):
@@ -102,8 +103,8 @@ class PluginManager:
     """
 
     def __init__(self) -> None:
-        self._plugins: Dict[str, PluginRecord] = {}
-        self._event_hooks: List[Callable[[str, str], None]] = []
+        self._plugins: dict[str, PluginRecord] = {}
+        self._event_hooks: list[Callable[[str, str], None]] = []
 
     # -- kayıt -----------------------------------------------------------
     def register(self, plugin: Plugin) -> None:
@@ -129,7 +130,7 @@ class PluginManager:
     def get_plugin(self, name: str) -> Any:
         return self.get(name)
 
-    def list_plugins(self) -> List[str]:
+    def list_plugins(self) -> list[str]:
         return list(self._plugins.keys())
 
     def is_enabled(self, name: str) -> bool:
@@ -137,9 +138,9 @@ class PluginManager:
         return bool(record and record.enabled)
 
     # -- bağımlılık sıralama ----------------------------------------------
-    def _topological_order(self, names: List[str]) -> List[str]:
-        in_degree: Dict[str, int] = {n: 0 for n in names}
-        edges: Dict[str, List[str]] = {n: [] for n in names}
+    def _topological_order(self, names: list[str]) -> list[str]:
+        in_degree: dict[str, int] = {n: 0 for n in names}
+        edges: dict[str, list[str]] = {n: [] for n in names}
         for n in names:
             for dep in self._plugins[n].plugin.meta.depends_on:
                 if dep not in self._plugins:
@@ -148,7 +149,7 @@ class PluginManager:
                 in_degree[n] += 1
 
         queue = [n for n in names if in_degree.get(n, 0) == 0]
-        order: List[str] = []
+        order: list[str] = []
         while queue:
             node = queue.pop(0)
             order.append(node)
@@ -177,7 +178,7 @@ class PluginManager:
         for n in order:
             self._enable_one(n)
 
-    def _collect_with_deps(self, name: str, seen: Optional[set] = None) -> List[str]:
+    def _collect_with_deps(self, name: str, seen: set | None = None) -> list[str]:
         seen = seen if seen is not None else set()
         if name in seen:
             return []
@@ -230,11 +231,11 @@ class PluginManager:
         self,
         path: str,
         factory_attr: str = "PLUGIN",
-        trust_store: Optional["PluginTrustStore"] = None,
+        trust_store: PluginTrustStore | None = None,
         require_signature: bool = False,
-        version_registry: Optional["PluginVersionRegistry"] = None,
-        harita_version: Optional[str] = None,
-    ) -> List[str]:
+        version_registry: PluginVersionRegistry | None = None,
+        harita_version: str | None = None,
+    ) -> list[str]:
         """Bir dizindeki `*.py` dosyalarını modül olarak yükler.
 
         `trust_store` verilirse her dosya yüklenmeden ÖNCE imzası
@@ -250,8 +251,8 @@ class PluginManager:
         kaydedilmez, `self.rejected`'a bir sebep metniyle eklenir.
         `version_registry=None` iken davranış tamamen eskisiyle aynıdır.
         """
-        discovered: List[str] = []
-        self.rejected: List[Tuple[str, str]] = getattr(self, "rejected", [])
+        discovered: list[str] = []
+        self.rejected: list[tuple[str, str]] = getattr(self, "rejected", [])
         if not os.path.isdir(path):
             return discovered
         for filename in sorted(os.listdir(path)):
@@ -282,9 +283,7 @@ class PluginManager:
                             import harita as _harita  # gecikmeli import - dongusel bagimliligi onler
 
                             current_version = _harita.__version__
-                        loaded_versions = {
-                            n: p.meta.version for n, p in self._plugins.items()
-                        }
+                        loaded_versions = {n: p.meta.version for n, p in self._plugins.items()}
                         try:
                             version_registry.check(
                                 plugin_obj.meta, current_version, loaded_versions

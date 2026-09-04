@@ -35,18 +35,18 @@ ediyor, kırmızı=beklemede/panik".
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Sequence, Union
 
 from ..mobility.simulation_recorder import AgentFrameState, Keyframe, SimulationRecorder
 
 #: O.2 / Katman 2.4'ün kendi renk kodlaması ile birebir tutarlı
 #: ("yeşil=hareket ediyor, kırmızı=beklemede/panik").
 AGENT_STATE_COLORS: dict[AgentFrameState, str] = {
-    AgentFrameState.MOVING: "#2ecc71",     # yeşil
-    AgentFrameState.WAITING: "#f39c12",    # turuncu ("beklemede" — panikten ayırt edilebilir tonda)
-    AgentFrameState.PANIC: "#e74c3c",      # kırmızı
+    AgentFrameState.MOVING: "#2ecc71",  # yeşil
+    AgentFrameState.WAITING: "#f39c12",  # turuncu ("beklemede" — panikten ayırt edilebilir tonda)
+    AgentFrameState.PANIC: "#e74c3c",  # kırmızı
     AgentFrameState.EVACUATED: "#95a5a6",  # gri (sahneden çıkmış)
 }
 
@@ -76,7 +76,7 @@ class ExportBounds:
         return max(self.max_y - self.min_y, 1e-6)
 
 
-def _resolve_keyframes(source: Union[SimulationRecorder, Sequence[Keyframe]]) -> list[Keyframe]:
+def _resolve_keyframes(source: SimulationRecorder | Sequence[Keyframe]) -> list[Keyframe]:
     keyframes = source.keyframes if isinstance(source, SimulationRecorder) else list(source)
     if not keyframes:
         raise AnimationExportError(
@@ -101,7 +101,9 @@ def compute_export_bounds(keyframes: Sequence[Keyframe], *, margin: float = 1.0)
     return ExportBounds(min(xs) - margin, min(ys) - margin, max(xs) + margin, max(ys) + margin)
 
 
-def _world_to_px(x: float, y: float, bounds: ExportBounds, width_px: int, height_px: int) -> tuple[float, float]:
+def _world_to_px(
+    x: float, y: float, bounds: ExportBounds, width_px: int, height_px: int
+) -> tuple[float, float]:
     px = (x - bounds.min_x) / bounds.width * width_px
     # Y ekseni SVG/görüntüde aşağı doğru arttığından çevrilir (dünya
     # koordinatında yukarı = +y varsayımıyla tutarlı, top-down kesit
@@ -141,8 +143,8 @@ def render_keyframe_svg(
 
 
 def export_keyframes_svg_sequence(
-    source: Union[SimulationRecorder, Sequence[Keyframe]],
-    output_dir: Union[str, Path],
+    source: SimulationRecorder | Sequence[Keyframe],
+    output_dir: str | Path,
     *,
     width_px: int = 800,
     height_px: int = 600,
@@ -161,7 +163,11 @@ def export_keyframes_svg_sequence(
     paths: list[Path] = []
     for i, kf in enumerate(keyframes):
         svg = render_keyframe_svg(
-            kf, bounds, width_px=width_px, height_px=height_px, agent_radius_px=agent_radius_px,
+            kf,
+            bounds,
+            width_px=width_px,
+            height_px=height_px,
+            agent_radius_px=agent_radius_px,
         )
         path = out_dir / f"{filename_prefix}_{i:0{digits}d}.svg"
         path.write_text(svg, encoding="utf-8")
@@ -170,8 +176,8 @@ def export_keyframes_svg_sequence(
 
 
 def export_keyframes_gif(
-    source: Union[SimulationRecorder, Sequence[Keyframe]],
-    output_path: Union[str, Path],
+    source: SimulationRecorder | Sequence[Keyframe],
+    output_path: str | Path,
     *,
     width_px: int = 800,
     height_px: int = 600,
@@ -216,8 +222,12 @@ def export_keyframes_gif(
     out_path = Path(output_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     frames[0].save(
-        out_path, save_all=True, append_images=frames[1:],
-        duration=frame_duration_ms, loop=loop, format="GIF",
+        out_path,
+        save_all=True,
+        append_images=frames[1:],
+        duration=frame_duration_ms,
+        loop=loop,
+        format="GIF",
     )
     return out_path
 

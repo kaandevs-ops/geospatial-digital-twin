@@ -36,9 +36,7 @@ class IFCValidationError(ValueError):
 def _ifc_guid() -> str:
     """IFC'nin base64-benzeri 22 karakterlik sıkıştırılmış GUID formatı
     (compressed GUID, IFC'ye özgü alfabe). Stdlib `uuid` + özel kod çözücü."""
-    alphabet = (
-        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$"
-    )
+    alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$"
     raw = uuid.uuid4().bytes  # 16 bayt = 128 bit
     num = int.from_bytes(raw, "big")
     chars = []
@@ -110,14 +108,13 @@ class IFCExporter:
             point_ids.append(pid)
         pts_ref = ",".join(f"#{pid}" for pid in point_ids)
         polyline_id = w.add(f"IFCPOLYLINE(({pts_ref}))")
-        profile_id = w.add(
-            f"IFCARBITRARYCLOSEDPROFILEDEF(.AREA.,$,#{polyline_id})"
-        )
+        profile_id = w.add(f"IFCARBITRARYCLOSEDPROFILEDEF(.AREA.,$,#{polyline_id})")
         return profile_id
 
     @classmethod
-    def _write_extruded_solid(cls, w: _StepWriter, polygon: Polygon,
-                               base_z: float, height: float) -> int:
+    def _write_extruded_solid(
+        cls, w: _StepWriter, polygon: Polygon, base_z: float, height: float
+    ) -> int:
         origin_id = w.add(f"IFCCARTESIANPOINT((0.0,0.0,{base_z:.4f}))")
         dir_z_id = w.add("IFCDIRECTION((0.0,0.0,1.0))")
         dir_x_id = w.add("IFCDIRECTION((1.0,0.0,0.0))")
@@ -130,28 +127,21 @@ class IFCExporter:
         return solid_id
 
     @classmethod
-    def _write_local_placement(cls, w: _StepWriter,
-                                parent_id: int | None = None) -> int:
+    def _write_local_placement(cls, w: _StepWriter, parent_id: int | None = None) -> int:
         origin_id = w.add("IFCCARTESIANPOINT((0.0,0.0,0.0))")
         axis2_id = w.add(f"IFCAXIS2PLACEMENT3D(#{origin_id},$,$)")
         parent_ref = f"#{parent_id}" if parent_id is not None else "$"
         return w.add(f"IFCLOCALPLACEMENT({parent_ref},#{axis2_id})")
 
     @classmethod
-    def export(cls, model: IFCBuildingModel, path: str) -> "ExportResultIFC":
+    def export(cls, model: IFCBuildingModel, path: str) -> ExportResultIFC:
         w = _StepWriter()
 
         person_id = w.add("IFCPERSON($,$,'harita',$,$,$,$,$)")
         org_id = w.add("IFCORGANIZATION($,'harita.export',$,$,$)")
-        person_org_id = w.add(
-            f"IFCPERSONANDORGANIZATION(#{person_id},#{org_id},$)"
-        )
-        app_id = w.add(
-            "IFCAPPLICATION(#%d,'1.0','harita.export.IFCExporter','harita')" % org_id
-        )
-        owner_history_id = w.add(
-            f"IFCOWNERHISTORY(#{person_org_id},#{app_id},$,.ADDED.,$,$,$,0)"
-        )
+        person_org_id = w.add(f"IFCPERSONANDORGANIZATION(#{person_id},#{org_id},$)")
+        app_id = w.add("IFCAPPLICATION(#%d,'1.0','harita.export.IFCExporter','harita')" % org_id)
+        owner_history_id = w.add(f"IFCOWNERHISTORY(#{person_org_id},#{app_id},$,.ADDED.,$,$,$,0)")
 
         length_unit_id = w.add("IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.)")
         units_id = w.add(f"IFCUNITASSIGNMENT((#{length_unit_id}))")
@@ -193,9 +183,7 @@ class IFCExporter:
 
         for room in model.rooms:
             solid_id = cls._write_extruded_solid(w, room.polygon, room.floor_z, room.height)
-            shape_rep_id = w.add(
-                f"IFCSHAPEREPRESENTATION($,'Body','SweptSolid',(#{solid_id}))"
-            )
+            shape_rep_id = w.add(f"IFCSHAPEREPRESENTATION($,'Body','SweptSolid',(#{solid_id}))")
             prod_shape_id = w.add(f"IFCPRODUCTDEFINITIONSHAPE($,$,(#{shape_rep_id}))")
             space_placement_id = cls._write_local_placement(w, storey_placement_id)
             space_id = w.add(
@@ -207,18 +195,18 @@ class IFCExporter:
         for wall in model.walls:
             dx = wall.end.x - wall.start.x
             dy = wall.end.y - wall.start.y
-            length = max((dx ** 2 + dy ** 2) ** 0.5, 1e-6)
+            length = max((dx**2 + dy**2) ** 0.5, 1e-6)
             nx, ny = -dy / length * (wall.thickness / 2.0), dx / length * (wall.thickness / 2.0)
-            ring = Polygon(points=[
-                Point2D(wall.start.x + nx, wall.start.y + ny),
-                Point2D(wall.end.x + nx, wall.end.y + ny),
-                Point2D(wall.end.x - nx, wall.end.y - ny),
-                Point2D(wall.start.x - nx, wall.start.y - ny),
-            ])
-            solid_id = cls._write_extruded_solid(w, ring, wall.floor_z, wall.height)
-            shape_rep_id = w.add(
-                f"IFCSHAPEREPRESENTATION($,'Body','SweptSolid',(#{solid_id}))"
+            ring = Polygon(
+                points=[
+                    Point2D(wall.start.x + nx, wall.start.y + ny),
+                    Point2D(wall.end.x + nx, wall.end.y + ny),
+                    Point2D(wall.end.x - nx, wall.end.y - ny),
+                    Point2D(wall.start.x - nx, wall.start.y - ny),
+                ]
             )
+            solid_id = cls._write_extruded_solid(w, ring, wall.floor_z, wall.height)
+            shape_rep_id = w.add(f"IFCSHAPEREPRESENTATION($,'Body','SweptSolid',(#{solid_id}))")
             prod_shape_id = w.add(f"IFCPRODUCTDEFINITIONSHAPE($,$,(#{shape_rep_id}))")
             wall_placement_id = cls._write_local_placement(w, storey_placement_id)
             wall_id = w.add(

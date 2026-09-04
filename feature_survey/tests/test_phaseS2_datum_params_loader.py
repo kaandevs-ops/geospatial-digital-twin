@@ -10,11 +10,10 @@ from __future__ import annotations
 import json
 
 import pytest
-
-from harita.feature_survey.geodetic_engine.datum_transform import InsufficientDataError
 from harita.feature_survey.geodetic_engine.datum_params_loader import (
     load_datum_transform_params,
 )
+from harita.feature_survey.geodetic_engine.datum_transform import InsufficientDataError
 
 
 def test_missing_file_raises():
@@ -48,8 +47,11 @@ def test_malformed_json_raises(tmp_path):
 def test_missing_numeric_field_raises(tmp_path):
     p = tmp_path / "missing_field.json"
     data = {
-        "tx_m": 1.0, "ty_m": 2.0, "tz_m": 3.0,
-        "rx_arcsec": 0.1, "ry_arcsec": 0.2,
+        "tx_m": 1.0,
+        "ty_m": 2.0,
+        "tz_m": 3.0,
+        "rx_arcsec": 0.1,
+        "ry_arcsec": 0.2,
         # rz_arcsec eksik
         "scale_ppm": 1.0,
         "source": "Test kaynağı 2026",
@@ -62,8 +64,12 @@ def test_missing_numeric_field_raises(tmp_path):
 def test_non_numeric_field_raises(tmp_path):
     p = tmp_path / "bad_type.json"
     data = {
-        "tx_m": "not-a-number", "ty_m": 2.0, "tz_m": 3.0,
-        "rx_arcsec": 0.1, "ry_arcsec": 0.2, "rz_arcsec": 0.3,
+        "tx_m": "not-a-number",
+        "ty_m": 2.0,
+        "tz_m": 3.0,
+        "rx_arcsec": 0.1,
+        "ry_arcsec": 0.2,
+        "rz_arcsec": 0.3,
         "scale_ppm": 1.0,
         "source": "Test kaynağı 2026",
     }
@@ -75,8 +81,12 @@ def test_non_numeric_field_raises(tmp_path):
 def test_empty_source_raises(tmp_path):
     p = tmp_path / "no_source.json"
     data = {
-        "tx_m": 1.0, "ty_m": 2.0, "tz_m": 3.0,
-        "rx_arcsec": 0.1, "ry_arcsec": 0.2, "rz_arcsec": 0.3,
+        "tx_m": 1.0,
+        "ty_m": 2.0,
+        "tz_m": 3.0,
+        "rx_arcsec": 0.1,
+        "ry_arcsec": 0.2,
+        "rz_arcsec": 0.3,
         "scale_ppm": 1.0,
         "source": "   ",
     }
@@ -91,8 +101,12 @@ def test_valid_params_load_successfully(tmp_path):
     verilebilecek bir `DatumTransformParameters` üretmeli."""
     p = tmp_path / "valid.json"
     data = {
-        "tx_m": 1.234, "ty_m": -2.345, "tz_m": 3.456,
-        "rx_arcsec": 0.01, "ry_arcsec": -0.02, "rz_arcsec": 0.03,
+        "tx_m": 1.234,
+        "ty_m": -2.345,
+        "tz_m": 3.456,
+        "rx_arcsec": 0.01,
+        "ry_arcsec": -0.02,
+        "rz_arcsec": 0.03,
         "scale_ppm": 0.999,
         "source": "Birim testi için üretilmiş örnek parametre seti (gerçek resmi değer değildir, sadece yükleyici mantığını doğrular) - 2026",
     }

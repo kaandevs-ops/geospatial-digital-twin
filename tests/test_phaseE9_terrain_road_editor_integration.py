@@ -36,8 +36,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from harita.app_shell.session import AppSession, AppSessionError
 from harita.app_shell.api import build_app_router
+from harita.app_shell.session import AppSession, AppSessionError
 
 
 def _make_session():
@@ -51,6 +51,7 @@ def _make_session():
 # ------------------------------------------------------------------ #
 # 1. Terrain: AppSession Python API
 # ------------------------------------------------------------------ #
+
 
 def test_terrain_init_creates_flat_grid():
     sess, pid, _tmp = _make_session()
@@ -73,7 +74,12 @@ def test_terrain_raise_brush_increases_elevation_under_center():
     sess.terrain_init(pid, width=32, height=32, resolution_m=1.0, base_elevation=0.0)
     before = sess.terrain_state(pid)["max_elevation"]
     state = sess.terrain_brush(
-        pid, "raise", center_x_m=16.0, center_y_m=16.0, radius_m=5.0, amount_m=3.0,
+        pid,
+        "raise",
+        center_x_m=16.0,
+        center_y_m=16.0,
+        radius_m=5.0,
+        amount_m=3.0,
     )
     assert state["max_elevation"] > before
     assert state["can_undo"] is True
@@ -83,7 +89,12 @@ def test_terrain_lower_brush_decreases_elevation():
     sess, pid, _tmp = _make_session()
     sess.terrain_init(pid, width=32, height=32, resolution_m=1.0, base_elevation=10.0)
     state = sess.terrain_brush(
-        pid, "lower", center_x_m=16.0, center_y_m=16.0, radius_m=5.0, amount_m=4.0,
+        pid,
+        "lower",
+        center_x_m=16.0,
+        center_y_m=16.0,
+        radius_m=5.0,
+        amount_m=4.0,
     )
     assert state["min_elevation"] < 10.0
 
@@ -132,6 +143,7 @@ def test_terrain_paint_layer_blends_toward_target_weight():
 # 2. Terrain: kalıcılık (proje kapat -> yeniden aç)
 # ------------------------------------------------------------------ #
 
+
 def test_terrain_persists_across_project_reopen():
     sess, pid, tmp = _make_session()
     sess.terrain_init(pid, width=16, height=16, resolution_m=1.0, base_elevation=0.0)
@@ -148,6 +160,7 @@ def test_terrain_persists_across_project_reopen():
 # ------------------------------------------------------------------ #
 # 3. Road: AppSession Python API
 # ------------------------------------------------------------------ #
+
 
 def test_road_add_and_add_points_builds_valid_mesh():
     sess, pid, _tmp = _make_session()
@@ -227,6 +240,7 @@ def test_remove_road():
 # 4. Scene entegrasyonu: arazi + yol gerçekten sahneye ekleniyor
 # ------------------------------------------------------------------ #
 
+
 def test_scene_json_includes_terrain_and_road_meshes():
     sess, pid, _tmp = _make_session()
     sess.terrain_init(pid, width=8, height=8, resolution_m=2.0, base_elevation=0.0)
@@ -252,12 +266,16 @@ def test_scene_json_without_terrain_or_roads_has_no_extra_nodes():
 # 5. REST köprüsü (build_app_router) - E9'un HTTP-benzeri uçları
 # ------------------------------------------------------------------ #
 
+
 def test_rest_terrain_full_flow():
     sess, pid, _tmp = _make_session()
     router = build_app_router(sess)
 
-    r = router.dispatch("POST", f"/api/projects/{pid}/terrain/init",
-                         body={"width": 16, "height": 16, "resolution_m": 1.0})
+    r = router.dispatch(
+        "POST",
+        f"/api/projects/{pid}/terrain/init",
+        body={"width": 16, "height": 16, "resolution_m": 1.0},
+    )
     assert r.status == 201
 
     r = router.dispatch("GET", f"/api/projects/{pid}/terrain")
@@ -265,9 +283,15 @@ def test_rest_terrain_full_flow():
     assert r.body["terrain"]["width"] == 16
 
     r = router.dispatch(
-        "POST", f"/api/projects/{pid}/terrain/brush",
-        body={"operation": "raise", "center_x_m": 8.0, "center_y_m": 8.0,
-              "radius_m": 4.0, "amount_m": 2.0},
+        "POST",
+        f"/api/projects/{pid}/terrain/brush",
+        body={
+            "operation": "raise",
+            "center_x_m": 8.0,
+            "center_y_m": 8.0,
+            "radius_m": 4.0,
+            "amount_m": 2.0,
+        },
     )
     assert r.status == 200
     assert r.body["max_elevation"] > 0.0
@@ -291,17 +315,23 @@ def test_rest_road_full_flow():
     rid = r.body["road_id"]
 
     r = router.dispatch(
-        "POST", f"/api/projects/{pid}/roads/{rid}/points", body={"x_m": 0.0, "y_m": 0.0},
+        "POST",
+        f"/api/projects/{pid}/roads/{rid}/points",
+        body={"x_m": 0.0, "y_m": 0.0},
     )
     assert r.status == 201
     r = router.dispatch(
-        "POST", f"/api/projects/{pid}/roads/{rid}/points", body={"x_m": 10.0, "y_m": 0.0},
+        "POST",
+        f"/api/projects/{pid}/roads/{rid}/points",
+        body={"x_m": 10.0, "y_m": 0.0},
     )
     assert r.status == 201
     assert len(r.body["control_points"]) == 2
 
     r = router.dispatch(
-        "PUT", f"/api/projects/{pid}/roads/{rid}/points/1", body={"x_m": 12.0, "y_m": 3.0},
+        "PUT",
+        f"/api/projects/{pid}/roads/{rid}/points/1",
+        body={"x_m": 12.0, "y_m": 3.0},
     )
     assert r.status == 200
     assert r.body["control_points"][1] == [12.0, 3.0]
@@ -311,7 +341,8 @@ def test_rest_road_full_flow():
     assert len(r.body["roads"]) == 1
 
     r = router.dispatch(
-        "DELETE", f"/api/projects/{pid}/roads/{rid}/points/0",
+        "DELETE",
+        f"/api/projects/{pid}/roads/{rid}/points/0",
     )
     assert r.status == 200
     assert len(r.body["control_points"]) == 1
@@ -335,6 +366,7 @@ def test_rest_road_missing_field_returns_422():
 # 6. Uçtan uca (D16/E9 birleşik kabul kriteri): bina + arazi + yol
 # ------------------------------------------------------------------ #
 
+
 def test_end_to_end_building_terrain_and_road_together():
     """Faz E9 kabul kriterinin tam metni: kullanıcı hiç kod yazmadan bina
     ekler, araziyi şekillendirir, yol çizer - hepsi tek bir sahnede birlikte
@@ -344,12 +376,14 @@ def test_end_to_end_building_terrain_and_road_together():
     router = build_app_router(sess)
 
     router.dispatch(
-        "POST", f"/api/projects/{pid}/buildings",
+        "POST",
+        f"/api/projects/{pid}/buildings",
         body={"polygon": [[0, 0], [10, 0], [10, 8], [0, 8]], "building_type": "apartman"},
     )
     router.dispatch("POST", f"/api/projects/{pid}/terrain/init", body={"width": 20, "height": 20})
     router.dispatch(
-        "POST", f"/api/projects/{pid}/terrain/brush",
+        "POST",
+        f"/api/projects/{pid}/terrain/brush",
         body={"operation": "raise", "center_x_m": 10.0, "center_y_m": 10.0, "radius_m": 5.0},
     )
     road_resp = router.dispatch("POST", f"/api/projects/{pid}/roads", body={})

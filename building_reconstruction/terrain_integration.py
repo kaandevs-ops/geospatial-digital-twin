@@ -24,7 +24,7 @@ import math
 from dataclasses import dataclass
 
 from ..core_engine.geometry_engine import Point2D, Polygon
-from ..mesh_engine import Mesh3D, MeshBuilder, MeshMerger, NormalGenerator, Vertex3D
+from ..mesh_engine import Mesh3D, MeshBuilder, NormalGenerator, Vertex3D
 from ..terrain_engine import HeightmapGrid
 
 
@@ -56,7 +56,9 @@ class TerrainFoundationGenerator:
 
     @staticmethod
     def analyze_intersection(
-        polygon: Polygon, building_base_z: float, heightmap: HeightmapGrid,
+        polygon: Polygon,
+        building_base_z: float,
+        heightmap: HeightmapGrid,
         floating_tolerance_m: float = 0.15,
     ) -> TerrainIntersectionReport:
         elevations = TerrainFoundationGenerator.sample_ground_elevations(polygon, heightmap)
@@ -74,7 +76,9 @@ class TerrainFoundationGenerator:
 
     @staticmethod
     def foundation_skirt_mesh(
-        polygon: Polygon, building_base_z: float, heightmap: HeightmapGrid,
+        polygon: Polygon,
+        building_base_z: float,
+        heightmap: HeightmapGrid,
         name: str = "foundation_skirt",
     ) -> Mesh3D:
         """Bina tabanı (`building_base_z`, sabit düz kat) ile eğimli gerçek
@@ -115,8 +119,10 @@ class RetainingWallGenerator:
 
     @staticmethod
     def generate(
-        polygon: Polygon, heightmap: HeightmapGrid,
-        wall_offset_m: float = 1.5, wall_thickness: float = 0.3,
+        polygon: Polygon,
+        heightmap: HeightmapGrid,
+        wall_offset_m: float = 1.5,
+        wall_thickness: float = 0.3,
         name: str = "retaining_wall",
     ) -> Mesh3D | None:
         ring = polygon.closed_ring()[:-1]
@@ -126,7 +132,9 @@ class RetainingWallGenerator:
         for p in ring:
             dx, dy = p.x - cx, p.y - cy
             dist = math.hypot(dx, dy) or 1e-6
-            outer_ring.append(Point2D(p.x + dx / dist * wall_offset_m, p.y + dy / dist * wall_offset_m))
+            outer_ring.append(
+                Point2D(p.x + dx / dist * wall_offset_m, p.y + dy / dist * wall_offset_m)
+            )
 
         elevations = [heightmap.sample_bilinear(p.x, p.y) for p in outer_ring]
         min_z, max_z = min(elevations), max(elevations)

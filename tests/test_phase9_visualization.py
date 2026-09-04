@@ -7,20 +7,28 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.mesh_engine import Mesh3D, Vertex3D
 from harita.visualization import (
-    Camera, CameraMode, CameraRig, CinematicKeyframe,
-    ExplosionView, FloorBand, floor_bands_from_heights,
-    RenderPass, RenderPassType, RenderPipeline,
-    SectionPlane, SectionView,
-    XRayState, occlusion_ratio,
+    Camera,
+    CameraMode,
+    CameraRig,
+    CinematicKeyframe,
+    ExplosionView,
+    FloorBand,
+    RenderPass,
+    RenderPassType,
+    RenderPipeline,
+    SectionPlane,
+    SectionView,
+    XRayState,
+    floor_bands_from_heights,
+    occlusion_ratio,
 )
-
 
 # ============================================================================ #
 # render_passes.py
 # ============================================================================ #
+
 
 def test_render_pass_default_parameters():
     p = RenderPass(pass_type=RenderPassType.BLOOM)
@@ -63,6 +71,7 @@ def test_render_pipeline_reorder_and_remove():
 # ============================================================================ #
 # camera_rig.py
 # ============================================================================ #
+
 
 def test_camera_orbit_preserves_distance():
     cam = Camera(position=(10.0, 0.0, 0.0), target=(0.0, 0.0, 0.0))
@@ -117,7 +126,9 @@ def test_camera_cinematic_interpolation():
 def test_camera_free_fly_combines_look_and_move():
     cam = Camera(position=(0.0, 0.0, 0.0), target=(1.0, 0.0, 0.0))
     rig = CameraRig(camera=cam, mode=CameraMode.FREE_FLY)
-    rig.free_fly(forward_amount=1.0, strafe_amount=0.0, up_amount=0.5, yaw_delta_deg=90, pitch_delta_deg=0)
+    rig.free_fly(
+        forward_amount=1.0, strafe_amount=0.0, up_amount=0.5, yaw_delta_deg=90, pitch_delta_deg=0
+    )
     assert rig.camera.position[2] == pytest.approx(0.5)
 
 
@@ -125,20 +136,33 @@ def test_camera_free_fly_combines_look_and_move():
 # section_view.py
 # ============================================================================ #
 
+
 def _cube_mesh() -> Mesh3D:
     """[0,1]^3 birim küp, 12 üçgen (6 yüz x 2)."""
     pts = [
-        (0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0),
-        (0, 0, 1), (1, 0, 1), (1, 1, 1), (0, 1, 1),
+        (0, 0, 0),
+        (1, 0, 0),
+        (1, 1, 0),
+        (0, 1, 0),
+        (0, 0, 1),
+        (1, 0, 1),
+        (1, 1, 1),
+        (0, 1, 1),
     ]
     verts = [Vertex3D(*p) for p in pts]
     faces = [
-        (0, 1, 2), (0, 2, 3),  # bottom
-        (4, 6, 5), (4, 7, 6),  # top
-        (0, 4, 5), (0, 5, 1),  # front
-        (1, 5, 6), (1, 6, 2),  # right
-        (2, 6, 7), (2, 7, 3),  # back
-        (3, 7, 4), (3, 4, 0),  # left
+        (0, 1, 2),
+        (0, 2, 3),  # bottom
+        (4, 6, 5),
+        (4, 7, 6),  # top
+        (0, 4, 5),
+        (0, 5, 1),  # front
+        (1, 5, 6),
+        (1, 6, 2),  # right
+        (2, 6, 7),
+        (2, 7, 3),  # back
+        (3, 7, 4),
+        (3, 4, 0),  # left
     ]
     return Mesh3D(vertices=verts, triangles=faces, name="cube")
 
@@ -167,6 +191,7 @@ def test_section_view_full_mesh_on_one_side():
 # xray.py
 # ============================================================================ #
 
+
 def test_xray_state_material_opacity():
     xray = XRayState()
     assert xray.opacity_for("glass") == 1.0  # disabled iken her zaman opak
@@ -194,11 +219,16 @@ def test_occlusion_ratio_range():
 # explosion_view.py
 # ============================================================================ #
 
+
 def _two_floor_mesh() -> tuple[Mesh3D, list]:
     """İki kat: kat0 z=[0,3), kat1 z=[3,6). Her kat basit bir üçgen."""
     verts = [
-        Vertex3D(0, 0, 1), Vertex3D(1, 0, 1), Vertex3D(0, 1, 1),       # floor 0
-        Vertex3D(0, 0, 4), Vertex3D(1, 0, 4), Vertex3D(0, 1, 4),       # floor 1
+        Vertex3D(0, 0, 1),
+        Vertex3D(1, 0, 1),
+        Vertex3D(0, 1, 1),  # floor 0
+        Vertex3D(0, 0, 4),
+        Vertex3D(1, 0, 4),
+        Vertex3D(0, 1, 4),  # floor 1
     ]
     tris = [(0, 1, 2), (3, 4, 5)]
     mesh = Mesh3D(vertices=verts, triangles=tris, name="two_floor")

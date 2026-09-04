@@ -60,7 +60,9 @@ with AppSession("/tmp/registry.hprojreg") as session:
     building = session.add_building(
         info["project_id"],
         polygon_points=[(0, 0), (20, 0), (20, 15), (0, 15)],
-        building_type="apartman", floor_count=5, height_m=15.0,
+        building_type="apartman",
+        floor_count=5,
+        height_m=15.0,
     )
     session.run_assistant_command(info["project_id"], building["key"], "2 kat ekle")
     scene = session.scene_json(info["project_id"])  # render_engine.Scene JSON'u

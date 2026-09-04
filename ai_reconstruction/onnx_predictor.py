@@ -43,8 +43,9 @@ Tasarım kararları
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Sequence
+from typing import Any
 
 from .height_model import MLAssistedHeightPredictor
 from .predictor import Predictor
@@ -69,7 +70,13 @@ except ImportError:  # pragma: no cover - ortam bağımlı
 
 
 DEFAULT_ROOF_TYPES: tuple[str, ...] = (
-    "flat", "gable", "hip", "mansard", "shed", "gambrel", "dome",
+    "flat",
+    "gable",
+    "hip",
+    "mansard",
+    "shed",
+    "gambrel",
+    "dome",
 )
 
 
@@ -103,9 +110,7 @@ def _require_onnxruntime() -> None:
             "kullanabilirsiniz."
         )
     if not _NUMPY_AVAILABLE:  # pragma: no cover - onnxruntime zaten numpy'a bağımlı
-        raise OnnxBackendUnavailable(
-            "numpy kurulu değil (onnxruntime çalışma zamanı bağımlılığı)."
-        )
+        raise OnnxBackendUnavailable("numpy kurulu değil (onnxruntime çalışma zamanı bağımlılığı).")
 
 
 @dataclass(frozen=True)

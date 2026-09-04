@@ -114,12 +114,21 @@ class LODChainBuilder:
         ile otomatik türetilir (hiçbir seviye boş kalmaz)."""
         ratios = fallback_ratios or DEFAULT_LOD_TRIANGLE_RATIOS
         chain = LODChain(source_name=lod0.name)
-        provided = {LODLevel.LOD0: lod0, LODLevel.LOD1: lod1, LODLevel.LOD2: lod2, LODLevel.LOD3: lod3}
+        provided = {
+            LODLevel.LOD0: lod0,
+            LODLevel.LOD1: lod1,
+            LODLevel.LOD2: lod2,
+            LODLevel.LOD3: lod3,
+        }
         for level in (LODLevel.LOD0, LODLevel.LOD1, LODLevel.LOD2, LODLevel.LOD3):
             mesh = provided[level]
             if mesh is None:
                 ratio = ratios[level]
-                mesh = lod0.clone() if ratio >= 1.0 else MeshSimplifier.simplify(lod0, target_triangle_ratio=ratio)
+                mesh = (
+                    lod0.clone()
+                    if ratio >= 1.0
+                    else MeshSimplifier.simplify(lod0, target_triangle_ratio=ratio)
+                )
             chain.meshes[level] = mesh
             chain.triangle_counts[level] = len(mesh.triangles)
         return chain

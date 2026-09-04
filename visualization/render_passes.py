@@ -65,7 +65,7 @@ class RenderPass:
         merged.update(self.parameters)
         self.parameters = merged
 
-    def with_parameter(self, key: str, value) -> "RenderPass":
+    def with_parameter(self, key: str, value) -> RenderPass:
         params = dict(self.parameters)
         params[key] = value
         return RenderPass(pass_type=self.pass_type, enabled=self.enabled, parameters=params)
@@ -79,7 +79,7 @@ class RenderPipeline:
     passes: list[RenderPass] = field(default_factory=list)
 
     @classmethod
-    def default_pbr_pipeline(cls) -> "RenderPipeline":
+    def default_pbr_pipeline(cls) -> RenderPipeline:
         """Yaygın bir "iyi görünen" varsayılan sıralama."""
         order = [
             RenderPassType.PBR,

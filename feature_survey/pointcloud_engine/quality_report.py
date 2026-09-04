@@ -24,7 +24,7 @@ outlier removal — gerçek k-NN mesafe dağılımı + standart sapma eşiği)."
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from ...data_engine.spatial_index import KDTree
 
@@ -129,9 +129,7 @@ def compute_gaps(points: list[Point3], cell_size_m: float = 1.0) -> GapReport:
         x1, y1 = hull[-1]
         for i in range(n):
             x2, y2 = hull[i]
-            if ((y2 > y) != (y1 > y)) and (
-                x < (x1 - x2) * (y - y2) / (y1 - y2 + 1e-15) + x2
-            ):
+            if ((y2 > y) != (y1 > y)) and (x < (x1 - x2) * (y - y2) / (y1 - y2 + 1e-15) + x2):
                 inside = not inside
             x1, y1 = x2, y2
         return inside
@@ -194,8 +192,7 @@ def detect_noise_sor(
     n = len(points)
     if n <= k_neighbors:
         raise QualityReportError(
-            f"SOR için nokta sayısı ({n}) k_neighbors+1'den ({k_neighbors + 1}) "
-            "büyük olmalı."
+            f"SOR için nokta sayısı ({n}) k_neighbors+1'den ({k_neighbors + 1}) büyük olmalı."
         )
 
     tree = KDTree(points)

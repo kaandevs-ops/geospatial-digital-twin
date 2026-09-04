@@ -30,13 +30,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from .api import build_app_router
-from .multipart import MultipartParseError, parse_multipart
-from .session import AppSession, AppSessionError
 from ..observability.instrumentation import InstrumentedRouter
 from ..observability.logging import StructuredLogger
 from ..observability.metrics import MetricsRegistry
 from ..performance.profiler import GPUProfiler, MemoryProfiler
+from .api import build_app_router
+from .multipart import MultipartParseError, parse_multipart
+from .session import AppSession, AppSessionError
 
 _WEB_ROOT = Path(__file__).parent / "web"
 
@@ -86,7 +86,9 @@ def _make_handler(session: AppSession) -> type[BaseHTTPRequestHandler]:
         server_version = "HaritaAppShell/1.0"
         timeout = REQUEST_TIMEOUT_SECONDS
 
-        def log_message(self, fmt: str, *args: Any) -> None:  # sessiz stdout, testlerde gürültü yapmasın
+        def log_message(
+            self, fmt: str, *args: Any
+        ) -> None:  # sessiz stdout, testlerde gürültü yapmasın
             pass
 
         # -- ortak yardımcılar ------------------------------------------
@@ -127,8 +129,7 @@ def _make_handler(session: AppSession) -> type[BaseHTTPRequestHandler]:
                 return None
             if length < 0 or length > MAX_REQUEST_BODY_BYTES:
                 raise RequestTooLarge(
-                    f"İstek gövdesi çok büyük: {length} byte "
-                    f"(azami {MAX_REQUEST_BODY_BYTES} byte)"
+                    f"İstek gövdesi çok büyük: {length} byte (azami {MAX_REQUEST_BODY_BYTES} byte)"
                 )
             raw = self.rfile.read(length)
             if not raw:
@@ -174,10 +175,13 @@ def _make_handler(session: AppSession) -> type[BaseHTTPRequestHandler]:
         def _dispatch_upload(self, project_id: str) -> None:
             content_type = self.headers.get("Content-Type", "")
             if not content_type.lower().startswith("multipart/form-data"):
-                self._send_json(415, {
-                    "error": "Content-Type multipart/form-data olmalı "
-                             f"(alınan: {content_type!r})."
-                })
+                self._send_json(
+                    415,
+                    {
+                        "error": "Content-Type multipart/form-data olmalı "
+                        f"(alınan: {content_type!r})."
+                    },
+                )
                 return
 
             raw_length = self.headers.get("Content-Length", 0) or 0
@@ -192,10 +196,13 @@ def _make_handler(session: AppSession) -> type[BaseHTTPRequestHandler]:
             if length > MAX_UPLOAD_BODY_BYTES:
                 # Kötü niyetli/hatalı bir dev boyut beyanı varsa, hiç
                 # rfile.read() çağırmadan reddet (bellek tükenmesini önle).
-                self._send_json(413, {
-                    "error": f"Yükleme çok büyük: {length} byte "
-                             f"(azami {MAX_UPLOAD_BODY_BYTES} byte)."
-                })
+                self._send_json(
+                    413,
+                    {
+                        "error": f"Yükleme çok büyük: {length} byte "
+                        f"(azami {MAX_UPLOAD_BODY_BYTES} byte)."
+                    },
+                )
                 return
 
             body = self.rfile.read(length)
@@ -207,10 +214,13 @@ def _make_handler(session: AppSession) -> type[BaseHTTPRequestHandler]:
 
             oversized = [f.filename for f in form.files if len(f.data) > MAX_UPLOAD_FILE_BYTES]
             if oversized:
-                self._send_json(413, {
-                    "error": f"Şu dosyalar azami {MAX_UPLOAD_FILE_BYTES} byte sınırını "
-                             f"aşıyor: {', '.join(oversized)}"
-                })
+                self._send_json(
+                    413,
+                    {
+                        "error": f"Şu dosyalar azami {MAX_UPLOAD_FILE_BYTES} byte sınırını "
+                        f"aşıyor: {', '.join(oversized)}"
+                    },
+                )
                 return
 
             try:
@@ -250,7 +260,9 @@ def _make_handler(session: AppSession) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
-def make_server(session: AppSession, host: str = "127.0.0.1", port: int = 8765) -> ThreadingHTTPServer:
+def make_server(
+    session: AppSession, host: str = "127.0.0.1", port: int = 8765
+) -> ThreadingHTTPServer:
     handler_cls = _make_handler(session)
     return ThreadingHTTPServer((host, port), handler_cls)
 
@@ -260,7 +272,8 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument(
-        "--registry", default=str(Path.home() / ".harita" / "registry.hprojreg"),
+        "--registry",
+        default=str(Path.home() / ".harita" / "registry.hprojreg"),
         help="Çoklu proje registry dosya yolu",
     )
     args = parser.parse_args()

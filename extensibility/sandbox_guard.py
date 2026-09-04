@@ -66,28 +66,71 @@ from dataclasses import dataclass
 # _is_safe_dunder_def) — burada listelenenler yalnızca *attribute erişimi*
 # (``x.__foo__``) olarak reddedilir.
 _FORBIDDEN_DUNDER_ATTRS = {
-    "__class__", "__bases__", "__base__", "__subclasses__", "__mro__",
-    "__globals__", "__code__", "__closure__", "__builtins__", "__import__",
-    "__loader__", "__spec__", "__dict__", "__getattribute__", "__setattr__",
-    "__delattr__", "__reduce__", "__reduce_ex__", "__module__", "__self__",
-    "__func__", "__objclass__", "__init_subclass__", "__subclasshook__",
+    "__class__",
+    "__bases__",
+    "__base__",
+    "__subclasses__",
+    "__mro__",
+    "__globals__",
+    "__code__",
+    "__closure__",
+    "__builtins__",
+    "__import__",
+    "__loader__",
+    "__spec__",
+    "__dict__",
+    "__getattribute__",
+    "__setattr__",
+    "__delattr__",
+    "__reduce__",
+    "__reduce_ex__",
+    "__module__",
+    "__self__",
+    "__func__",
+    "__objclass__",
+    "__init_subclass__",
+    "__subclasshook__",
 }
 
 # Çağrılması tamamen yasak isimler (kısıtlı builtins'te zaten yoklar, ama
 # script kendi kapsamında yeniden tanımlayıp dolaylı erişmeye çalışabilir —
 # statik seviyede de kapatılır; savunma derinliği).
 _FORBIDDEN_CALL_NAMES = {
-    "eval", "exec", "compile", "__import__", "getattr", "setattr",
-    "delattr", "vars", "globals", "locals", "open", "input",
-    "breakpoint", "memoryview", "help",
+    "eval",
+    "exec",
+    "compile",
+    "__import__",
+    "getattr",
+    "setattr",
+    "delattr",
+    "vars",
+    "globals",
+    "locals",
+    "open",
+    "input",
+    "breakpoint",
+    "memoryview",
+    "help",
 }
 
 # ``def __init__`` gibi kullanıcı tanımı olarak serbest bırakılan dunder'lar
 # (fonksiyon/metod *tanımlamak* attribute *okumak* değildir, zararsızdır).
 _SAFE_DUNDER_DEFS = {
-    "__init__", "__repr__", "__str__", "__len__", "__eq__", "__lt__",
-    "__gt__", "__le__", "__ge__", "__hash__", "__iter__", "__next__",
-    "__call__", "__enter__", "__exit__",
+    "__init__",
+    "__repr__",
+    "__str__",
+    "__len__",
+    "__eq__",
+    "__lt__",
+    "__gt__",
+    "__le__",
+    "__ge__",
+    "__hash__",
+    "__iter__",
+    "__next__",
+    "__call__",
+    "__enter__",
+    "__exit__",
 }
 
 
@@ -129,8 +172,7 @@ class _EscapeVisitor(ast.NodeVisitor):
     def visit_Attribute(self, node: ast.Attribute) -> None:  # noqa: N802
         if node.attr in _FORBIDDEN_DUNDER_ATTRS:
             self._flag(
-                f"yasak attribute erişimi: `.{node.attr}` "
-                "(introspection tabanlı sandbox kaçışı)",
+                f"yasak attribute erişimi: `.{node.attr}` (introspection tabanlı sandbox kaçışı)",
                 node,
             )
             return
@@ -140,9 +182,7 @@ class _EscapeVisitor(ast.NodeVisitor):
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
         if node.name.startswith("__") and node.name.endswith("__"):
             if node.name not in _SAFE_DUNDER_DEFS:
-                self._flag(
-                    f"yasak dunder metod tanımı: `def {node.name}`", node
-                )
+                self._flag(f"yasak dunder metod tanımı: `def {node.name}`", node)
         self.generic_visit(node)
 
     visit_AsyncFunctionDef = visit_FunctionDef  # type: ignore[assignment]

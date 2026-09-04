@@ -19,6 +19,7 @@ indirger. Gerçek renk blend/shader işi backend'e (viewer) ait - bu modül
 yalnızca "hangi hücre ne renk" kararını üretir (roadmap'in `xray.py`
 XRayState'iyle aynı ayrım: render-state, render değil).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -55,7 +56,9 @@ def _density_to_color(ratio: float) -> tuple[float, float, float]:
 
 
 def crowd_heatmap_overlay(
-    heatmap: dict[tuple[int, int], int], *, cell_size: float = 1.0,
+    heatmap: dict[tuple[int, int], int],
+    *,
+    cell_size: float = 1.0,
 ) -> list[HeatmapCell]:
     """`OccupancyHeatmap.compute()` çıktısını (`{(cell_x, cell_y): count}`)
     render-agnostik `HeatmapCell` listesine çevirir. Boş heatmap için boş
@@ -68,10 +71,15 @@ def crowd_heatmap_overlay(
     for (cell_x, cell_y), count in heatmap.items():
         ratio = count / max_count if max_count > 0 else 0.0
         center = Point2D((cell_x + 0.5) * cell_size, (cell_y + 0.5) * cell_size)
-        cells.append(HeatmapCell(
-            center=center, cell_size=cell_size, density_ratio=ratio,
-            raw_count=count, color_rgb=_density_to_color(ratio),
-        ))
+        cells.append(
+            HeatmapCell(
+                center=center,
+                cell_size=cell_size,
+                density_ratio=ratio,
+                raw_count=count,
+                color_rgb=_density_to_color(ratio),
+            )
+        )
     return cells
 
 
@@ -107,11 +115,13 @@ def station_heatmap_overlay(
     cells: list[StationHeatmapCell] = []
     for hour, stats in sorted(hourly_report.items()):
         ratio = stats.get("avg_occupancy_ratio", 0.0)
-        cells.append(StationHeatmapCell(
-            station_position=station_position,
-            hour=hour,
-            avg_occupancy_ratio=ratio,
-            is_dense=bool(stats.get("is_dense", False)),
-            color_rgb=_density_to_color(ratio),
-        ))
+        cells.append(
+            StationHeatmapCell(
+                station_position=station_position,
+                hour=hour,
+                avg_occupancy_ratio=ratio,
+                is_dense=bool(stats.get("is_dense", False)),
+                color_rgb=_density_to_color(ratio),
+            )
+        )
     return cells

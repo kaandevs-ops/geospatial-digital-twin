@@ -45,6 +45,19 @@ gelen yeni bir faz olarak `yeni_roadmap.md`'ye de eklenmiştir (bkz. FAZ 6).
 
 from __future__ import annotations
 
+# ROADMAP_V6 FAZ S1 (ham veri içe aktarma) ve FAZ S2 (jeodezik hesap motoru) —
+# alt paketler olarak eklendi; geriye dönük uyumluluk için üst seviyede
+# yeniden dışa aktarılmaz (isim çakışmasını önlemek için `feature_survey.raw_import`
+# ve `feature_survey.geodetic_engine` olarak doğrudan import edilmelidir).
+from . import (
+    geodetic_engine,  # noqa: F401  (FAZ S2)
+    orchestration,  # noqa: F401  (FAZ S6)
+    pointcloud_engine,  # noqa: F401  (FAZ S3)
+    qc,  # noqa: F401  (FAZ S5)
+    raw_import,  # noqa: F401  (FAZ S1)
+    vectorization,  # noqa: F401  (FAZ S4)
+)
+from .bridge import photogrammetry_result_to_point_cloud, session_to_geofeatures
 from .codes import FeatureCategory, FeatureCode
 from .field_point import FieldPoint, FieldSurveySession
 from .io_import import PENZDImportError, import_penzd_csv
@@ -54,18 +67,6 @@ from .pipeline import (
     PhotogrammetryResult,
     WebODMPipeline,
 )
-from .bridge import photogrammetry_result_to_point_cloud, session_to_geofeatures
-
-# ROADMAP_V6 FAZ S1 (ham veri içe aktarma) ve FAZ S2 (jeodezik hesap motoru) —
-# alt paketler olarak eklendi; geriye dönük uyumluluk için üst seviyede
-# yeniden dışa aktarılmaz (isim çakışmasını önlemek için `feature_survey.raw_import`
-# ve `feature_survey.geodetic_engine` olarak doğrudan import edilmelidir).
-from . import raw_import  # noqa: F401  (FAZ S1)
-from . import geodetic_engine  # noqa: F401  (FAZ S2)
-from . import pointcloud_engine  # noqa: F401  (FAZ S3)
-from . import vectorization  # noqa: F401  (FAZ S4)
-from . import qc  # noqa: F401  (FAZ S5)
-from . import orchestration  # noqa: F401  (FAZ S6)
 
 __all__ = [
     "FeatureCategory",

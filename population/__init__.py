@@ -20,22 +20,23 @@ motoru icat etmez, `mobility.crowd_simulation.Agent` / `MobilityProfile`
 ile aynı sözlüğü kullanır ve `mobility.crowd_simulation.spawn_random_agents`
 tarafından tüketilebilecek profil dağılımları üretir.
 """
+
 from __future__ import annotations
 
+from .activity_model import (
+    Activity,
+    ActivityModel,
+    ActivityType,
+    ODDemandEntry,
+)
 from .synthetic_population import (
+    DEFAULT_AGE_GROUP_DISTRIBUTION,
+    DEFAULT_ROUTINE_DISTRIBUTION,
     AgeGroup,
     DailyRoutineType,
     Household,
     SyntheticIndividual,
     SyntheticPopulationGenerator,
-    DEFAULT_AGE_GROUP_DISTRIBUTION,
-    DEFAULT_ROUTINE_DISTRIBUTION,
-)
-from .activity_model import (
-    Activity,
-    ActivityType,
-    ODDemandEntry,
-    ActivityModel,
 )
 
 __all__ = [

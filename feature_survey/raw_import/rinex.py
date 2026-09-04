@@ -112,9 +112,7 @@ def parse_rinex_header(lines: list[str]) -> tuple[RinexHeader, int]:
 
     first = lines[0]
     if _label(first) != "RINEX VERSION / TYPE":
-        raise MalformedRecordError(
-            f"İlk satır 'RINEX VERSION / TYPE' etiketi taşımıyor: {first!r}"
-        )
+        raise MalformedRecordError(f"İlk satır 'RINEX VERSION / TYPE' etiketi taşımıyor: {first!r}")
     try:
         version = float(first[0:9].strip())
     except ValueError as exc:
@@ -257,12 +255,12 @@ def _parse_observation_line(line: str, obs_types: list[str]) -> SatelliteObserva
 
     for i, obs_type in enumerate(obs_types):
         start = 3 + i * _OBS_FIELD_WIDTH
-        field_str = line[start:start + _OBS_FIELD_WIDTH]
+        field_str = line[start : start + _OBS_FIELD_WIDTH]
         if not field_str.strip():
             continue  # gerçek eksik gözlem — 0.0 ile doldurulmaz
         value_str = field_str[0:_OBS_VALUE_WIDTH]
-        lli_str = field_str[_OBS_VALUE_WIDTH:_OBS_VALUE_WIDTH + 1]
-        ssi_str = field_str[_OBS_VALUE_WIDTH + 1:_OBS_VALUE_WIDTH + 2]
+        lli_str = field_str[_OBS_VALUE_WIDTH : _OBS_VALUE_WIDTH + 1]
+        ssi_str = field_str[_OBS_VALUE_WIDTH + 1 : _OBS_VALUE_WIDTH + 2]
         if not value_str.strip():
             continue
         try:
@@ -321,8 +319,7 @@ def parse_rinex_observation_file(path: str | Path) -> RinexObservationFile:
         for _ in range(num_sats):
             if idx >= n_lines:
                 raise MalformedRecordError(
-                    f"{path}:{idx + 1}: epoch {num_sats} uydu bekliyor ama dosya "
-                    "erken bitti."
+                    f"{path}:{idx + 1}: epoch {num_sats} uydu bekliyor ama dosya erken bitti."
                 )
             sat_line = lines[idx]
             sys_code = sat_line[0:1].strip()
@@ -342,8 +339,15 @@ def parse_rinex_observation_file(path: str | Path) -> RinexObservationFile:
 
         epochs.append(
             RinexEpoch(
-                year=year, month=month, day=day, hour=hour, minute=minute, second=second,
-                epoch_flag=flag, receiver_clock_offset_s=clk, satellites=satellites,
+                year=year,
+                month=month,
+                day=day,
+                hour=hour,
+                minute=minute,
+                second=second,
+                epoch_flag=flag,
+                receiver_clock_offset_s=clk,
+                satellites=satellites,
             )
         )
 

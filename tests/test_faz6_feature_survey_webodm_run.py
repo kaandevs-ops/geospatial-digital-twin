@@ -12,7 +12,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.app_shell.api import build_app_router
 from harita.app_shell.session import AppSession, AppSessionError
 

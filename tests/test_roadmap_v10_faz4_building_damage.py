@@ -4,10 +4,10 @@
 (ön-hesaplanmış fragmentasyon + kademeli runtime tetikleme) → 4.4
 (kalıcı durum) → 4.5 (dürüst etiketleme) kapsar.
 """
+
 from __future__ import annotations
 
 import pytest
-
 from harita.hazard_data.risk_scoring import RiskLevel
 from harita.mesh_engine import Mesh3D, MeshSplitter, Vertex3D
 from harita.physics.building_damage import (
@@ -26,12 +26,18 @@ from harita.physics.building_damage import (
 def _box_mesh(name="b", x=10.0, y=10.0, z=15.0) -> Mesh3D:
     verts = [Vertex3D(px, py, pz) for px in (0.0, x) for py in (0.0, y) for pz in (0.0, z)]
     triangles = [
-        (0, 1, 2), (1, 2, 3),
-        (4, 5, 6), (5, 6, 7),
-        (0, 1, 4), (1, 4, 5),
-        (2, 3, 6), (3, 6, 7),
-        (0, 2, 4), (2, 4, 6),
-        (1, 3, 5), (3, 5, 7),
+        (0, 1, 2),
+        (1, 2, 3),
+        (4, 5, 6),
+        (5, 6, 7),
+        (0, 1, 4),
+        (1, 4, 5),
+        (2, 3, 6),
+        (3, 6, 7),
+        (0, 2, 4),
+        (2, 4, 6),
+        (1, 3, 5),
+        (3, 5, 7),
     ]
     return Mesh3D(vertices=verts, triangles=triangles, name=name)
 
@@ -39,6 +45,7 @@ def _box_mesh(name="b", x=10.0, y=10.0, z=15.0) -> Mesh3D:
 # --------------------------------------------------------------------------- #
 # 4.1 — Seviye 1
 # --------------------------------------------------------------------------- #
+
 
 class TestFaz4_1Level1PredefinedDamage:
     def test_risk_level_maps_to_base_damage(self):
@@ -74,11 +81,14 @@ class TestFaz4_1Level1PredefinedDamage:
 # 4.2 — Seviye 2 (RigidBox)
 # --------------------------------------------------------------------------- #
 
+
 class TestFaz4_2Level2RigidBoxCollapse:
     def test_weak_structure_strong_shake_can_topple(self):
         sim = Level2CollapseSimulator("bWeak", num_floors=5)
         states = sim.run(
-            peak_acceleration_g=1.8, duration_s=5.0, structural_integrity=0.05,
+            peak_acceleration_g=1.8,
+            duration_s=5.0,
+            structural_integrity=0.05,
         )
         assert len(states) == 5
         assert sim.any_floor_collapsed(states)
@@ -97,6 +107,7 @@ class TestFaz4_2Level2RigidBoxCollapse:
 # --------------------------------------------------------------------------- #
 # 4.3 — Seviye 3 (fragmentasyon)
 # --------------------------------------------------------------------------- #
+
 
 class TestFaz4_3FragmentationPrecompute:
     def test_precompute_produces_multiple_pieces(self):
@@ -143,7 +154,10 @@ class TestFaz4_3RuntimeTrigger:
         frags = precompute_fragments(mesh, building_id="bTrig", pieces_x=2, pieces_y=2)
         trigger = RuntimeFragmentTrigger("bTrig")
         world = trigger.trigger(
-            frags, peak_acceleration_g=1.0, is_camera_focused=True, distance_to_camera_m=5.0,
+            frags,
+            peak_acceleration_g=1.0,
+            is_camera_focused=True,
+            distance_to_camera_m=5.0,
         )
         assert world is not None
         # +1 for the static ground body.
@@ -154,7 +168,10 @@ class TestFaz4_3RuntimeTrigger:
         frags = precompute_fragments(mesh, building_id="bTrig2", pieces_x=2, pieces_y=2)
         trigger = RuntimeFragmentTrigger("bTrig2")
         world = trigger.trigger(
-            frags, peak_acceleration_g=1.0, is_camera_focused=False, distance_to_camera_m=500.0,
+            frags,
+            peak_acceleration_g=1.0,
+            is_camera_focused=False,
+            distance_to_camera_m=500.0,
         )
         assert world is None
 
@@ -163,7 +180,10 @@ class TestFaz4_3RuntimeTrigger:
         frags = precompute_fragments(mesh, building_id="bFall", pieces_x=2, pieces_y=2)
         trigger = RuntimeFragmentTrigger("bFall")
         world = trigger.trigger(
-            frags, peak_acceleration_g=0.5, is_camera_focused=True, distance_to_camera_m=1.0,
+            frags,
+            peak_acceleration_g=0.5,
+            is_camera_focused=True,
+            distance_to_camera_m=1.0,
         )
         initial_z = [b.position[2] for b in world.bodies if not b.is_static]
         world.run(1.0)
@@ -174,6 +194,7 @@ class TestFaz4_3RuntimeTrigger:
 # --------------------------------------------------------------------------- #
 # 4.4 — Kalıcı durum
 # --------------------------------------------------------------------------- #
+
 
 class TestFaz4_4PersistenceStore:
     def test_record_and_get(self):
@@ -214,6 +235,7 @@ class TestFaz4_4PersistenceStore:
 # 4.5 — Dürüst etiketleme (her katmanda mevcut olmalı)
 # --------------------------------------------------------------------------- #
 
+
 class TestFaz4_5HonestyLabeling:
     def test_level1_state_always_carries_note(self):
         for risk in RiskLevel:
@@ -230,6 +252,7 @@ class TestFaz4_5HonestyLabeling:
 # --------------------------------------------------------------------------- #
 # Faz 4 kapsayan `MeshSplitter.split_by_axis_plane` genelleme regresyonu
 # --------------------------------------------------------------------------- #
+
 
 class TestMeshSplitterAxisGeneralization:
     def test_z_split_matches_legacy_split_by_plane(self):

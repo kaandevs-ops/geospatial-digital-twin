@@ -24,139 +24,83 @@ import random
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from math import isfinite as _isfinite
 from pathlib import Path
 from typing import Any
 
+from ..ai_assistant.orchestrator import AssistantOrchestrator
+from ..ai_reconstruction.environment_generator import AIEnvironmentGenerator
+from ..ai_reconstruction.interior_layout import AIInteriorLayout
+from ..ai_reconstruction.material_bridge import resolve_building_materials
+from ..ai_reconstruction.material_predictor import AIMaterialPredictor, SurfaceClass
+from ..analysis_engine.decision_support import (
+    INDICATIVE_DISCLAIMER,
+    RecommendationEngine,
+    ScenarioComparison,
+)
+from ..analysis_engine.measurement import MeasurementEngine
+from ..analysis_engine.sun_simulation import RoofIrradiance, SeasonalSunPath
+from ..analysis_engine.visibility import BlindSpotAnalysis, ShadowAnalysis
 from ..building_reconstruction import (
     Building,
     BuildingType,
-    Facade,
     FacadeComplianceReport,
     FacadeGenerator,
     Footprint,
     ProceduralBuildingGenerator,
 )
 from ..building_reconstruction.footprint_parser import FootprintParser
-from ..core_engine.coordinate_systems import GeoPoint
-from ..core_engine.geometry_engine import GeometryEngine, Point2D, Polygon
-from ..mobility.pathfinding import AStar, Dijkstra, NavGraph
-from ..mobility.traffic_simulation import GreenshieldsModel
-from ..mobility.crowd_simulation import (
-    Agent as CrowdAgent, AgentBehavior, EvacuationSimulator, OccupancyHeatmap,
-    SocialForceModel, spawn_random_agents,
-)
-from ..mobility.crowd_simulation.agent_visuals import (
-    agent_visual_variant,
-    DEFAULT_SKELETAL_MAX_DISTANCE_M,
-    DEFAULT_CAPSULE_MAX_DISTANCE_M,
-)
-from ..mobility.crowd_simulation.capacity_analysis import (
-    CapacityAnalyzer, DEFAULT_CAPACITY_AGENT_COUNTS,
+from ..building_reconstruction.regulations import (
+    default_profile as default_regulation_profile,
 )
 from ..building_reconstruction.regulations import (
-    default_profile as default_regulation_profile, get_profile as get_regulation_profile,
+    get_profile as get_regulation_profile,
 )
-from ..mobility.simulation_recorder import SimulationRecorder
-from ..hazard_data.fire_spread import FireCellState, FireSpreadModel
-from ..hazard_data.cascade_rules import CascadeEngine, DEFAULT_CASCADE_RULES
-from ..mobility.emergency_response import (
-    EmergencyStation,
-    EmergencyUnitType,
-    dispatch_nearest_unit,
+from ..climate_data.air_quality_estimate import RoadSegmentTraffic, estimate_network_air_quality
+from ..climate_data.microclimate import UrbanFabricSample, estimate_heat_island_index
+from ..climate_data.noise_estimate import estimate_noise
+from ..climate_data.open_meteo_client import ClimateError, HourlyClimateSample, OpenMeteoClient
+from ..collaboration.auth import AuthError, AuthService, Role
+from ..collaboration.crdt import CRDTBuildingState
+from ..collaboration.scenario_permissions import ScenarioAction, require_scenario_permission
+from ..commerce_props import CommercePropsGenerator, MarketStallLayout, OutdoorSeatingItem
+from ..commerce_props.city_event_simulation import (
+    CityEventCategory,
+    CityEventProfile,
+    CityEventSimulator,
 )
 from ..commerce_props.economic_resilience import (
     CommercialAreaResilience,
     build_resilience_curve,
     closure_days_for_risk_level,
 )
-from ..commerce_props.city_event_simulation import (
-    CityEventCategory,
-    CityEventProfile,
-    CityEventSimulator,
-    attendance_curve,
-)
-from ..digital_twin.hierarchy import TwinHierarchy
-from ..mobility.city_scale_evacuation import (
-    most_congested_region,
-    regional_agent_density,
-)
-from ..analysis_engine.decision_support import (
-    INDICATIVE_DISCLAIMER,
-    Recommendation,
-    RecommendationEngine,
-    ScenarioComparison,
-)
-from ..population.synthetic_population import (
-    AgeGroup,
-    DailyRoutineType,
-    SyntheticPopulationGenerator,
-)
-from ..climate_data.microclimate import UrbanFabricSample, estimate_heat_island_index
-from ..climate_data.air_quality_estimate import RoadSegmentTraffic, estimate_network_air_quality
-from ..climate_data.noise_estimate import estimate_noise
-from ..power_infrastructure.outage_propagation import (
-    DARK_CORRIDOR_SPEED_MULTIPLIER,
-    OutagePropagationEngine,
-    build_power_network_graph,
-)
-from ..mobility.indoor_navigation import (
-    FLOOR_HEIGHT_DEFAULT, Floor as IndoorFloor, IndoorNavigationBuilder,
-)
-from ..mobility.scenario import (
-    AgentProfileMix, BuildingSource, HazardType, ScenarioValidationError,
-    SimulationScenario, load_scenario, save_scenario,
-)
-from ..extensibility.city_events import CityEventType, emit_city_event
-from ..extensibility.event_system import EventSystem, default_bus
-from ..physics import GroundShakeForceModel, TowerStabilityScenario
-from ..physics.building_shake import (
-    STRUCTURE_SHAKE_PROFILES,
-    DEFAULT_STRUCTURE_SHAKE_PROFILE,
-    BuildingShakeSimulator,
-    panic_probability_from_intensity,
-    structure_type_for_usage,
-)
-from ..physics.building_shake_engineering import (
-    MDOFShearFrameModel,
-    estimate_floor_properties,
-    drift_based_damage_hint,
-)
-from ..physics.building_damage import (
-    RiskLevel as DamageRiskLevel,
-    DamageLevel,
-    compute_damage_level,
-    damage_state_for_level,
-    DamagePersistenceStore,
-)
-from ..hazard_data.fire_spread import FireSpreadModel, FireCellState
-from ..visualization.scenario_visual_bridge import fire_facade_overlay, FireSpriteKind
-from ..collaboration.auth import AuthError, AuthService, Role
-from ..collaboration.scenario_permissions import ScenarioAction, require_scenario_permission
-from ..ai_reconstruction.interior_layout import AIInteriorLayout
-from ..ai_reconstruction.environment_generator import AIEnvironmentGenerator, EnvironmentObjectType
-from ..ai_reconstruction.material_predictor import AIMaterialPredictor, SurfaceClass
-from ..ai_reconstruction.material_bridge import resolve_building_materials
+from ..commerce_props.osm_bridge import generate_commerce_props_for_collection
+from ..core_engine.coordinate_systems import GeoPoint
+from ..core_engine.coordinate_systems import GeoPoint as _SurveyGeoPoint
+from ..core_engine.geometry_engine import GeometryEngine, Point2D, Polygon
 from ..core_engine.gis_core import GeoJSONParser
 from ..core_engine.gis_core.osm_client import (
+    DEFAULT_CATEGORIES,
     BBox,
     OverpassClient,
     OverpassError,
-    project_to_local_meters,
-    DEFAULT_CATEGORIES,
     fetch_category_features,
+    local_meters_collection_centroid_to_wgs84,
+    project_to_local_meters,
     summarize_categories,
 )
-from ..editor.commands import UndoRedoStack
+from ..digital_twin import DigitalTwin, SensorBinding
+from ..digital_twin.hierarchy import TwinHierarchy
+from ..digital_twin.iot_bridge import MqttBridge, SensorIotBinding, TopicBus
 from ..editor.building_editor import BuildingEditor
+from ..editor.commands import UndoRedoStack
+from ..editor.osm_bridge import generate_infrastructure_for_collection
 from ..editor.road_editor import Road, RoadEditor
 from ..editor.terrain_editor import Brush, TerrainEditor, TerrainPaintLayer
-from ..ai_assistant.orchestrator import AssistantOrchestrator
+from ..export.citygml_export import CityGMLExporter
 from ..export.geometry_3d import (
     DXFExporter,
-    ExportResult,
-    GLTFExporter,
     OBJExporter,
     PLYExporter,
     SceneGLTFExporter,
@@ -165,40 +109,10 @@ from ..export.geometry_3d import (
     USDExporter,
 )
 from ..export.ifc_export import IFCBuildingModel, IFCExporter, IFCRoom
-from ..export.citygml_export import CityGMLExporter
-from ..export.manifest import ManifestBuilder, SceneManifest
+from ..export.manifest import ManifestBuilder
 from ..export.tiles_3d import Tiles3DExporter
-from ..mesh_engine import Mesh3D, MeshMerger, Vertex3D
-from ..material_engine import PBRMaterial
-from ..material_engine.texture_presets import procedural_material_texture_data_uri
-from ..persistence.project_manager import (
-    ProjectHandle,
-    ProjectManager,
-    ProjectNotFoundError,
-)
-from ..render_engine import Scene
-from ..terrain_engine import DEMImporter, HeightmapGrid, TerrainMeshGenerator
-from ..analysis_engine.sun_simulation import RoofIrradiance, SeasonalSunPath
-from ..analysis_engine.visibility import BlindSpotAnalysis, LineOfSight, ShadowAnalysis
-from ..vegetation.scatter import VegetationScatterer
-from ..vegetation.tree_generator import TreeGenerator
-from ..vegetation.types import TreeSpecies, VegetationInstance
-from ..vegetation.osm_bridge import generate_vegetation_for_collection, mesh_for_tree_instance
-from ..editor.osm_bridge import generate_infrastructure_for_collection
-from ..street_furniture import StreetFurnitureGenerator
-from ..street_furniture.osm_bridge import generate_street_furniture_for_collection
-from ..religious_structures import ReligiousStructureGenerator
-from ..religious_structures.osm_bridge import generate_religious_structures_for_collection
-from ..commerce_props import CommercePropsGenerator, MarketStallLayout, OutdoorSeatingItem
-from ..commerce_props.osm_bridge import generate_commerce_props_for_collection
-from ..sport_recreation import SportRecreationGenerator, PlaygroundItem, SportAreaItem
-from ..sport_recreation.osm_bridge import generate_sport_recreation_for_collection
-from ..power_infrastructure import PowerInfrastructureGenerator, SubstationItem, CommunicationTowerItem
-from ..power_infrastructure.osm_bridge import generate_power_infrastructure_for_collection
-from ..core_engine.gis_core.osm_client import local_meters_collection_centroid_to_wgs84
-from ..climate_data.open_meteo_client import OpenMeteoClient, ClimateError, HourlyClimateSample
-from ..digital_twin import DigitalTwin, SensorBinding
-from ..core_engine.coordinate_systems import GeoPoint as _SurveyGeoPoint
+from ..extensibility.city_events import CityEventType, emit_city_event
+from ..extensibility.event_system import EventSystem, default_bus
 from ..feature_survey.bridge import (
     photogrammetry_result_to_point_cloud,
     session_to_geofeatures,
@@ -206,26 +120,129 @@ from ..feature_survey.bridge import (
 )
 from ..feature_survey.field_point import FieldSurveySession
 from ..feature_survey.io_import import PENZDImportError, import_penzd_csv_text
-from ..feature_survey.pipeline import ExternalToolNotAvailableError, WebODMPipeline
-from ..feature_survey.orchestration.pipeline import (
-    OrchestrationError as SurveyOrchestrationError,
-    SurveyOrchestrationResult,
-    run_field_survey_pipeline,
-)
 from ..feature_survey.orchestration.persistence_bridge import (
     PersistenceBridgeError,
     load_survey_result_payload,
     save_survey_result,
 )
-from ..digital_twin.iot_bridge import MqttBackendUnavailable, MqttBridge, SensorIotBinding, TopicBus
-from ..collaboration.crdt import CRDTBuildingState
-from ..visualization.section_view import SectionPlane, SectionView
-from ..visualization.explosion_view import ExplosionView, floor_bands_from_heights
-from ..analysis_engine.measurement import MeasurementEngine
+from ..feature_survey.orchestration.pipeline import (
+    OrchestrationError as SurveyOrchestrationError,
+)
+from ..feature_survey.orchestration.pipeline import (
+    SurveyOrchestrationResult,
+    run_field_survey_pipeline,
+)
+from ..feature_survey.pipeline import ExternalToolNotAvailableError, WebODMPipeline
+from ..hazard_data.cascade_rules import DEFAULT_CASCADE_RULES, CascadeEngine
+from ..hazard_data.fire_spread import FireCellState, FireSpreadModel
+from ..material_engine import PBRMaterial
+from ..material_engine.texture_presets import procedural_material_texture_data_uri
+from ..mesh_engine import Mesh3D, MeshMerger, Vertex3D
+from ..mobility.city_scale_evacuation import (
+    most_congested_region,
+    regional_agent_density,
+)
+from ..mobility.crowd_simulation import (
+    Agent as CrowdAgent,
+)
+from ..mobility.crowd_simulation import (
+    AgentBehavior,
+    EvacuationSimulator,
+    OccupancyHeatmap,
+    SocialForceModel,
+    spawn_random_agents,
+)
+from ..mobility.crowd_simulation.agent_visuals import (
+    DEFAULT_CAPSULE_MAX_DISTANCE_M,
+    DEFAULT_SKELETAL_MAX_DISTANCE_M,
+    agent_visual_variant,
+)
+from ..mobility.crowd_simulation.capacity_analysis import (
+    DEFAULT_CAPACITY_AGENT_COUNTS,
+    CapacityAnalyzer,
+)
+from ..mobility.emergency_response import (
+    EmergencyStation,
+    EmergencyUnitType,
+    dispatch_nearest_unit,
+)
+from ..mobility.indoor_navigation import (
+    FLOOR_HEIGHT_DEFAULT,
+    IndoorNavigationBuilder,
+)
+from ..mobility.indoor_navigation import (
+    Floor as IndoorFloor,
+)
+from ..mobility.pathfinding import AStar, Dijkstra, NavGraph
+from ..mobility.scenario import (
+    ScenarioValidationError,
+    SimulationScenario,
+    load_scenario,
+    save_scenario,
+)
+from ..mobility.simulation_recorder import SimulationRecorder
+from ..mobility.traffic_simulation import GreenshieldsModel
+
 # ROADMAP_V7.md Faz C5 (offline mod, A4): tile önbellekleme + yerel
 # isim->koordinat indeksi (Nominatim offline alternatifi).
 from ..offline_cache import TileCache, TileDownloadResult, download_bbox
 from ..offline_cache.local_place_index import LocalPlaceIndex, build_index_from_collection
+from ..persistence.project_manager import (
+    ProjectHandle,
+    ProjectManager,
+    ProjectNotFoundError,
+)
+from ..physics import GroundShakeForceModel, TowerStabilityScenario
+from ..physics.building_damage import (
+    DamageLevel,
+    DamagePersistenceStore,
+    compute_damage_level,
+    damage_state_for_level,
+)
+from ..physics.building_damage import (
+    RiskLevel as DamageRiskLevel,
+)
+from ..physics.building_shake import (
+    DEFAULT_STRUCTURE_SHAKE_PROFILE,
+    STRUCTURE_SHAKE_PROFILES,
+    BuildingShakeSimulator,
+    panic_probability_from_intensity,
+    structure_type_for_usage,
+)
+from ..physics.building_shake_engineering import (
+    MDOFShearFrameModel,
+    drift_based_damage_hint,
+    estimate_floor_properties,
+)
+from ..population.synthetic_population import (
+    SyntheticPopulationGenerator,
+)
+from ..power_infrastructure import (
+    CommunicationTowerItem,
+    PowerInfrastructureGenerator,
+    SubstationItem,
+)
+from ..power_infrastructure.osm_bridge import generate_power_infrastructure_for_collection
+from ..power_infrastructure.outage_propagation import (
+    DARK_CORRIDOR_SPEED_MULTIPLIER,
+    OutagePropagationEngine,
+    build_power_network_graph,
+)
+from ..religious_structures import ReligiousStructureGenerator
+from ..religious_structures.osm_bridge import generate_religious_structures_for_collection
+from ..render_engine import Scene
+from ..sport_recreation import PlaygroundItem, SportAreaItem, SportRecreationGenerator
+from ..sport_recreation.osm_bridge import generate_sport_recreation_for_collection
+from ..street_furniture import StreetFurnitureGenerator
+from ..street_furniture.osm_bridge import generate_street_furniture_for_collection
+from ..terrain_engine import DEMImporter, HeightmapGrid, TerrainMeshGenerator
+from ..vegetation.osm_bridge import generate_vegetation_for_collection, mesh_for_tree_instance
+from ..vegetation.scatter import VegetationScatterer
+from ..vegetation.tree_generator import TreeGenerator
+from ..vegetation.types import TreeSpecies, VegetationInstance
+from ..visualization.explosion_view import ExplosionView, floor_bands_from_heights
+from ..visualization.scenario_visual_bridge import FireSpriteKind, fire_facade_overlay
+from ..visualization.section_view import SectionPlane, SectionView
 
 
 def _mesh_to_dict(mesh: Mesh3D) -> dict[str, Any]:
@@ -250,7 +267,9 @@ def _mesh_to_dict(mesh: Mesh3D) -> dict[str, Any]:
 def _mesh_from_dict(data: dict[str, Any]) -> Mesh3D:
     vertices = [
         Vertex3D(
-            x=v[0], y=v[1], z=v[2],
+            x=v[0],
+            y=v[1],
+            z=v[2],
             normal=tuple(v[3]) if v[3] else None,
             uv=tuple(v[4]) if len(v) > 4 and v[4] else None,
         )
@@ -362,14 +381,14 @@ class AppSession:
         # asla client'a düz metin geri dönmez, yalnızca maskelenmiş özet.
         self._ai_config: dict[str, Any] | None = None
         # Fikir 10 — IoT dijital ikiz: project_id -> {building_key: DigitalTwin}
-        self._twins: dict[str, dict[str, "DigitalTwin"]] = {}
+        self._twins: dict[str, dict[str, DigitalTwin]] = {}
         # (project_id, key) -> gerçek MQTT bağlantısı bileşenleri (bkz.
         # connect_iot_bridge / disconnect_iot_bridge). Bağlantı yoksa
         # iot_digital_twin_tick() dürüstçe etiketlenmiş simüle veriye
         # düşer (bkz. o metodun disclaimer alanı).
         self._iot_bridges: dict[tuple[str, str], dict[str, Any]] = {}
         # Fikir 12 — gerçek zamanlı çoklu kullanıcı: project_id -> {building_key: CRDTBuildingState}
-        self._collab_states: dict[str, dict[str, "CRDTBuildingState"]] = {}
+        self._collab_states: dict[str, dict[str, CRDTBuildingState]] = {}
         # Roadmap V10 / Faz 4.4 — sallanma sonrası KALICI hasar durumu:
         # `DamagePersistenceStore` (physics.building_damage, DEĞİŞTİRİLMEDEN)
         # tek bir örneği tüm oturum boyunca paylaşılır; `project_id`,
@@ -381,7 +400,9 @@ class AppSession:
         # adı indeksi (tile'lar bir "basemap" kavramıdır, proje-özel değil -
         # bu yüzden proje bazlı değil registry bazlı tutulur, tıpkı
         # registry'nin kendisi gibi).
-        offline_root = Path(self._manager.registry_path).expanduser().resolve().parent / "offline_cache"
+        offline_root = (
+            Path(self._manager.registry_path).expanduser().resolve().parent / "offline_cache"
+        )
         self._offline_cache = TileCache(offline_root)
         self._offline_place_index_path = offline_root / "place_index.json"
         self._offline_place_index = LocalPlaceIndex.load(self._offline_place_index_path)
@@ -432,7 +453,7 @@ class AppSession:
     def close(self) -> None:
         self._manager.close()
 
-    def __enter__(self) -> "AppSession":
+    def __enter__(self) -> AppSession:
         return self
 
     def __exit__(self, *exc_info: object) -> None:
@@ -451,7 +472,9 @@ class AppSession:
         self._scene_props[project_id] = {}
         return self._project_info(handle)
 
-    def open_project(self, project_id: str | None = None, *, path: str | Path | None = None) -> dict[str, Any]:
+    def open_project(
+        self, project_id: str | None = None, *, path: str | Path | None = None
+    ) -> dict[str, Any]:
         try:
             handle = self._manager.open_project(project_id=project_id, path=path)
         except ProjectNotFoundError as exc:
@@ -515,12 +538,15 @@ class AppSession:
             return
         data = record.data
         grid = HeightmapGrid(
-            width=data["width"], height=data["height"],
-            resolution_m=data["resolution_m"], elevations=data["elevations"],
+            width=data["width"],
+            height=data["height"],
+            resolution_m=data["resolution_m"],
+            elevations=data["elevations"],
             origin=GeoPoint(data.get("origin_lat", 0.0), data.get("origin_lon", 0.0)),
         )
-        paint = TerrainPaintLayer(width=data["width"], height=data["height"],
-                                   weights=data.get("paint_weights") or [])
+        paint = TerrainPaintLayer(
+            width=data["width"], height=data["height"], weights=data.get("paint_weights") or []
+        )
         self._terrains[handle.manifest.project_id] = _TerrainEntry(grid=grid, paint=paint)
 
     def _persist_terrain(self, project_id: str) -> None:
@@ -528,13 +554,19 @@ class AppSession:
         entry = self._terrains.get(project_id)
         if entry is None:
             return
-        handle.db.save_object("terrain", "terrain", {
-            "width": entry.grid.width, "height": entry.grid.height,
-            "resolution_m": entry.grid.resolution_m,
-            "elevations": entry.grid.elevations,
-            "origin_lat": entry.grid.origin.lat, "origin_lon": entry.grid.origin.lon,
-            "paint_weights": entry.paint.weights,
-        })
+        handle.db.save_object(
+            "terrain",
+            "terrain",
+            {
+                "width": entry.grid.width,
+                "height": entry.grid.height,
+                "resolution_m": entry.grid.resolution_m,
+                "elevations": entry.grid.elevations,
+                "origin_lat": entry.grid.origin.lat,
+                "origin_lon": entry.grid.origin.lon,
+                "paint_weights": entry.paint.weights,
+            },
+        )
         handle.mark_dirty()
 
     def _load_roads_from_disk(self, handle: ProjectHandle) -> None:
@@ -560,11 +592,17 @@ class AppSession:
         if entry is None:
             return
         road = entry.road
-        handle.db.save_object(road_id, "road", {
-            "control_points": [[p.x, p.y] for p in road.control_points],
-            "width_m": road.width_m, "elevation_z": road.elevation_z,
-            "samples_per_segment": road.samples_per_segment, "name": road.name,
-        })
+        handle.db.save_object(
+            road_id,
+            "road",
+            {
+                "control_points": [[p.x, p.y] for p in road.control_points],
+                "width_m": road.width_m,
+                "elevation_z": road.elevation_z,
+                "samples_per_segment": road.samples_per_segment,
+                "name": road.name,
+            },
+        )
         handle.mark_dirty()
 
     def _load_scene_props_from_disk(self, handle: ProjectHandle) -> None:
@@ -669,9 +707,7 @@ class AppSession:
         if len(polygon_points) < 3:
             raise AppSessionError("Bina footprint'i en az 3 nokta gerektirir.")
         if len(polygon_points) > self._MAX_POLYGON_POINTS:
-            raise AppSessionError(
-                f"polygon en fazla {self._MAX_POLYGON_POINTS} nokta içerebilir."
-            )
+            raise AppSessionError(f"polygon en fazla {self._MAX_POLYGON_POINTS} nokta içerebilir.")
         validated_points: list[tuple[float, float]] = []
         for i, p in enumerate(polygon_points):
             try:
@@ -695,7 +731,9 @@ class AppSession:
                 raise AppSessionError("height_m bir sayı olmalı.")
             height_m = float(height_m)
             if not _isfinite(height_m) or not (0 < height_m <= self._MAX_HEIGHT_M):
-                raise AppSessionError(f"height_m 0-{self._MAX_HEIGHT_M} aralığında sonlu bir sayı olmalı.")
+                raise AppSessionError(
+                    f"height_m 0-{self._MAX_HEIGHT_M} aralığında sonlu bir sayı olmalı."
+                )
         if seed is not None and (isinstance(seed, bool) or not isinstance(seed, int)):
             raise AppSessionError("seed bir tam sayı olmalı.")
         if isinstance(basement_floor_count, bool) or not isinstance(basement_floor_count, int):
@@ -717,20 +755,27 @@ class AppSession:
             if not _isfinite(window_spacing) or not (0.8 <= window_spacing <= 20.0):
                 raise AppSessionError("window_spacing 0.8-20 m aralığında olmalı.")
         self._validate_name(name, field_label="name")
-        self._validate_name(building_type if isinstance(building_type, str) else None, field_label="building_type")
+        self._validate_name(
+            building_type if isinstance(building_type, str) else None, field_label="building_type"
+        )
 
         handle = self._handle(project_id)
         poly = Polygon([Point2D(x, y) for x, y in polygon_points])
         footprint = Footprint(
-            polygon=poly, building_type=building_type,
-            floor_count=floor_count, height_m=height_m,
+            polygon=poly,
+            building_type=building_type,
+            floor_count=floor_count,
+            height_m=height_m,
         )
         try:
             bt = BuildingType(building_type)
         except ValueError:
             bt = BuildingType.APARTMAN
         building = ProceduralBuildingGenerator.generate(
-            footprint, building_type=bt, floor_count=floor_count, seed=seed,
+            footprint,
+            building_type=bt,
+            floor_count=floor_count,
+            seed=seed,
             basement_floor_count=basement_floor_count,
             generate_interior=generate_interior,
             min_room_size=min_room_size,
@@ -745,8 +790,7 @@ class AppSession:
 
     def list_buildings(self, project_id: str) -> list[dict[str, Any]]:
         return [
-            self.describe_building(project_id, key)
-            for key in self._buildings.get(project_id, {})
+            self.describe_building(project_id, key) for key in self._buildings.get(project_id, {})
         ]
 
     def describe_building(self, project_id: str, key: str) -> dict[str, Any]:
@@ -767,7 +811,7 @@ class AppSession:
         """Faz 1.5 — binanın basit fiziksel tutarlılık kontrolü (bkz.
         `building_reconstruction.structural_validation`). Kesin bir
         mühendislik raporu değildir, gösterge niteliğindedir."""
-        from ..building_reconstruction import IssueSeverity, validate_building
+        from ..building_reconstruction import validate_building
 
         entry = self._entry(project_id, key)
         report = validate_building(entry.building)
@@ -777,8 +821,11 @@ class AppSession:
             "max_cantilever_m": round(report.max_cantilever_m, 2),
             "issues": [
                 {
-                    "code": i.code, "severity": i.severity.value, "message": i.message,
-                    "value": round(i.value, 2), "limit": round(i.limit, 2),
+                    "code": i.code,
+                    "severity": i.severity.value,
+                    "message": i.message,
+                    "value": round(i.value, 2),
+                    "limit": round(i.limit, 2),
                 }
                 for i in report.issues
             ],
@@ -809,9 +856,13 @@ class AppSession:
         floor_count = len(entry.building.floors) or None
         bt = entry.building.building_type
         new_building = ProceduralBuildingGenerator.generate(
-            footprint, building_type=bt, floor_count=floor_count, seed=seed,
+            footprint,
+            building_type=bt,
+            floor_count=floor_count,
+            seed=seed,
             generate_interior=True,
-            min_room_size=min_room_size, window_spacing=window_spacing,
+            min_room_size=min_room_size,
+            window_spacing=window_spacing,
         )
         entry.building = new_building
         entry.undo_stack = UndoRedoStack()
@@ -881,7 +932,9 @@ class AppSession:
         self._persist_building(project_id, key)
         return self.describe_building(project_id, key)
 
-    def remove_floor(self, project_id: str, key: str, *, token: str | None = None) -> dict[str, Any]:
+    def remove_floor(
+        self, project_id: str, key: str, *, token: str | None = None
+    ) -> dict[str, Any]:
         self._authorize_write(project_id, token)
         entry = self._entry(project_id, key)
         if not entry.building.floors:
@@ -921,8 +974,13 @@ class AppSession:
     _MAX_TERRAIN_DIM = 512  # Faz D19 tarzı fuzz-güvenli üst sınır.
 
     def terrain_init(
-        self, project_id: str, *, width: int = 64, height: int = 64,
-        resolution_m: float = 2.0, base_elevation: float = 0.0,
+        self,
+        project_id: str,
+        *,
+        width: int = 64,
+        height: int = 64,
+        resolution_m: float = 2.0,
+        base_elevation: float = 0.0,
     ) -> dict[str, Any]:
         """Projede henüz arazi yoksa düz bir `HeightmapGrid` oluşturur;
         zaten varsa mevcut durumu (yeniden oluşturmadan) döndürür —
@@ -936,8 +994,11 @@ class AppSession:
         if existing is not None:
             return self.terrain_state(project_id)
         grid = DEMImporter.flat_terrain(
-            width=width, height=height, resolution_m=resolution_m,
-            elevation=base_elevation, origin=GeoPoint(0.0, 0.0),
+            width=width,
+            height=height,
+            resolution_m=resolution_m,
+            elevation=base_elevation,
+            origin=GeoPoint(0.0, 0.0),
         )
         paint = TerrainPaintLayer(width=width, height=height)
         self._terrains[project_id] = _TerrainEntry(grid=grid, paint=paint)
@@ -950,9 +1011,11 @@ class AppSession:
             return None
         lo, hi = entry.grid.min_max()
         return {
-            "width": entry.grid.width, "height": entry.grid.height,
+            "width": entry.grid.width,
+            "height": entry.grid.height,
             "resolution_m": entry.grid.resolution_m,
-            "min_elevation": lo, "max_elevation": hi,
+            "min_elevation": lo,
+            "max_elevation": hi,
             "can_undo": entry.undo_stack.can_undo(),
             "can_redo": entry.undo_stack.can_redo(),
         }
@@ -960,10 +1023,19 @@ class AppSession:
     _TERRAIN_OPS = {"raise", "lower", "flatten", "smooth", "noise", "paint"}
 
     def terrain_brush(
-        self, project_id: str, operation: str, center_x_m: float, center_y_m: float,
-        *, radius_m: float = 6.0, strength: float = 1.0, amount_m: float = 1.0,
-        target_elevation: float | None = None, iterations: int = 1,
-        seed: int | None = None, paint_weight: float = 1.0,
+        self,
+        project_id: str,
+        operation: str,
+        center_x_m: float,
+        center_y_m: float,
+        *,
+        radius_m: float = 6.0,
+        strength: float = 1.0,
+        amount_m: float = 1.0,
+        target_elevation: float | None = None,
+        iterations: int = 1,
+        seed: int | None = None,
+        paint_weight: float = 1.0,
     ) -> dict[str, Any]:
         """`center_x_m`/`center_y_m` ve `radius_m`, D16'nın metre-cinsinden
         dünya uzayı sözleşmesiyle tutarlı — viewer, mouse ray'ini zemin
@@ -981,8 +1053,12 @@ class AppSession:
         center_row = center_y_m / grid.resolution_m
         center_col = center_x_m / grid.resolution_m
         radius_cells = radius_m / grid.resolution_m
-        brush = Brush(center_row=center_row, center_col=center_col,
-                       radius_cells=radius_cells, strength=strength)
+        brush = Brush(
+            center_row=center_row,
+            center_col=center_col,
+            radius_cells=radius_cells,
+            strength=strength,
+        )
 
         if operation == "raise":
             cmd = TerrainEditor.raise_terrain(grid, brush, amount_m=amount_m)
@@ -1032,7 +1108,10 @@ class AppSession:
     # gerçek bir risk skoruna dönüşür.
 
     def terrain_hazard_summary(
-        self, project_id: str, *, rainfall_mm_24h: float | None = None,
+        self,
+        project_id: str,
+        *,
+        rainfall_mm_24h: float | None = None,
     ) -> dict[str, Any]:
         """Projedeki mevcut araziyi (terrain_init ile oluşturulmuş) analiz
         edip genel eğim/drenaj özetini döner — arazi yoksa açık hata
@@ -1046,7 +1125,12 @@ class AppSession:
         return {**analyzer.summary(), "rainfall_mm_24h": rainfall_mm_24h}
 
     def terrain_hazard_point(
-        self, project_id: str, *, x_m: float, y_m: float, rainfall_mm_24h: float | None = None,
+        self,
+        project_id: str,
+        *,
+        x_m: float,
+        y_m: float,
+        rainfall_mm_24h: float | None = None,
     ) -> dict[str, Any]:
         """Arazi üzerindeki (x_m, y_m) yerel konumu için sel/heyelan
         risk raporu — örn. bir binanın konumu ya da haritada tıklanan
@@ -1061,7 +1145,11 @@ class AppSession:
         return self._terrain_hazard_report_to_dict(r)
 
     def terrain_hazard_top_cells(
-        self, project_id: str, *, kind: str = "landslide", limit: int = 20,
+        self,
+        project_id: str,
+        *,
+        kind: str = "landslide",
+        limit: int = 20,
         rainfall_mm_24h: float | None = None,
     ) -> dict[str, Any]:
         """Sahnedeki en riskli `limit` hücreyi döner — "bu mahalle/parselde
@@ -1084,17 +1172,33 @@ class AppSession:
     @staticmethod
     def _terrain_hazard_report_to_dict(r: Any) -> dict[str, Any]:
         return {
-            "row": r.row, "col": r.col, "x_m": r.x_m, "y_m": r.y_m,
-            "slope_percent": r.slope_percent, "slope_degrees": r.slope_degrees,
+            "row": r.row,
+            "col": r.col,
+            "x_m": r.x_m,
+            "y_m": r.y_m,
+            "slope_percent": r.slope_percent,
+            "slope_degrees": r.slope_degrees,
             "flow_accumulation": r.flow_accumulation,
-            "landslide_index_0_100": r.landslide_index_0_100, "landslide_level": r.landslide_level.value,
+            "landslide_index_0_100": r.landslide_index_0_100,
+            "landslide_level": r.landslide_level.value,
             "landslide_factors": [
-                {"name": f_.name, "subscore_0_100": f_.subscore_0_100, "weight": f_.weight, "note": f_.note}
+                {
+                    "name": f_.name,
+                    "subscore_0_100": f_.subscore_0_100,
+                    "weight": f_.weight,
+                    "note": f_.note,
+                }
                 for f_ in r.landslide_factors
             ],
-            "flood_index_0_100": r.flood_index_0_100, "flood_level": r.flood_level.value,
+            "flood_index_0_100": r.flood_index_0_100,
+            "flood_level": r.flood_level.value,
             "flood_factors": [
-                {"name": f_.name, "subscore_0_100": f_.subscore_0_100, "weight": f_.weight, "note": f_.note}
+                {
+                    "name": f_.name,
+                    "subscore_0_100": f_.subscore_0_100,
+                    "weight": f_.weight,
+                    "note": f_.note,
+                }
                 for f_ in r.flood_factors
             ],
             "disclaimer": r.disclaimer,
@@ -1103,8 +1207,13 @@ class AppSession:
     # -- Yol (Road) Editör köprüsü (Roadmap V4 - Faz E9) --------------------
 
     def road_add(
-        self, project_id: str, *, road_id: str | None = None,
-        width_m: float = 6.0, elevation_z: float = 0.0, name: str | None = None,
+        self,
+        project_id: str,
+        *,
+        road_id: str | None = None,
+        width_m: float = 6.0,
+        elevation_z: float = 0.0,
+        name: str | None = None,
     ) -> dict[str, Any]:
         self._handle(project_id)
         rid = road_id or f"road_{uuid.uuid4().hex[:8]}"
@@ -1122,7 +1231,9 @@ class AppSession:
         entry = self._road_entry(project_id, road_id)
         road = entry.road
         return {
-            "road_id": road_id, "name": road.name, "width_m": road.width_m,
+            "road_id": road_id,
+            "name": road.name,
+            "width_m": road.width_m,
             "elevation_z": road.elevation_z,
             "control_points": [[p.x, p.y] for p in road.control_points],
             "can_undo": entry.undo_stack.can_undo(),
@@ -1145,8 +1256,13 @@ class AppSession:
         return existed
 
     def road_add_point(
-        self, project_id: str, road_id: str, x_m: float, y_m: float,
-        *, index: int | None = None,
+        self,
+        project_id: str,
+        road_id: str,
+        x_m: float,
+        y_m: float,
+        *,
+        index: int | None = None,
     ) -> dict[str, Any]:
         entry = self._road_entry(project_id, road_id)
         cmd = RoadEditor.add_point(entry.road, Point2D(x_m, y_m), index=index)
@@ -1155,7 +1271,12 @@ class AppSession:
         return self.describe_road(project_id, road_id)
 
     def road_move_point(
-        self, project_id: str, road_id: str, index: int, x_m: float, y_m: float,
+        self,
+        project_id: str,
+        road_id: str,
+        index: int,
+        x_m: float,
+        y_m: float,
     ) -> dict[str, Any]:
         entry = self._road_entry(project_id, road_id)
         if not (0 <= index < len(entry.road.control_points)):
@@ -1201,7 +1322,9 @@ class AppSession:
 
     # -- AI Assistant köprüsü (Faz 12) ------------------------------------
 
-    def run_assistant_command(self, project_id: str, key: str, text: str, *, token: str | None = None) -> dict[str, Any]:
+    def run_assistant_command(
+        self, project_id: str, key: str, text: str, *, token: str | None = None
+    ) -> dict[str, Any]:
         self._authorize_write(project_id, token)
         entry = self._entry(project_id, key)
         result = entry.orchestrator().execute_text(text)
@@ -1276,7 +1399,9 @@ class AppSession:
         if not b.floors:
             raise AppSessionError("Bina hiç kat içermiyor, cephe denetimi yapılamaz.")
         floor_height = b.floors[0].height_m
-        building_type = b.building_type.value if hasattr(b.building_type, "value") else str(b.building_type)
+        building_type = (
+            b.building_type.value if hasattr(b.building_type, "value") else str(b.building_type)
+        )
         facade = FacadeGenerator.generate(
             polygon=b.footprint.polygon,
             building_type=building_type,
@@ -1286,7 +1411,11 @@ class AppSession:
             build_mesh=False,
         )
         return FacadeGenerator.check_compliance(
-            facade, b.footprint.polygon, floor_height, len(b.floors), building_type,
+            facade,
+            b.footprint.polygon,
+            floor_height,
+            len(b.floors),
+            building_type,
         )
 
     def permit_precheck(
@@ -1340,9 +1469,15 @@ class AppSession:
             "fail_count": report.fail_count,
             "items": [
                 {
-                    "code": i.code, "title": i.title, "passed": i.passed,
-                    "value": i.value, "limit": i.limit, "unit": i.unit,
-                    "source": i.source, "message": i.message, "severity": i.severity.value,
+                    "code": i.code,
+                    "title": i.title,
+                    "passed": i.passed,
+                    "value": i.value,
+                    "limit": i.limit,
+                    "unit": i.unit,
+                    "source": i.source,
+                    "message": i.message,
+                    "severity": i.severity.value,
                 }
                 for i in report.items
             ],
@@ -1378,7 +1513,10 @@ class AppSession:
                 window_area_m2=facade_report.window_area_m2,
                 roof_area_m2=roof_area_m2,
                 floor_area_m2=floor_area_m2,
-                u_wall=u_wall, u_window=u_window, u_roof=u_roof, u_floor=u_floor,
+                u_wall=u_wall,
+                u_window=u_window,
+                u_roof=u_roof,
+                u_floor=u_floor,
             )
         except ValueError as exc:
             raise AppSessionError(str(exc)) from exc
@@ -1438,7 +1576,10 @@ class AppSession:
                 window_area_m2=facade_report.window_area_m2,
                 roof_area_m2=roof_area_m2,
                 floor_area_m2=floor_area_m2,
-                u_wall=u_wall, u_window=u_window, u_roof=u_roof, u_floor=u_floor,
+                u_wall=u_wall,
+                u_window=u_window,
+                u_roof=u_roof,
+                u_floor=u_floor,
             )
             report = MonthlyBalanceAuditor.audit(
                 total_heat_transfer_coefficient_w_per_k=(
@@ -1501,7 +1642,11 @@ class AppSession:
         }
 
     def section_view_scene(
-        self, project_id: str, axis: str, offset_m: float, keep_positive: bool = True,
+        self,
+        project_id: str,
+        axis: str,
+        offset_m: float,
+        keep_positive: bool = True,
     ) -> dict[str, Any]:
         """Roadmap 3.1: 'Kesit düzlemi (section/clipping plane): X, Y, Z
         eksenlerinde sürüklenebilir kesit çizgisi'. Mevcut `visualization.
@@ -1520,7 +1665,9 @@ class AppSession:
             nx, ny, nz = -nx, -ny, -nz
 
         point = {
-            "x": (offset_m, 0.0, 0.0), "y": (0.0, offset_m, 0.0), "z": (0.0, 0.0, offset_m),
+            "x": (offset_m, 0.0, 0.0),
+            "y": (0.0, offset_m, 0.0),
+            "z": (0.0, 0.0, offset_m),
         }[axis]
         plane = SectionPlane(point=point, normal=(nx, ny, nz))
 
@@ -1528,7 +1675,9 @@ class AppSession:
         scene = Scene(name=f"{project_id}_section")
         palette = [(0.68, 0.66, 0.62), (0.55, 0.58, 0.65), (0.72, 0.6, 0.5), (0.6, 0.65, 0.55)]
         for i, entry in enumerate(entries.values()):
-            keep, _cut_away = SectionView.cut(entry.building.full_mesh(include_interior=True), plane)
+            keep, _cut_away = SectionView.cut(
+                entry.building.full_mesh(include_interior=True), plane
+            )
             if not keep.triangles:
                 continue
             keep.name = entry.key
@@ -1537,7 +1686,11 @@ class AppSession:
         return scene.to_dict()
 
     def explosion_view_scene(
-        self, project_id: str, building_key: str, progress: float, gap_m: float = 2.0,
+        self,
+        project_id: str,
+        building_key: str,
+        progress: float,
+        gap_m: float = 2.0,
     ) -> dict[str, Any]:
         """Roadmap 3.1: 'Patlatma görünümü (explosion_view.py zaten var):
         katları birbirinden ayırarak gösterme, animasyonlu geçiş'. Tek bir
@@ -1552,7 +1705,9 @@ class AppSession:
 
         heights = [f.height_m for f in entry.building.floors]
         if not heights:
-            raise AppSessionError(f"'{building_key}' binasının kat bilgisi yok (patlatma için gerekli)")
+            raise AppSessionError(
+                f"'{building_key}' binasının kat bilgisi yok (patlatma için gerekli)"
+            )
 
         bands = floor_bands_from_heights(heights)
         view = ExplosionView(entry.building.full_mesh(include_interior=True), bands, gap_m=gap_m)
@@ -1577,7 +1732,10 @@ class AppSession:
         entries = self._buildings.get(project_id, {})
         scene = Scene(name=project_id)
         palette = [
-            (0.68, 0.66, 0.62), (0.55, 0.58, 0.65), (0.72, 0.6, 0.5), (0.6, 0.65, 0.55),
+            (0.68, 0.66, 0.62),
+            (0.55, 0.58, 0.65),
+            (0.72, 0.6, 0.5),
+            (0.6, 0.65, 0.55),
         ]
         # ROADMAP_V7 entegrasyon adımı: `ai_reconstruction.material_predictor.
         # AIMaterialPredictor` (bina bağlamına göre yüzey başı `FacadeMaterial`
@@ -1620,7 +1778,11 @@ class AppSession:
                 material = wall_material
                 mesh = entry.building.full_mesh(include_interior=True, generate_uvs=True)
             elif facade is not None and facade.pbr_material is not None:
-                material_type = facade.material.value if hasattr(facade.material, "value") else str(facade.material)
+                material_type = (
+                    facade.material.value
+                    if hasattr(facade.material, "value")
+                    else str(facade.material)
+                )
                 albedo_map = texture_cache.get(material_type)
                 if albedo_map is None:
                     try:
@@ -1630,9 +1792,13 @@ class AppSession:
                     texture_cache[material_type] = albedo_map
                 base = facade.pbr_material
                 material = PBRMaterial(
-                    name=f"mat_{entry.key}", albedo=base.albedo, albedo_map=albedo_map,
-                    roughness=base.roughness, metallic=base.metallic,
-                    emissive=base.emissive, opacity=base.opacity,
+                    name=f"mat_{entry.key}",
+                    albedo=base.albedo,
+                    albedo_map=albedo_map,
+                    roughness=base.roughness,
+                    metallic=base.metallic,
+                    emissive=base.emissive,
+                    opacity=base.opacity,
                 )
                 mesh = entry.building.full_mesh(include_interior=True, generate_uvs=True)
             else:
@@ -1672,8 +1838,11 @@ class AppSession:
             if road_mesh.vertices:
                 scene.add_mesh(
                     road_mesh,
-                    material=PBRMaterial(name=f"mat_{road_entry.road.road_id}",
-                                          albedo=(0.25, 0.25, 0.27), roughness=0.85),
+                    material=PBRMaterial(
+                        name=f"mat_{road_entry.road.road_id}",
+                        albedo=(0.25, 0.25, 0.27),
+                        roughness=0.85,
+                    ),
                 )
 
         # Web arayüzü genişletmesi: bitki örtüsü (vegetation) - her
@@ -1682,8 +1851,11 @@ class AppSession:
         veg_material = PBRMaterial(name="mat_vegetation", albedo=(0.25, 0.45, 0.2), roughness=0.9)
         for idx, inst in enumerate(self._vegetation.get(project_id, [])):
             tree_mesh = TreeGenerator.generate(
-                species=inst.species, height=inst.height,
-                canopy_radius=inst.canopy_radius, seed=inst.seed, name=f"tree_{idx}",
+                species=inst.species,
+                height=inst.height,
+                canopy_radius=inst.canopy_radius,
+                seed=inst.seed,
+                name=f"tree_{idx}",
             )
             placed = self._translate_mesh(tree_mesh, inst.x, inst.y, inst.z)
             scene.add_mesh(placed, material=veg_material)
@@ -1720,7 +1892,12 @@ class AppSession:
     # -- İçe/dışa aktarım köprüsü (Roadmap V3 Faz D16) ---------------------
 
     def import_geojson(
-        self, project_id: str, geojson_text: str, *, seed: int | None = None, token: str | None = None,
+        self,
+        project_id: str,
+        geojson_text: str,
+        *,
+        seed: int | None = None,
+        token: str | None = None,
     ) -> dict[str, Any]:
         """Bir GeoJSON metnini (FeatureCollection/Feature/geometry) gerçek
         `GeoJSONParser` + `FootprintParser` ile ayrıştırıp, `Polygon`
@@ -1740,7 +1917,9 @@ class AppSession:
         skipped: list[dict[str, Any]] = []
         for i, feature in enumerate(collection.features):
             if feature.geometry_type != "Polygon":
-                skipped.append({"index": i, "reason": f"desteklenmeyen geometri: {feature.geometry_type}"})
+                skipped.append(
+                    {"index": i, "reason": f"desteklenmeyen geometri: {feature.geometry_type}"}
+                )
                 continue
             try:
                 footprint = FootprintParser.parse(feature)
@@ -1789,7 +1968,9 @@ class AppSession:
         self._handle(project_id)  # projenin var olduğunu doğrula
         self._require_online("OSM bina önizleme (preview_osm_bbox)")
         try:
-            bbox = BBox(min_lat=float(south), min_lon=float(west), max_lat=float(north), max_lon=float(east))
+            bbox = BBox(
+                min_lat=float(south), min_lon=float(west), max_lat=float(north), max_lon=float(east)
+            )
         except (TypeError, ValueError) as exc:
             raise AppSessionError(f"Geçersiz bbox: {exc}") from exc
 
@@ -1812,14 +1993,16 @@ class AppSession:
                 floor_count = int(float(floor_count)) if floor_count is not None else None
             except (TypeError, ValueError):
                 floor_count = None
-            features_out.append({
-                "osm_id": props.get("osm_id"),
-                "osm_type": props.get("osm_type", "way"),
-                "building_type": props.get("building"),
-                "name": props.get("name"),
-                "floor_count": floor_count,
-                "latlngs": latlngs,
-            })
+            features_out.append(
+                {
+                    "osm_id": props.get("osm_id"),
+                    "osm_type": props.get("osm_type", "way"),
+                    "building_type": props.get("building"),
+                    "name": props.get("name"),
+                    "floor_count": floor_count,
+                    "latlngs": latlngs,
+                }
+            )
 
         return {
             "feature_count": len(features_out),
@@ -1853,7 +2036,9 @@ class AppSession:
         self._handle(project_id)  # projenin var olduğunu doğrula
         self._require_online("OSM kategori özeti (osm_category_summary)")
         try:
-            bbox = BBox(min_lat=float(south), min_lon=float(west), max_lat=float(north), max_lon=float(east))
+            bbox = BBox(
+                min_lat=float(south), min_lon=float(west), max_lat=float(north), max_lon=float(east)
+            )
         except (TypeError, ValueError) as exc:
             raise AppSessionError(f"Geçersiz bbox: {exc}") from exc
 
@@ -1881,20 +2066,32 @@ class AppSession:
     #: `generate_infrastructure_for_collection` çağrısına düşer (o
     #: fonksiyon zaten üç kategoriyi de kendi içinde ayırıyor).
     _SCENE_PROP_GROUPS: dict[str, str] = {
-        "trees": "vegetation", "forest": "vegetation", "wood": "vegetation",
-        "roads": "infrastructure", "waterway": "infrastructure", "water_area": "infrastructure",
+        "trees": "vegetation",
+        "forest": "vegetation",
+        "wood": "vegetation",
+        "roads": "infrastructure",
+        "waterway": "infrastructure",
+        "water_area": "infrastructure",
         # ROADMAP_V8 Faz 5.6a — `crossing` (Point, highway=crossing) de
         # `generate_infrastructure_for_collection` içinde işleniyor
         # (yaya geçidi doku yaması); aynı gruba eklendi.
         "crossing": "infrastructure",
-        "street_lamp": "street_furniture", "power_pole": "street_furniture",
-        "waste_basket": "street_furniture", "bench": "street_furniture",
-        "bus_stop": "street_furniture", "bus_station": "street_furniture",
+        "street_lamp": "street_furniture",
+        "power_pole": "street_furniture",
+        "waste_basket": "street_furniture",
+        "bench": "street_furniture",
+        "bus_stop": "street_furniture",
+        "bus_station": "street_furniture",
         "place_of_worship": "religious_structures",
-        "marketplace": "commerce_props", "restaurant": "commerce_props", "cafe": "commerce_props",
-        "pitch": "sport_recreation", "stadium": "sport_recreation",
-        "swimming_pool": "sport_recreation", "playground": "sport_recreation",
-        "power_line": "power_infrastructure", "substation": "power_infrastructure",
+        "marketplace": "commerce_props",
+        "restaurant": "commerce_props",
+        "cafe": "commerce_props",
+        "pitch": "sport_recreation",
+        "stadium": "sport_recreation",
+        "swimming_pool": "sport_recreation",
+        "playground": "sport_recreation",
+        "power_line": "power_infrastructure",
+        "substation": "power_infrastructure",
         "communication_tower": "power_infrastructure",
     }
 
@@ -1941,7 +2138,9 @@ class AppSession:
         self._require_online("OSM katman içe aktarma (import_osm_categories)")
         handle = self._handle(project_id)
         try:
-            bbox = BBox(min_lat=float(south), min_lon=float(west), max_lat=float(north), max_lon=float(east))
+            bbox = BBox(
+                min_lat=float(south), min_lon=float(west), max_lat=float(north), max_lon=float(east)
+            )
         except (TypeError, ValueError) as exc:
             raise AppSessionError(f"Geçersiz bbox: {exc}") from exc
 
@@ -1959,17 +2158,22 @@ class AppSession:
         origin = bbox.center()
         local_collection = project_to_local_meters(raw_collection, origin=origin)
 
-        groups_needed = {self._SCENE_PROP_GROUPS[k] for k in categories if k in self._SCENE_PROP_GROUPS}
+        groups_needed = {
+            self._SCENE_PROP_GROUPS[k] for k in categories if k in self._SCENE_PROP_GROUPS
+        }
         entries = self._scene_props.setdefault(project_id, {})
         created: list[dict[str, Any]] = []
         counts: dict[str, int] = {}
 
-        def _save(category: str, local_x: float, local_y: float, mesh, extra: dict[str, Any] | None = None) -> None:
+        def _save(
+            category: str, local_x: float, local_y: float, mesh, extra: dict[str, Any] | None = None
+        ) -> None:
             geo = local_meters_collection_centroid_to_wgs84(local_x, local_y, origin)
             key = f"prop_{uuid.uuid4().hex[:10]}"
             data = {
                 "category": category,
-                "lat": geo.lat, "lon": geo.lon,
+                "lat": geo.lat,
+                "lon": geo.lon,
                 "vertex_count": mesh.vertex_count(),
                 "triangle_count": mesh.triangle_count(),
                 "mesh_name": mesh.name,
@@ -1993,7 +2197,9 @@ class AppSession:
         if "vegetation" in groups_needed:
             for instance in generate_vegetation_for_collection(local_collection):
                 mesh = mesh_for_tree_instance(instance)
-                _save("vegetation", instance.x, instance.y, mesh, {"species": instance.species.value})
+                _save(
+                    "vegetation", instance.x, instance.y, mesh, {"species": instance.species.value}
+                )
 
         if "infrastructure" in groups_needed:
             infra = generate_infrastructure_for_collection(local_collection)
@@ -2005,7 +2211,8 @@ class AppSession:
                 x, y = self._mesh_centroid_local(mesh)
                 surface = (
                     infra.road_surface_materials[i]
-                    if i < len(infra.road_surface_materials) else None
+                    if i < len(infra.road_surface_materials)
+                    else None
                 )
                 _save("roads", x, y, mesh, {"surface_material": surface} if surface else None)
             for mesh in infra.waterway_meshes:
@@ -2027,14 +2234,24 @@ class AppSession:
         if "street_furniture" in groups_needed:
             for item in generate_street_furniture_for_collection(local_collection):
                 mesh = StreetFurnitureGenerator.generate(item)
-                _save("street_furniture", item.position.x, item.position.y, mesh,
-                      {"furniture_type": item.furniture_type.value})
+                _save(
+                    "street_furniture",
+                    item.position.x,
+                    item.position.y,
+                    mesh,
+                    {"furniture_type": item.furniture_type.value},
+                )
 
         if "religious_structures" in groups_needed:
             for item in generate_religious_structures_for_collection(local_collection):
                 mesh = ReligiousStructureGenerator.generate(item)
-                _save("religious_structures", item.position.x, item.position.y, mesh,
-                      {"religion": item.religion.value})
+                _save(
+                    "religious_structures",
+                    item.position.x,
+                    item.position.y,
+                    mesh,
+                    {"religion": item.religion.value},
+                )
 
         if "commerce_props" in groups_needed:
             for prop in generate_commerce_props_for_collection(local_collection):
@@ -2042,8 +2259,13 @@ class AppSession:
                     mesh = CommercePropsGenerator.generate_market(prop)
                     xs = [p.x for p in prop.positions] or [0.0]
                     ys = [p.y for p in prop.positions] or [0.0]
-                    _save("marketplace", sum(xs) / len(xs), sum(ys) / len(ys), mesh,
-                          {"stall_count": len(prop.positions)})
+                    _save(
+                        "marketplace",
+                        sum(xs) / len(xs),
+                        sum(ys) / len(ys),
+                        mesh,
+                        {"stall_count": len(prop.positions)},
+                    )
                 elif isinstance(prop, OutdoorSeatingItem):
                     mesh = CommercePropsGenerator.outdoor_seating_set(prop)
                     _save("outdoor_seating", prop.position.x, prop.position.y, mesh)
@@ -2086,10 +2308,7 @@ class AppSession:
 
     def list_scene_props(self, project_id: str) -> list[dict[str, Any]]:
         self._handle(project_id)  # var olduğunu doğrula
-        return [
-            {"key": key, **data}
-            for key, data in self._scene_props.get(project_id, {}).items()
-        ]
+        return [{"key": key, **data} for key, data in self._scene_props.get(project_id, {}).items()]
 
     def remove_scene_prop(self, project_id: str, key: str, *, token: str | None = None) -> bool:
         self._authorize_write(project_id, token)
@@ -2134,7 +2353,9 @@ class AppSession:
         self._require_online("OSM bina içe aktarma (import_osm_bbox)")
         handle = self._handle(project_id)
         try:
-            bbox = BBox(min_lat=float(south), min_lon=float(west), max_lat=float(north), max_lon=float(east))
+            bbox = BBox(
+                min_lat=float(south), min_lon=float(west), max_lat=float(north), max_lon=float(east)
+            )
         except (TypeError, ValueError) as exc:
             raise AppSessionError(f"Geçersiz bbox: {exc}") from exc
 
@@ -2188,10 +2409,25 @@ class AppSession:
             "attribution": self.OSM_ATTRIBUTION,
         }
 
-    _EXPORT_FORMATS = {"obj", "stl", "ply", "gltf", "glb", "dxf", "3dtiles", "ifc", "usda", "citygml"}
+    _EXPORT_FORMATS = {
+        "obj",
+        "stl",
+        "ply",
+        "gltf",
+        "glb",
+        "dxf",
+        "3dtiles",
+        "ifc",
+        "usda",
+        "citygml",
+    }
 
     def export_scene(
-        self, project_id: str, fmt: str, *, out_dir: str | None = None,
+        self,
+        project_id: str,
+        fmt: str,
+        *,
+        out_dir: str | None = None,
     ) -> dict[str, Any]:
         """Projedeki tüm binaları, `fmt`'e göre gerçek bir dosyaya (ya da
         3D Tiles için bir dizine) yazar. Dönüş değeri diskteki gerçek
@@ -2228,8 +2464,11 @@ class AppSession:
         allowed_root = Path(handle.path).resolve().parent
         if out_dir:
             candidate = Path(out_dir)
-            resolved = (allowed_root / candidate).resolve() if not candidate.is_absolute() \
+            resolved = (
+                (allowed_root / candidate).resolve()
+                if not candidate.is_absolute()
                 else candidate.resolve()
+            )
             try:
                 resolved.relative_to(allowed_root)
             except ValueError as exc:
@@ -2261,7 +2500,9 @@ class AppSession:
                 )
                 wall_material = None
                 try:
-                    predictions = material_predictor.predict_all_surfaces(building_type=building_type)
+                    predictions = material_predictor.predict_all_surfaces(
+                        building_type=building_type
+                    )
                     surface_materials = resolve_building_materials(predictions)
                     wall_material = surface_materials.get(SurfaceClass.DUVAR.value)
                 except Exception:
@@ -2302,18 +2543,24 @@ class AppSession:
             city_model = CityModel(crs_name=None)
             for entry in entries:
                 b = entry.building
-                city_model.add(CityBuilding(
-                    building_id=entry.key,
-                    footprint=b.footprint.polygon,
-                    height=b.total_height_m,
-                    ground_z=0.0,
-                    year_of_construction=getattr(entry.building, "construction_year", None),
-                    function=str(getattr(entry.building, "building_type", "") or "") or None,
-                    attributes={"floor_count": len(b.floors)},
-                ))
+                city_model.add(
+                    CityBuilding(
+                        building_id=entry.key,
+                        footprint=b.footprint.polygon,
+                        height=b.total_height_m,
+                        ground_z=0.0,
+                        year_of_construction=getattr(entry.building, "construction_year", None),
+                        function=str(getattr(entry.building, "building_type", "") or "") or None,
+                        attributes={"floor_count": len(b.floors)},
+                    )
+                )
             citygml_path = export_root / f"{project_id}.gml"
             citygml_result = CityGMLExporter.export(city_model, str(citygml_path))
-            return {"format": fmt, "path": str(citygml_path), "bytes_written": citygml_result.bytes_written}
+            return {
+                "format": fmt,
+                "path": str(citygml_path),
+                "bytes_written": citygml_result.bytes_written,
+            }
 
         # Roadmap V7 - "FBX/GLB desteği" fazı: GLB (binary glTF) zaten tam
         # ve gerçek biçimde uygulanmıştı (bkz. export/geometry_3d.py
@@ -2340,7 +2587,10 @@ class AppSession:
             scene = Scene(name=project_id)
             material_predictor = AIMaterialPredictor()
             palette = [
-                (0.68, 0.66, 0.62), (0.55, 0.58, 0.65), (0.72, 0.6, 0.5), (0.6, 0.65, 0.55),
+                (0.68, 0.66, 0.62),
+                (0.55, 0.58, 0.65),
+                (0.72, 0.6, 0.5),
+                (0.6, 0.65, 0.55),
             ]
             for i, entry in enumerate(entries):
                 building_type = (
@@ -2350,7 +2600,9 @@ class AppSession:
                 )
                 wall_material = None
                 try:
-                    predictions = material_predictor.predict_all_surfaces(building_type=building_type)
+                    predictions = material_predictor.predict_all_surfaces(
+                        building_type=building_type
+                    )
                     surface_materials = resolve_building_materials(predictions)
                     wall_material = surface_materials.get(SurfaceClass.DUVAR.value)
                 except Exception:
@@ -2362,24 +2614,33 @@ class AppSession:
                 elif facade is not None and facade.pbr_material is not None:
                     base = facade.pbr_material
                     material = PBRMaterial(
-                        name=f"mat_{entry.key}", albedo=base.albedo,
-                        roughness=base.roughness, metallic=base.metallic,
-                        emissive=base.emissive, opacity=base.opacity,
+                        name=f"mat_{entry.key}",
+                        albedo=base.albedo,
+                        roughness=base.roughness,
+                        metallic=base.metallic,
+                        emissive=base.emissive,
+                        opacity=base.opacity,
                     )
                 else:
-                    material = PBRMaterial(name=f"mat_{entry.key}", albedo=palette[i % len(palette)])
+                    material = PBRMaterial(
+                        name=f"mat_{entry.key}", albedo=palette[i % len(palette)]
+                    )
                 mesh = entry.building.full_mesh(include_interior=True)
                 mesh.name = entry.key
                 scene.add_mesh(mesh, material=material)
             out_path = export_root / f"{project_id}.glb"
             result = SceneGLTFExporter.export_glb(scene, str(out_path))
             return {
-                "format": fmt, "path": str(out_path), "bytes_written": result.bytes_written,
-                "vertex_count": result.vertex_count, "triangle_count": result.triangle_count,
+                "format": fmt,
+                "path": str(out_path),
+                "bytes_written": result.bytes_written,
+                "vertex_count": result.vertex_count,
+                "triangle_count": result.triangle_count,
             }
 
         merged = MeshMerger.merge(
-            [entry.building.full_mesh(include_interior=True) for entry in entries], name=project_id,
+            [entry.building.full_mesh(include_interior=True) for entry in entries],
+            name=project_id,
         )
         ext = fmt
         out_path = export_root / f"{project_id}.{ext}"
@@ -2399,8 +2660,11 @@ class AppSession:
         except UnsupportedFormatError as exc:
             raise AppSessionError(str(exc)) from exc
         return {
-            "format": fmt, "path": str(out_path), "bytes_written": result.bytes_written,
-            "vertex_count": result.vertex_count, "triangle_count": result.triangle_count,
+            "format": fmt,
+            "path": str(out_path),
+            "bytes_written": result.bytes_written,
+            "vertex_count": result.vertex_count,
+            "triangle_count": result.triangle_count,
         }
 
     def export_manifest(
@@ -2441,8 +2705,11 @@ class AppSession:
                 manifest_dir = p.parent
 
         manifest = ManifestBuilder.build(
-            project_id, entries, export_results,
-            crs=crs, compute_checksums=compute_checksums,
+            project_id,
+            entries,
+            export_results,
+            crs=crs,
+            compute_checksums=compute_checksums,
         )
         manifest_path = manifest_dir / "manifest.json"
         manifest.write(manifest_path)
@@ -2485,16 +2752,20 @@ class AppSession:
         for season_key, pos in seasons.items():
             flat = RoofIrradiance.compute(pos, roof_tilt_deg=0.0)
             tilted = RoofIrradiance.compute(
-                pos, roof_tilt_deg=roof_tilt_deg, roof_azimuth_deg=roof_azimuth_deg,
+                pos,
+                roof_tilt_deg=roof_tilt_deg,
+                roof_azimuth_deg=roof_azimuth_deg,
             )
-            rows.append({
-                "season": season_key,
-                "elevation_deg": round(pos.elevation_deg, 1),
-                "azimuth_deg": round(pos.azimuth_deg, 1),
-                "is_daylight": pos.is_daylight,
-                "flat_roof_w_m2": round(flat.watts_per_m2, 1),
-                "tilted_roof_w_m2": round(tilted.watts_per_m2, 1),
-            })
+            rows.append(
+                {
+                    "season": season_key,
+                    "elevation_deg": round(pos.elevation_deg, 1),
+                    "azimuth_deg": round(pos.azimuth_deg, 1),
+                    "is_daylight": pos.is_daylight,
+                    "flat_roof_w_m2": round(flat.watts_per_m2, 1),
+                    "tilted_roof_w_m2": round(tilted.watts_per_m2, 1),
+                }
+            )
 
         return {
             "lat": location.lat,
@@ -2552,19 +2823,27 @@ class AppSession:
         for season_key, (month, day) in seasons.items():
             sample_date = datetime(yr, month, day, tzinfo=timezone.utc)
             tilted_kwh = RoofIrradiance.daily_energy_kwh_per_m2(
-                location, sample_date, roof_tilt_deg=tilt, roof_azimuth_deg=roof_azimuth_deg,
+                location,
+                sample_date,
+                roof_tilt_deg=tilt,
+                roof_azimuth_deg=roof_azimuth_deg,
             )
             flat_kwh = RoofIrradiance.daily_energy_kwh_per_m2(
-                location, sample_date, roof_tilt_deg=0.0, roof_azimuth_deg=roof_azimuth_deg,
+                location,
+                sample_date,
+                roof_tilt_deg=0.0,
+                roof_azimuth_deg=roof_azimuth_deg,
             )
             daily_tilted_total += tilted_kwh
             daily_flat_total += flat_kwh
-            season_rows.append({
-                "season": season_key,
-                "date": sample_date.date().isoformat(),
-                "daily_kwh_per_m2_tilted": round(tilted_kwh, 2),
-                "daily_kwh_per_m2_flat": round(flat_kwh, 2),
-            })
+            season_rows.append(
+                {
+                    "season": season_key,
+                    "date": sample_date.date().isoformat(),
+                    "daily_kwh_per_m2_tilted": round(tilted_kwh, 2),
+                    "daily_kwh_per_m2_flat": round(flat_kwh, 2),
+                }
+            )
 
         avg_daily_tilted = daily_tilted_total / len(seasons)
         avg_daily_flat = daily_flat_total / len(seasons)
@@ -2578,19 +2857,26 @@ class AppSession:
         estimated_system_kwp = usable_area_m2 * panel_efficiency
 
         return {
-            "lat": location.lat, "lon": location.lon, "key": key,
-            "roof_area_m2": round(roof_area_m2, 1), "roof_area_source": area_source,
+            "lat": location.lat,
+            "lon": location.lon,
+            "key": key,
+            "roof_area_m2": round(roof_area_m2, 1),
+            "roof_area_source": area_source,
             "usable_roof_fraction": usable_roof_fraction,
             "usable_area_m2": round(usable_area_m2, 1),
-            "roof_tilt_deg": tilt, "roof_azimuth_deg": roof_azimuth_deg,
+            "roof_tilt_deg": tilt,
+            "roof_azimuth_deg": roof_azimuth_deg,
             "tilt_is_auto": roof_tilt_deg is None,
-            "panel_efficiency": panel_efficiency, "performance_ratio": performance_ratio,
+            "panel_efficiency": panel_efficiency,
+            "performance_ratio": performance_ratio,
             "seasons": season_rows,
             "annual_kwh_per_m2_tilted": round(annual_kwh_per_m2_tilted, 1),
             "annual_kwh_per_m2_flat": round(annual_kwh_per_m2_flat, 1),
             "tilt_gain_pct": round(
-                100.0 * (annual_kwh_per_m2_tilted - annual_kwh_per_m2_flat)
-                / max(annual_kwh_per_m2_flat, 1e-6), 1,
+                100.0
+                * (annual_kwh_per_m2_tilted - annual_kwh_per_m2_flat)
+                / max(annual_kwh_per_m2_flat, 1e-6),
+                1,
             ),
             "estimated_system_kwp": round(estimated_system_kwp, 1),
             "estimated_annual_production_kwh": round(annual_production_kwh, 0),
@@ -2633,7 +2919,10 @@ class AppSession:
         observer = (float(observer_x), float(observer_y), float(observer_z))
 
         blind_spots = BlindSpotAnalysis.scan(
-            observer, occluders, scan_radius=scan_radius, angle_step_deg=angle_step_deg,
+            observer,
+            occluders,
+            scan_radius=scan_radius,
+            angle_step_deg=angle_step_deg,
         )
         total_directions = max(1, int(360 / angle_step_deg))
         blocked_ratio = len(blind_spots) / total_directions
@@ -2646,7 +2935,10 @@ class AppSession:
             "total_directions": total_directions,
             "blocked_ratio": round(blocked_ratio, 3),
             "blind_spots": [
-                {"direction_deg": bs.direction_deg, "max_visible_distance_m": round(bs.max_visible_distance, 1)}
+                {
+                    "direction_deg": bs.direction_deg,
+                    "max_visible_distance_m": round(bs.max_visible_distance, 1),
+                }
                 for bs in blind_spots
             ],
         }
@@ -2686,8 +2978,11 @@ class AppSession:
         (vegetation/environment gibi kaynağı sabit origin'de üretilen
         mesh'leri sahnedeki konumuna taşımak için)."""
         from ..mesh_engine import Vertex3D
+
         new_vertices = [
-            Vertex3D(x=v.x + dx, y=v.y + dy, z=v.z + dz, normal=v.normal, tangent=v.tangent, uv=v.uv)
+            Vertex3D(
+                x=v.x + dx, y=v.y + dy, z=v.z + dz, normal=v.normal, tangent=v.tangent, uv=v.uv
+            )
             for v in mesh.vertices
         ]
         return Mesh3D(vertices=new_vertices, triangles=list(mesh.triangles), name=mesh.name)
@@ -2715,16 +3010,25 @@ class AppSession:
             raise AppSessionError(f"geçersiz tür: {species}") from exc
 
         instances = VegetationScatterer.scatter(
-            terrain_entry.grid, target_count=target_count, seed=seed,
-            species=species_enum, slope_penalty=slope_penalty, max_slope=max_slope,
+            terrain_entry.grid,
+            target_count=target_count,
+            seed=seed,
+            species=species_enum,
+            slope_penalty=slope_penalty,
+            max_slope=max_slope,
         )
         self._vegetation[project_id] = instances
         return {
             "count": len(instances),
             "species": species_enum.value,
             "instances": [
-                {"x": round(i.x, 2), "y": round(i.y, 2), "z": round(i.z, 2),
-                 "height": round(i.height, 2), "canopy_radius": round(i.canopy_radius, 2)}
+                {
+                    "x": round(i.x, 2),
+                    "y": round(i.y, 2),
+                    "z": round(i.z, 2),
+                    "height": round(i.height, 2),
+                    "canopy_radius": round(i.canopy_radius, 2),
+                }
                 for i in instances
             ],
         }
@@ -2738,8 +3042,8 @@ class AppSession:
     # ("bu bölgeye hangi ağaç türü uyar, ne kadar gölge/CO2 katkısı")
 
     _SPECIES_CO2_KG_YR = {
-        TreeSpecies.CONIFER: 10.0,     # yavaş büyüyen, iğne yapraklı - yıl boyu yeşil
-        TreeSpecies.DECIDUOUS: 21.0,   # hızlı büyüyen geniş taçlı - ortalama olgun ağaç tahmini
+        TreeSpecies.CONIFER: 10.0,  # yavaş büyüyen, iğne yapraklı - yıl boyu yeşil
+        TreeSpecies.DECIDUOUS: 21.0,  # hızlı büyüyen geniş taçlı - ortalama olgun ağaç tahmini
         TreeSpecies.SHRUB: 3.0,
         TreeSpecies.GENERIC: 15.0,
     }
@@ -2769,8 +3073,9 @@ class AppSession:
         start = today - timedelta(days=max(1, days_back))
         end = today - timedelta(days=1)
         try:
-            samples = client.fetch_hourly(latitude=location.lat, longitude=location.lon,
-                                           start_date=start, end_date=end)
+            samples = client.fetch_hourly(
+                latitude=location.lat, longitude=location.lon, start_date=start, end_date=end
+            )
         except ClimateError as exc:
             raise AppSessionError(f"iklim verisi alınamadı: {exc}") from exc
 
@@ -2794,26 +3099,33 @@ class AppSession:
             rationale = "ılıman iklim (ortalama sıcaklık 8-22°C) — geniş taçlı yaprak döken türler hem gölge hem mevsimsel çeşitlilik sağlar."
         else:
             species = TreeSpecies.CONIFER
-            rationale = "serin iklim (ortalama sıcaklık < 8°C) — iğne yapraklı türler daha dayanıklıdır."
+            rationale = (
+                "serin iklim (ortalama sıcaklık < 8°C) — iğne yapraklı türler daha dayanıklıdır."
+            )
 
         existing = self._vegetation.get(project_id)
         count = len(existing) if existing else int(tree_count or 50)
         if existing:
-            total_shade_m2 = sum(math.pi * (i.canopy_radius ** 2) for i in existing)
+            total_shade_m2 = sum(math.pi * (i.canopy_radius**2) for i in existing)
         else:
             canopy_r = 1.8  # (1.2-2.4 m tipik taç yarıçapı aralığının ortası)
-            total_shade_m2 = count * math.pi * (canopy_r ** 2)
+            total_shade_m2 = count * math.pi * (canopy_r**2)
         co2_per_tree = self._SPECIES_CO2_KG_YR.get(species, 15.0)
         annual_co2_kg = count * co2_per_tree
 
         return {
-            "lat": location.lat, "lon": location.lon,
+            "lat": location.lat,
+            "lon": location.lon,
             "climate_window_days": days_back,
-            "avg_temp_c": round(avg_temp, 1), "min_temp_c": round(min_temp, 1),
-            "max_temp_c": round(max_temp, 1), "avg_cloud_cover_pct": round(avg_cloud, 1),
+            "avg_temp_c": round(avg_temp, 1),
+            "min_temp_c": round(min_temp, 1),
+            "max_temp_c": round(max_temp, 1),
+            "avg_cloud_cover_pct": round(avg_cloud, 1),
             "recommended_species": species.value,
             "rationale": rationale,
-            "tree_count_basis": ("mevcut sahne (vegetation_scatter)" if existing else "varsayılan/istenen sayı"),
+            "tree_count_basis": (
+                "mevcut sahne (vegetation_scatter)" if existing else "varsayılan/istenen sayı"
+            ),
             "tree_count": count,
             "estimated_total_shade_m2": round(total_shade_m2, 1),
             "estimated_annual_co2_kg": round(annual_co2_kg, 1),
@@ -2956,7 +3268,10 @@ class AppSession:
         return upload_dir
 
     def feature_survey_upload_photos(
-        self, project_id: str, *, files: list[tuple[str, bytes]],
+        self,
+        project_id: str,
+        *,
+        files: list[tuple[str, bytes]],
     ) -> dict[str, Any]:
         """Roadmap V7 - tarayıcıdan sunucuya gerçek `multipart/form-data`
         dosya yükleme. `app_shell/server.py`'deki `_dispatch_upload`
@@ -2985,21 +3300,25 @@ class AppSession:
                 continue
             ext = Path(safe_name).suffix.lower()
             if ext not in self._IMAGE_EXTENSIONS:
-                rejected.append({
-                    "filename": safe_name,
-                    "reason": f"desteklenmeyen uzantı {ext!r} "
-                              f"(izin verilenler: {', '.join(self._IMAGE_EXTENSIONS)})",
-                })
+                rejected.append(
+                    {
+                        "filename": safe_name,
+                        "reason": f"desteklenmeyen uzantı {ext!r} "
+                        f"(izin verilenler: {', '.join(self._IMAGE_EXTENSIONS)})",
+                    }
+                )
                 continue
             if not data:
                 rejected.append({"filename": safe_name, "reason": "boş dosya"})
                 continue
             signatures = self._IMAGE_MAGIC_SIGNATURES.get(ext, ())
             if signatures and not any(data.startswith(sig) for sig in signatures):
-                rejected.append({
-                    "filename": safe_name,
-                    "reason": "dosya içeriği uzantıyla uyuşmuyor (magic number doğrulaması başarısız)",
-                })
+                rejected.append(
+                    {
+                        "filename": safe_name,
+                        "reason": "dosya içeriği uzantıyla uyuşmuyor (magic number doğrulaması başarısız)",
+                    }
+                )
                 continue
 
             out_path = upload_dir / safe_name
@@ -3096,7 +3415,13 @@ class AppSession:
         except ExternalToolNotAvailableError as exc:
             raise AppSessionError(str(exc)) from exc
         code = status.get("status", {}).get("code")
-        code_labels = {10: "sırada", 20: "işleniyor", 40: "tamamlandı", 30: "başarısız", 50: "iptal edildi"}
+        code_labels = {
+            10: "sırada",
+            20: "işleniyor",
+            40: "tamamlandı",
+            30: "başarısız",
+            50: "iptal edildi",
+        }
         return {
             "task_id": job["task_id"],
             "code": code,
@@ -3105,9 +3430,7 @@ class AppSession:
             "raw": status,
         }
 
-    def feature_survey_webodm_fetch(
-        self, project_id: str, *, output_dir: str
-    ) -> dict[str, Any]:
+    def feature_survey_webodm_fetch(self, project_id: str, *, output_dir: str) -> dict[str, Any]:
         """Tamamlanmış WebODM görevinin sonucunu indirir (point cloud/mesh/
         orthomosaic) ve varsa üretilen `.las` nokta bulutunu mevcut
         `PointCloud` temsiline okuyup `terrain_engine`'in kullanabileceği
@@ -3231,7 +3554,9 @@ class AppSession:
         pointcloud_tuples = None
         if pointcloud_points is not None:
             try:
-                pointcloud_tuples = [(float(p[0]), float(p[1]), float(p[2])) for p in pointcloud_points]
+                pointcloud_tuples = [
+                    (float(p[0]), float(p[1]), float(p[2])) for p in pointcloud_points
+                ]
             except (IndexError, TypeError, ValueError) as exc:
                 raise AppSessionError(f"geçersiz pointcloud_points: {exc}") from exc
 
@@ -3309,7 +3634,9 @@ class AppSession:
                 if any(GeometryEngine.point_in_polygon(point, poly) for poly in footprints):
                     blocked.add((gx, gy))
 
-        graph = NavGraph.from_grid(width, height, cell_size=cell_size, blocked_cells=blocked, diagonal=True)
+        graph = NavGraph.from_grid(
+            width, height, cell_size=cell_size, blocked_cells=blocked, diagonal=True
+        )
 
         def _to_grid(x: float, y: float) -> tuple[int, int]:
             gx = min(width - 1, max(0, round((x - min_x) / cell_size)))
@@ -3344,8 +3671,13 @@ class AppSession:
             "cost_m": round(result.cost, 2) if result.found else None,
             "expanded_nodes": result.expanded_nodes,
             "algorithm": "dijkstra" if algorithm == "dijkstra" else "astar",
-            "grid": {"width": width, "height": height, "cell_size": cell_size,
-                     "origin_x": round(min_x, 2), "origin_y": round(min_y, 2)},
+            "grid": {
+                "width": width,
+                "height": height,
+                "cell_size": cell_size,
+                "origin_x": round(min_x, 2),
+                "origin_y": round(min_y, 2),
+            },
             "path": path_points,
         }
 
@@ -3378,7 +3710,9 @@ class AppSession:
         self._handle(project_id)
         if lane_count < 1:
             raise AppSessionError("lane_count en az 1 olmalı.")
-        model = GreenshieldsModel(free_flow_speed=free_flow_speed_kmh, jam_density=jam_density_veh_km_per_lane)
+        model = GreenshieldsModel(
+            free_flow_speed=free_flow_speed_kmh, jam_density=jam_density_veh_km_per_lane
+        )
         capacity_per_lane = model.capacity()
         total_capacity_veh_h = capacity_per_lane * lane_count
 
@@ -3387,14 +3721,18 @@ class AppSession:
             demand_per_lane = peak_hour_veh / lane_count
             # Greenshields: q = v_f*k*(1-k/kj)  ->  k çözümü (alt/uncongested kök)
             vf, kj = free_flow_speed_kmh, jam_density_veh_km_per_lane
-            disc = max(0.0, vf ** 2 - 4.0 * (vf / kj) * demand_per_lane)
+            disc = max(0.0, vf**2 - 4.0 * (vf / kj) * demand_per_lane)
             if vf <= 0:
                 density = 0.0
             else:
                 density = (vf - math.sqrt(disc)) / (2.0 * vf / kj)
             oversaturated = demand_per_lane > capacity_per_lane
-            speed = model.speed_at_density(density) if not oversaturated else free_flow_speed_kmh * 0.15
-            v_c_ratio = demand_per_lane / capacity_per_lane if capacity_per_lane > 0 else float("inf")
+            speed = (
+                model.speed_at_density(density) if not oversaturated else free_flow_speed_kmh * 0.15
+            )
+            v_c_ratio = (
+                demand_per_lane / capacity_per_lane if capacity_per_lane > 0 else float("inf")
+            )
             if v_c_ratio < 0.6:
                 los = "A/B (akıcı)"
             elif v_c_ratio < 0.8:
@@ -3464,7 +3802,10 @@ class AppSession:
     # -- Web arayüzü genişletmesi: Fikir 10 — IoT Sensör + Dijital İkiz ---
 
     _IOT_COLOR_STOPS = [  # (sıcaklık °C, hex renk) - mavi(soğuk) -> kırmızı(sıcak)
-        (14.0, "#3b82f6"), (19.0, "#22c55e"), (23.0, "#eab308"), (28.0, "#ef4444"),
+        (14.0, "#3b82f6"),
+        (19.0, "#22c55e"),
+        (23.0, "#eab308"),
+        (28.0, "#ef4444"),
     ]
 
     @classmethod
@@ -3477,8 +3818,13 @@ class AppSession:
         return min(stops, key=lambda s: abs(s[0] - temp_c))[1]
 
     def connect_iot_bridge(
-        self, project_id: str, key: str, *,
-        host: str = "localhost", port: int = 1883, timeout_s: float = 5.0,
+        self,
+        project_id: str,
+        key: str,
+        *,
+        host: str = "localhost",
+        port: int = 1883,
+        timeout_s: float = 5.0,
         topic_prefix: str | None = None,
     ) -> dict[str, Any]:
         """Faz E12 — bu binayı GERÇEK bir MQTT broker'ına bağlar
@@ -3506,13 +3852,23 @@ class AppSession:
         existing_ids = {s.sensor_id for s in twin.sensors}
         for floor_idx in range(len(entry.building.floors)):
             if f"{key}:f{floor_idx}:temp" not in existing_ids:
-                twin.bind_sensor(SensorBinding(
-                    sensor_id=f"{key}:f{floor_idx}:temp", sensor_type="temperature",
-                    target_ref=f"floor:{floor_idx}", unit="°C"))
+                twin.bind_sensor(
+                    SensorBinding(
+                        sensor_id=f"{key}:f{floor_idx}:temp",
+                        sensor_type="temperature",
+                        target_ref=f"floor:{floor_idx}",
+                        unit="°C",
+                    )
+                )
             if f"{key}:f{floor_idx}:occ" not in existing_ids:
-                twin.bind_sensor(SensorBinding(
-                    sensor_id=f"{key}:f{floor_idx}:occ", sensor_type="occupancy",
-                    target_ref=f"floor:{floor_idx}", unit="ratio"))
+                twin.bind_sensor(
+                    SensorBinding(
+                        sensor_id=f"{key}:f{floor_idx}:occ",
+                        sensor_type="occupancy",
+                        target_ref=f"floor:{floor_idx}",
+                        unit="ratio",
+                    )
+                )
 
         prefix = topic_prefix or f"harita/{key}"
         bus = TopicBus()
@@ -3529,17 +3885,26 @@ class AppSession:
                 ("temp", f"{key}:f{floor_idx}:temp"),
                 ("occ", f"{key}:f{floor_idx}:occ"),
             ):
-                binding = SensorIotBinding(bus, twin, sensor_id, f"{prefix}/floor/{floor_idx}/{suffix}")
+                binding = SensorIotBinding(
+                    bus, twin, sensor_id, f"{prefix}/floor/{floor_idx}/{suffix}"
+                )
                 binding.bind()
                 bindings.append(binding)
 
         self._iot_bridges[(project_id, key)] = {
-            "bus": bus, "bridge": bridge, "bindings": bindings,
-            "host": host, "port": port, "prefix": prefix,
+            "bus": bus,
+            "bridge": bridge,
+            "bindings": bindings,
+            "host": host,
+            "port": port,
+            "prefix": prefix,
         }
         return {
-            "connected": True, "host": host, "port": port,
-            "topic_prefix": prefix, "sensor_bindings": len(bindings),
+            "connected": True,
+            "host": host,
+            "port": port,
+            "topic_prefix": prefix,
+            "sensor_bindings": len(bindings),
         }
 
     def disconnect_iot_bridge(self, project_id: str, key: str) -> bool:
@@ -3554,7 +3919,11 @@ class AppSession:
         return True
 
     def iot_digital_twin_tick(
-        self, project_id: str, key: str, *, seed: int | None = None,
+        self,
+        project_id: str,
+        key: str,
+        *,
+        seed: int | None = None,
     ) -> dict[str, Any]:
         """`digital_twin.DigitalTwin` + `digital_twin.iot_bridge` fikrini
         REST üzerinden gösterir.
@@ -3575,12 +3944,22 @@ class AppSession:
             twin = DigitalTwin(id=key)
             self._twins[project_id][key] = twin
             for floor_idx in range(len(entry.building.floors)):
-                twin.bind_sensor(SensorBinding(
-                    sensor_id=f"{key}:f{floor_idx}:temp", sensor_type="temperature",
-                    target_ref=f"floor:{floor_idx}", unit="°C"))
-                twin.bind_sensor(SensorBinding(
-                    sensor_id=f"{key}:f{floor_idx}:occ", sensor_type="occupancy",
-                    target_ref=f"floor:{floor_idx}", unit="ratio"))
+                twin.bind_sensor(
+                    SensorBinding(
+                        sensor_id=f"{key}:f{floor_idx}:temp",
+                        sensor_type="temperature",
+                        target_ref=f"floor:{floor_idx}",
+                        unit="°C",
+                    )
+                )
+                twin.bind_sensor(
+                    SensorBinding(
+                        sensor_id=f"{key}:f{floor_idx}:occ",
+                        sensor_type="occupancy",
+                        target_ref=f"floor:{floor_idx}",
+                        unit="ratio",
+                    )
+                )
 
         bridge_state = self._iot_bridges.get((project_id, key))
         is_live = bridge_state is not None and bridge_state["bridge"].connected
@@ -3597,13 +3976,15 @@ class AppSession:
                 occ_sensor = sensors_by_id.get(f"{key}:f{floor_idx}:occ")
                 temp = temp_sensor.last_value if temp_sensor is not None else None
                 occ = occ_sensor.last_value if occ_sensor is not None else None
-                floors_out.append({
-                    "floor_index": floor_idx,
-                    "temperature_c": round(temp, 1) if temp is not None else None,
-                    "occupancy_ratio": round(occ, 2) if occ is not None else None,
-                    "color": self._temp_to_color(temp) if temp is not None else None,
-                    "has_reading": temp is not None or occ is not None,
-                })
+                floors_out.append(
+                    {
+                        "floor_index": floor_idx,
+                        "temperature_c": round(temp, 1) if temp is not None else None,
+                        "occupancy_ratio": round(occ, 2) if occ is not None else None,
+                        "color": self._temp_to_color(temp) if temp is not None else None,
+                        "has_reading": temp is not None or occ is not None,
+                    }
+                )
             disclaimer = (
                 f"GERÇEK VERİ: {bridge_state['host']}:{bridge_state['port']} adresindeki "
                 f"MQTT broker'ından `{bridge_state['prefix']}/floor/<i>/{{temp,occ}}` "
@@ -3615,16 +3996,21 @@ class AppSession:
             for floor_idx in range(len(entry.building.floors)):
                 base_temp = 21.0 + 2.0 * math.sin(t / 600.0 + floor_idx * 0.7)
                 temp = base_temp + rng.uniform(-0.8, 0.8)
-                occ = max(0.0, min(1.0, 0.5 + 0.4 * math.sin(t / 900.0 + floor_idx) + rng.uniform(-0.1, 0.1)))
+                occ = max(
+                    0.0,
+                    min(1.0, 0.5 + 0.4 * math.sin(t / 900.0 + floor_idx) + rng.uniform(-0.1, 0.1)),
+                )
                 twin.update_sensor(f"{key}:f{floor_idx}:temp", round(temp, 2))
                 twin.update_sensor(f"{key}:f{floor_idx}:occ", round(occ, 3))
-                floors_out.append({
-                    "floor_index": floor_idx,
-                    "temperature_c": round(temp, 1),
-                    "occupancy_ratio": round(occ, 2),
-                    "color": self._temp_to_color(temp),
-                    "has_reading": True,
-                })
+                floors_out.append(
+                    {
+                        "floor_index": floor_idx,
+                        "temperature_c": round(temp, 1),
+                        "occupancy_ratio": round(occ, 2),
+                        "color": self._temp_to_color(temp),
+                        "has_reading": True,
+                    }
+                )
             disclaimer = (
                 "SİMÜLASYON: gerçek bir MQTT/IoT broker'ına bağlı değil — sinüzoidal + "
                 "gürültülü sahte veri üretir. Gerçek veriye geçmek için önce "
@@ -3665,8 +4051,14 @@ class AppSession:
         }
 
     def collab_edit(
-        self, project_id: str, key: str, *, actor_id: str, field_name: str,
-        value: Any, timestamp: float | None = None,
+        self,
+        project_id: str,
+        key: str,
+        *,
+        actor_id: str,
+        field_name: str,
+        value: Any,
+        timestamp: float | None = None,
     ) -> dict[str, Any]:
         """Bir kullanıcının yaptığı alan değişikliğini `LWWRegister` ile
         yazar (eşzamanlı iki kullanıcı aynı alanı değiştirirse en yeni
@@ -3678,7 +4070,13 @@ class AppSession:
         return self.collab_get_state(project_id, key)
 
     def collab_floor_op(
-        self, project_id: str, key: str, *, actor_id: str, op: str, floor_id: str,
+        self,
+        project_id: str,
+        key: str,
+        *,
+        actor_id: str,
+        op: str,
+        floor_id: str,
     ) -> dict[str, Any]:
         """`add_floor`/`remove_floor` — `ORSet` tabanlı, eşzamanlı
         ekleme/silme çakışmalarını "ekleme kazanır" (add-wins) semantiğiyle
@@ -3730,65 +4128,92 @@ class AppSession:
         if lat is not None and lon is not None:
             try:
                 risk = self.hazard_building_risk(project_id, lat=lat, lon=lon, key=key)
-                sections.append(ReportSection(
-                    "Deprem Riski (Fikir 1)",
-                    summary={
-                        "PGA (g)": risk.get("pga_g"), "Risk indeksi (0-100)": risk.get("risk_index_0_100"),
-                        "Risk seviyesi": risk.get("risk_level"),
-                    },
-                    notes=str(risk.get("disclaimer", "")),
-                ))
+                sections.append(
+                    ReportSection(
+                        "Deprem Riski (Fikir 1)",
+                        summary={
+                            "PGA (g)": risk.get("pga_g"),
+                            "Risk indeksi (0-100)": risk.get("risk_index_0_100"),
+                            "Risk seviyesi": risk.get("risk_level"),
+                        },
+                        notes=str(risk.get("disclaimer", "")),
+                    )
+                )
             except AppSessionError as exc:
-                sections.append(ReportSection("Deprem Riski (Fikir 1)", notes=f"Hesaplanamadı: {exc}"))
+                sections.append(
+                    ReportSection("Deprem Riski (Fikir 1)", notes=f"Hesaplanamadı: {exc}")
+                )
 
             try:
                 solar = self.solar_feasibility(project_id, lat=lat, lon=lon, key=key)
-                sections.append(ReportSection(
-                    "Güneş Paneli Fizibilitesi (Fikir 3)",
-                    summary={
-                        "Kullanılabilir çatı alanı (m²)": solar.get("usable_area_m2"),
-                        "Tahmini sistem gücü (kWp)": solar.get("estimated_system_kwp"),
-                        "Yıllık üretim (kWh)": solar.get("estimated_annual_production_kwh"),
-                    },
-                    notes=str(solar.get("disclaimer", "")),
-                ))
+                sections.append(
+                    ReportSection(
+                        "Güneş Paneli Fizibilitesi (Fikir 3)",
+                        summary={
+                            "Kullanılabilir çatı alanı (m²)": solar.get("usable_area_m2"),
+                            "Tahmini sistem gücü (kWp)": solar.get("estimated_system_kwp"),
+                            "Yıllık üretim (kWh)": solar.get("estimated_annual_production_kwh"),
+                        },
+                        notes=str(solar.get("disclaimer", "")),
+                    )
+                )
             except AppSessionError as exc:
-                sections.append(ReportSection("Güneş Paneli Fizibilitesi (Fikir 3)", notes=f"Hesaplanamadı: {exc}"))
+                sections.append(
+                    ReportSection(
+                        "Güneş Paneli Fizibilitesi (Fikir 3)", notes=f"Hesaplanamadı: {exc}"
+                    )
+                )
 
         try:
             envelope = self.energy_envelope_audit(project_id, key)
-            sections.append(ReportSection(
-                "Enerji Kabuğu Denetimi — TS 825 (Fikir 4)",
-                summary={
-                    "Pencere/duvar oranı": envelope.get("window_wall_ratio"),
-                    "Toplam ısı kaybı katsayısı (W/K)": envelope.get("total_heat_loss_coefficient_w_per_k"),
-                    "TS 825'e uygun mu": "EVET" if envelope.get("is_compliant") else "HAYIR",
-                },
-            ))
+            sections.append(
+                ReportSection(
+                    "Enerji Kabuğu Denetimi — TS 825 (Fikir 4)",
+                    summary={
+                        "Pencere/duvar oranı": envelope.get("window_wall_ratio"),
+                        "Toplam ısı kaybı katsayısı (W/K)": envelope.get(
+                            "total_heat_loss_coefficient_w_per_k"
+                        ),
+                        "TS 825'e uygun mu": "EVET" if envelope.get("is_compliant") else "HAYIR",
+                    },
+                )
+            )
         except AppSessionError as exc:
-            sections.append(ReportSection("Enerji Kabuğu Denetimi (Fikir 4)", notes=f"Hesaplanamadı: {exc}"))
+            sections.append(
+                ReportSection("Enerji Kabuğu Denetimi (Fikir 4)", notes=f"Hesaplanamadı: {exc}")
+            )
 
         try:
             structural = self.validate_structure(project_id, key)
-            sections.append(ReportSection(
-                "Yapısal Makûliyet Denetimi (Fikir 7)",
-                summary={
-                    "Fiziksel olarak makûl mü": "EVET" if structural["is_plausible"] else "HAYIR",
-                    "Narinlik oranı": structural["slenderness_ratio"],
-                    "En büyük konsol (m)": structural["max_cantilever_m"],
-                },
-                table_headers=["kod", "önem", "mesaj"],
-                table_rows=[{"kod": i["code"], "önem": i["severity"], "mesaj": i["message"]}
-                            for i in structural["issues"]],
-            ))
+            sections.append(
+                ReportSection(
+                    "Yapısal Makûliyet Denetimi (Fikir 7)",
+                    summary={
+                        "Fiziksel olarak makûl mü": "EVET"
+                        if structural["is_plausible"]
+                        else "HAYIR",
+                        "Narinlik oranı": structural["slenderness_ratio"],
+                        "En büyük konsol (m)": structural["max_cantilever_m"],
+                    },
+                    table_headers=["kod", "önem", "mesaj"],
+                    table_rows=[
+                        {"kod": i["code"], "önem": i["severity"], "mesaj": i["message"]}
+                        for i in structural["issues"]
+                    ],
+                )
+            )
         except AppSessionError as exc:
-            sections.append(ReportSection("Yapısal Makûliyet Denetimi (Fikir 7)", notes=f"Hesaplanamadı: {exc}"))
+            sections.append(
+                ReportSection("Yapısal Makûliyet Denetimi (Fikir 7)", notes=f"Hesaplanamadı: {exc}")
+            )
 
         builder = ReportBuilder(title=f"Proje Raporu — {key}", sections=sections)
 
         handle = self._handle(project_id)
         allowed_root = Path(handle.path).resolve().parent
-        export_root = (allowed_root / out_dir) if out_dir else (allowed_root / "exports" / "reports")
+        export_root = (
+            (allowed_root / out_dir) if out_dir else (allowed_root / "exports" / "reports")
+        )
         export_root.mkdir(parents=True, exist_ok=True)
 
         fmt = fmt.lower()
@@ -3804,8 +4229,11 @@ class AppSession:
             result = builder.export_markdown(str(out_path))
 
         return {
-            "key": key, "format": fmt, "path": str(out_path),
-            "bytes_written": result.bytes_written, "section_count": len(sections),
+            "key": key,
+            "format": fmt,
+            "path": str(out_path),
+            "bytes_written": result.bytes_written,
+            "section_count": len(sections),
         }
 
     # -- Web arayüzü köprüsü: Fizik / Deprem-Sarsıntı Stabilite Testi -----
@@ -3860,12 +4288,12 @@ class AppSession:
         project_id: str,
         key: str,
         *,
-        mode: str = "standard",           # "standard" (3.A) | "engineering" (3.B)
+        mode: str = "standard",  # "standard" (3.A) | "engineering" (3.B)
         peak_acceleration_g: float = 0.3,
         frequency_hz: float = 1.5,
         duration_s: float = 8.0,
         fps: int = 12,
-        risk_level: str = "orta",         # yalnızca mode="standard" için (4.1) — RiskLevel değeri
+        risk_level: str = "orta",  # yalnızca mode="standard" için (4.1) — RiskLevel değeri
     ) -> dict[str, Any]:
         self._handle(project_id)  # proje açık mı doğrula
         entry = self._entry(project_id, key)
@@ -3889,10 +4317,13 @@ class AppSession:
 
         num_floors = len(b.floors)
         floor_height = b.floors[0].height_m or 3.0
-        usage_type = b.building_type.value if hasattr(b.building_type, "value") else str(b.building_type)
+        usage_type = (
+            b.building_type.value if hasattr(b.building_type, "value") else str(b.building_type)
+        )
         structure_type = structure_type_for_usage(usage_type)
         shake_model = GroundShakeForceModel(
-            peak_acceleration_g=peak_acceleration_g, frequency_hz=frequency_hz,
+            peak_acceleration_g=peak_acceleration_g,
+            frequency_hz=frequency_hz,
         )
 
         dt = 1.0 / fps
@@ -3903,8 +4334,10 @@ class AppSession:
 
         if mode == "standard":
             simulator = BuildingShakeSimulator(
-                building_id=key, shake_model=shake_model,
-                structure_type=structure_type, num_floors=num_floors,
+                building_id=key,
+                shake_model=shake_model,
+                structure_type=structure_type,
+                num_floors=num_floors,
                 floor_height_m=floor_height,
             )
             for step in range(num_steps):
@@ -3915,18 +4348,23 @@ class AppSession:
                 for i, s in enumerate(floor_states):
                     if simulator.local_peak_acceleration_g(t, i) >= simulator.debris_threshold_g:
                         debris_triggered_floors.add(i)
-                frames.append({
-                    "t": round(t, 3),
-                    "intensity": round(intensity, 4),
-                    "floors": [
-                        {
-                            "floor_index": s.floor_index,
-                            "offset_m": [round(s.horizontal_offset_m[0], 4), round(s.horizontal_offset_m[1], 4)],
-                            "rotation_rad": round(s.rotation_rad, 5),
-                        }
-                        for s in floor_states
-                    ],
-                })
+                frames.append(
+                    {
+                        "t": round(t, 3),
+                        "intensity": round(intensity, 4),
+                        "floors": [
+                            {
+                                "floor_index": s.floor_index,
+                                "offset_m": [
+                                    round(s.horizontal_offset_m[0], 4),
+                                    round(s.horizontal_offset_m[1], 4),
+                                ],
+                                "rotation_rad": round(s.rotation_rad, 5),
+                            }
+                            for s in floor_states
+                        ],
+                    }
+                )
             profile = simulator._profile()
             structure_label = profile.label
             drift_hints: list[dict[str, Any]] | None = None
@@ -3934,13 +4372,17 @@ class AppSession:
             floor_area_m2 = max(getattr(b.footprint, "area_m2", None) or 200.0, 1.0)
             floor_props = [
                 estimate_floor_properties(
-                    structure_type=structure_type, floor_area_m2=floor_area_m2, num_floors=num_floors,
+                    structure_type=structure_type,
+                    floor_area_m2=floor_area_m2,
+                    num_floors=num_floors,
                 )
                 for _ in range(num_floors)
             ]
             mdof = MDOFShearFrameModel(
-                building_id=key, shake_model=shake_model,
-                floor_properties=floor_props, floor_height_m=floor_height,
+                building_id=key,
+                shake_model=shake_model,
+                floor_properties=floor_props,
+                floor_height_m=floor_height,
             )
             worst_drift = 0.0
             for step in range(num_steps):
@@ -3948,29 +4390,43 @@ class AppSession:
                 t = (step + 1) * dt
                 max_disp = max((abs(s.displacement_m) for s in states), default=0.0)
                 worst_drift = max(worst_drift, max(abs(s.interstory_drift_ratio) for s in states))
-                frames.append({
-                    "t": round(t, 3),
-                    "diverged": mdof.diverged,
-                    "floors": [
-                        {
-                            "floor_index": s.floor_index - 1,
-                            "offset_m": [round(s.displacement_m, 4), 0.0],
-                            "rotation_rad": round(math.atan2(s.displacement_m, max(floor_height * s.floor_index, floor_height)) * 0.3, 5),
-                            "drift_ratio": round(s.interstory_drift_ratio, 5),
-                        }
-                        for s in states
-                    ],
-                })
+                frames.append(
+                    {
+                        "t": round(t, 3),
+                        "diverged": mdof.diverged,
+                        "floors": [
+                            {
+                                "floor_index": s.floor_index - 1,
+                                "offset_m": [round(s.displacement_m, 4), 0.0],
+                                "rotation_rad": round(
+                                    math.atan2(
+                                        s.displacement_m,
+                                        max(floor_height * s.floor_index, floor_height),
+                                    )
+                                    * 0.3,
+                                    5,
+                                ),
+                                "drift_ratio": round(s.interstory_drift_ratio, 5),
+                            }
+                            for s in states
+                        ],
+                    }
+                )
                 if mdof.diverged:
                     break
             hint = drift_based_damage_hint(worst_drift)
-            drift_hints = [{
-                "damage_level": hint.damage_level.value if hasattr(hint.damage_level, "value") else str(hint.damage_level),
-                "drift_ratio": round(hint.drift_ratio, 5),
-                "threshold_label": hint.threshold_label,
-            }]
+            drift_hints = [
+                {
+                    "damage_level": hint.damage_level.value
+                    if hasattr(hint.damage_level, "value")
+                    else str(hint.damage_level),
+                    "drift_ratio": round(hint.drift_ratio, 5),
+                    "threshold_label": hint.threshold_label,
+                }
+            ]
             structure_label = STRUCTURE_SHAKE_PROFILES.get(
-                structure_type, DEFAULT_STRUCTURE_SHAKE_PROFILE,
+                structure_type,
+                DEFAULT_STRUCTURE_SHAKE_PROFILE,
             ).label
             max_intensity = min(worst_drift / 0.05, 1.0)
 
@@ -3993,8 +4449,10 @@ class AppSession:
         # kullanılır.
         self._last_shake_status[(project_id, key)] = {
             "max_intensity": round(max_intensity, 4),
-            "glass_shatter_triggered": damage_state.damage_level in (
-                DamageLevel.SEVERE, DamageLevel.COLLAPSED,
+            "glass_shatter_triggered": damage_state.damage_level
+            in (
+                DamageLevel.SEVERE,
+                DamageLevel.COLLAPSED,
             ),
             "debris_impact_triggered": bool(debris_triggered_floors) or damage_state.is_collapsed,
         }
@@ -4027,8 +4485,8 @@ class AppSession:
             "honesty_note": (
                 "Faz 3.A: pseudo-static sinüzoidal taban hareketi + kategorik "
                 "frekans/sönüm profili — gerçek modal analiz değildir."
-                if mode == "standard" else
-                "Faz 3.B: tahmini kütle/rijitlik + Newmark-beta MDOF çözücü — "
+                if mode == "standard"
+                else "Faz 3.B: tahmini kütle/rijitlik + Newmark-beta MDOF çözücü — "
                 "gerçek kolon/donatı verisi yok, kesin mühendislik tespiti değildir."
             ),
         }
@@ -4063,7 +4521,7 @@ class AppSession:
         fps: int = 4,
         spread_rate_per_s: float = 0.35,
         grid_size: int = 8,
-        ignition: str = "center",   # "center" | "corner"
+        ignition: str = "center",  # "center" | "corner"
         seed: int = 42,
     ) -> dict[str, Any]:
         """Roadmap V10 / Faz 5.1: binanın footprint'i üzerine oturtulmuş
@@ -4103,11 +4561,10 @@ class AppSession:
         span_x = max(max_x - min_x, 1.0)
         span_y = max(max_y - min_y, 1.0)
 
-        ignition_cell = (
-            (grid_size // 2, grid_size // 2) if ignition == "center" else (0, 0)
-        )
+        ignition_cell = (grid_size // 2, grid_size // 2) if ignition == "center" else (0, 0)
         model = FireSpreadModel(
-            width=grid_size, height=grid_size,
+            width=grid_size,
+            height=grid_size,
             ignition_cells=[ignition_cell],
             spread_rate_per_s=spread_rate_per_s,
             seed=seed,
@@ -4137,26 +4594,29 @@ class AppSession:
             t = (step + 1) * dt
             model.step(dt)
             sprites = fire_facade_overlay(
-                model, key,
+                model,
+                key,
                 cell_to_world=_cell_to_world,
                 floor_height_m=floor_height,
                 cell_to_floor=_cell_to_floor,
             )
             burning = model.burning_cell_count()
             peak_burning = max(peak_burning, burning)
-            frames.append({
-                "t": round(t, 3),
-                "sprites": [
-                    {
-                        "x": round(s.world_position.x, 3),
-                        "y": round(s.world_position.y, 3),
-                        "height_m": round(s.height_m, 3),
-                        "kind": s.kind.value,
-                        "intensity": round(s.intensity, 4),
-                    }
-                    for s in sprites
-                ],
-            })
+            frames.append(
+                {
+                    "t": round(t, 3),
+                    "sprites": [
+                        {
+                            "x": round(s.world_position.x, 3),
+                            "y": round(s.world_position.y, 3),
+                            "height_m": round(s.height_m, 3),
+                            "kind": s.kind.value,
+                            "intensity": round(s.intensity, 4),
+                        }
+                        for s in sprites
+                    ],
+                }
+            )
             if burning == 0 and step > fps:  # tamamen söndü, erken bitir
                 break
 
@@ -4164,7 +4624,9 @@ class AppSession:
         # hâlâ yanan hücre var mı (yangın alarmı sesi tetiklensin mi).
         last_frame_sprites = frames[-1]["sprites"] if frames else []
         self._last_fire_status[(project_id, key)] = {
-            "fire_alarm_active": any(s["kind"] == FireSpriteKind.FLAME.value for s in last_frame_sprites),
+            "fire_alarm_active": any(
+                s["kind"] == FireSpriteKind.FLAME.value for s in last_frame_sprites
+            ),
             "peak_burning_cell_count": peak_burning,
         }
 
@@ -4203,7 +4665,9 @@ class AppSession:
         """
         handle = self._handle(project_id)
         from ..visualization.cinematic_director import (
-            InterestScorer, SceneEvent, SceneEventKind,
+            InterestScorer,
+            SceneEvent,
+            SceneEventKind,
         )
 
         entries = self._buildings.get(project_id, {})
@@ -4222,15 +4686,20 @@ class AppSession:
             elif state.damage_level != DamageLevel.NONE:
                 kind = SceneEventKind.BUILDING_FIRST_CRACK
                 magnitude = {
-                    DamageLevel.LIGHT: 0.4, DamageLevel.MODERATE: 0.7,
+                    DamageLevel.LIGHT: 0.4,
+                    DamageLevel.MODERATE: 0.7,
                     DamageLevel.SEVERE: 0.95,
                 }.get(state.damage_level, 0.5)
             else:
                 continue
-            events.append(SceneEvent(
-                kind=kind, time_s=0.0, position=(centroid.x, centroid.y, z),
-                magnitude=magnitude,
-            ))
+            events.append(
+                SceneEvent(
+                    kind=kind,
+                    time_s=0.0,
+                    position=(centroid.x, centroid.y, z),
+                    magnitude=magnitude,
+                )
+            )
 
         # Son tahliye koşumundan bir "kalabalık yoğunluğu / grup davranışı"
         # olayı — son ajan karesindeki panik oranından türetilir.
@@ -4247,15 +4716,18 @@ class AppSession:
                         panic_ratio = panic_count / len(agents)
                         cx = sum(a["x"] for a in agents) / len(agents)
                         cy = sum(a["y"] for a in agents) / len(agents)
-                        events.append(SceneEvent(
-                            kind=(
-                                SceneEventKind.GROUP_BEHAVIOR if panic_ratio >= 0.3
-                                else SceneEventKind.CROWD_DENSITY_PEAK
-                            ),
-                            time_s=float(last.get("t", 0.0)),
-                            position=(cx, cy, 1.6),
-                            magnitude=min(1.0, 0.3 + panic_ratio),
-                        ))
+                        events.append(
+                            SceneEvent(
+                                kind=(
+                                    SceneEventKind.GROUP_BEHAVIOR
+                                    if panic_ratio >= 0.3
+                                    else SceneEventKind.CROWD_DENSITY_PEAK
+                                ),
+                                time_s=float(last.get("t", 0.0)),
+                                position=(cx, cy, 1.6),
+                                magnitude=min(1.0, 0.3 + panic_ratio),
+                            )
+                        )
 
         scorer = InterestScorer()
         ranked = scorer.ranked(events)
@@ -4309,18 +4781,20 @@ class AppSession:
 
         events_payload = self.cinematic_scene_events(project_id)["events"]
         if not (0 <= event_index < len(events_payload)):
-            raise AppSessionError(
-                f"event_index aralık dışı (0-{max(len(events_payload) - 1, 0)})."
-            )
+            raise AppSessionError(f"event_index aralık dışı (0-{max(len(events_payload) - 1, 0)}).")
         from ..visualization.cinematic_director import SceneEvent, SceneEventKind
+
         ev = events_payload[event_index]
         scene_event = SceneEvent(
-            kind=SceneEventKind(ev["kind"]), time_s=ev["time_s"],
-            position=tuple(ev["position"]), magnitude=ev["magnitude"],
+            kind=SceneEventKind(ev["kind"]),
+            time_s=ev["time_s"],
+            position=tuple(ev["position"]),
+            magnitude=ev["magnitude"],
         )
         from_cam = Camera(position=tuple(from_position), target=tuple(from_target))
         keyframes = build_transition_keyframes(
-            from_cam, scene_event,
+            from_cam,
+            scene_event,
             transition_duration_s=transition_duration_s,
             hold_duration_s=hold_duration_s,
             viewing_distance_m=viewing_distance_m,
@@ -4336,12 +4810,14 @@ class AppSession:
         for i in range(num_samples):
             t = total_duration_s * i / (num_samples - 1) if num_samples > 1 else 0.0
             cam = rig.cinematic_at(t)
-            samples.append({
-                "t": round(t, 3),
-                "position": [round(v, 3) for v in cam.position],
-                "target": [round(v, 3) for v in cam.target],
-                "fov_deg": round(cam.fov_deg, 3),
-            })
+            samples.append(
+                {
+                    "t": round(t, 3),
+                    "position": [round(v, 3) for v in cam.position],
+                    "target": [round(v, 3) for v in cam.target],
+                    "fov_deg": round(cam.fov_deg, 3),
+                }
+            )
 
         return {
             "event": ev,
@@ -4374,11 +4850,13 @@ class AppSession:
         üretir.
         """
         handle = self._handle(project_id)
+        from ..mobility.crowd_simulation.agent_visuals import CrowdPressureLevel
         from ..visualization.spatial_audio import (
-            PositionalAudioSource, crowd_ambience_mix, positional_gain,
+            PositionalAudioSource,
+            crowd_ambience_mix,
+            positional_gain,
             trigger_event_sound,
         )
-        from ..mobility.crowd_simulation.agent_visuals import CrowdPressureLevel
 
         entries = self._buildings.get(project_id, {})
         sound_events: list[dict[str, Any]] = []
@@ -4391,19 +4869,22 @@ class AppSession:
             source = PositionalAudioSource(position=(centroid.x, centroid.y, 1.6))
             gain = positional_gain(source, listener_position)
             for ev in trigger_event_sound(source=source, **kwargs):
-                sound_events.append({
-                    "building_key": key,
-                    "effect": ev.effect.value,
-                    "intensity": round(ev.intensity, 3),
-                    "gain": round(gain * ev.intensity, 4),
-                    "position": [round(v, 3) for v in source.position],
-                })
+                sound_events.append(
+                    {
+                        "building_key": key,
+                        "effect": ev.effect.value,
+                        "intensity": round(ev.intensity, 3),
+                        "gain": round(gain * ev.intensity, 4),
+                        "position": [round(v, 3) for v in source.position],
+                    }
+                )
 
         for (pid, key), status in self._last_shake_status.items():
             if pid != project_id:
                 continue
             _emit(
-                key, shake_intensity=status["max_intensity"],
+                key,
+                shake_intensity=status["max_intensity"],
                 glass_shatter_triggered=status["glass_shatter_triggered"],
                 debris_impact_triggered=status["debris_impact_triggered"],
             )
@@ -4423,16 +4904,20 @@ class AppSession:
                 if agent_frames:
                     agents = agent_frames[-1].get("agents", [])
                     if agents:
-                        panic_ratio = sum(1 for a in agents if a.get("state") == "panic") / len(agents)
+                        panic_ratio = sum(1 for a in agents if a.get("state") == "panic") / len(
+                            agents
+                        )
                         # Kaba yoğunluk tahmini: ajan sayısı / tipik spawn
                         # alanı (20x20m — `simulation_evacuation_run()`'ın
                         # kendi spawn alanı varsayımıyla tutarlı, yeni bir
                         # alan hesabı icat edilmedi).
                         density = len(agents) / 400.0
                         pressure = (
-                            CrowdPressureLevel.SQUEEZE if density > 0.5 else
-                            CrowdPressureLevel.MILD if density > 0.15 else
-                            CrowdPressureLevel.NONE
+                            CrowdPressureLevel.SQUEEZE
+                            if density > 0.5
+                            else CrowdPressureLevel.MILD
+                            if density > 0.15
+                            else CrowdPressureLevel.NONE
                         )
                         mix = crowd_ambience_mix(pressure, panic_ratio)
                         cx = sum(a["x"] for a in agents) / len(agents)
@@ -4489,17 +4974,29 @@ class AppSession:
         try:
             if source == "afad":
                 events = AFADClient().fetch_earthquakes(
-                    min_lat=min_lat, max_lat=max_lat, min_lon=min_lon, max_lon=max_lon,
-                    start=start, end=end, min_magnitude=min_magnitude,
+                    min_lat=min_lat,
+                    max_lat=max_lat,
+                    min_lon=min_lon,
+                    max_lon=max_lon,
+                    start=start,
+                    end=end,
+                    min_magnitude=min_magnitude,
                 )
             else:
                 events = USGSClient().fetch_earthquakes(
-                    min_lat=min_lat, max_lat=max_lat, min_lon=min_lon, max_lon=max_lon,
-                    start=start, end=end, min_magnitude=min_magnitude,
+                    min_lat=min_lat,
+                    max_lat=max_lat,
+                    min_lon=min_lon,
+                    max_lon=max_lon,
+                    start=start,
+                    end=end,
+                    min_magnitude=min_magnitude,
                 )
         except HazardError as exc:
             return {
-                "is_live": False, "source": source, "events": [],
+                "is_live": False,
+                "source": source,
+                "events": [],
                 "note": (
                     f"{source.upper()} kataloğuna ulaşılamadı (ağ erişimi yok/engelli): {exc}. "
                     "Risk skoru yine de hesaplanabilir; bu sadece son N günün gerçek "
@@ -4507,7 +5004,8 @@ class AppSession:
                 ),
             }
         return {
-            "is_live": True, "source": source,
+            "is_live": True,
+            "source": source,
             "events": [e.to_dict() for e in events],
             "note": f"{len(events)} olay, son {days} gün, M>={min_magnitude}.",
         }
@@ -4521,7 +5019,8 @@ class AppSession:
         self._handle(project_id)
         result = RegionalPGAEstimate().estimate(lat, lon)
         return {
-            "lat": lat, "lon": lon,
+            "lat": lat,
+            "lon": lon,
             "pga_g": round(result.pga_g, 3),
             "zone_name": result.zone_name,
             "is_official_source": result.is_official_source,
@@ -4586,14 +5085,19 @@ class AppSession:
         )
         return {
             "key": key,
-            "lat": lat, "lon": lon,
-            "pga_g": round(pga_g, 3), "pga_note": pga_note, "pga_official_source": pga_official,
+            "lat": lat,
+            "lon": lon,
+            "pga_g": round(pga_g, 3),
+            "pga_note": pga_note,
+            "pga_official_source": pga_official,
             "risk_index_0_100": round(report.risk_index_0_100, 1),
             "risk_level": report.risk_level.value,
             "factors": [
                 {
                     "name": f_.name,
-                    "subscore_0_100": round(f_.subscore_0_100, 1) if f_.subscore_0_100 is not None else None,
+                    "subscore_0_100": round(f_.subscore_0_100, 1)
+                    if f_.subscore_0_100 is not None
+                    else None,
                     "weight": f_.weight,
                     "note": f_.note,
                 }
@@ -4632,7 +5136,8 @@ class AppSession:
             building_id = str(b.get("key") or b.get("id") or f"bina_{idx + 1}")
             risk = self.hazard_building_risk(
                 project_id,
-                lat=float(b["lat"]), lon=float(b["lon"]),
+                lat=float(b["lat"]),
+                lon=float(b["lon"]),
                 key=b.get("key"),
                 construction_year=b.get("construction_year"),
                 floor_count=b.get("floor_count"),
@@ -4657,7 +5162,9 @@ class AppSession:
         for p in priorities:
             key = meta[p.building_id].get("key")
             if key is None:
-                routes[p.building_id] = {"note": "sahnede gerçek bina eşleşmesi yok (key verilmedi), rota hesaplanmadı."}
+                routes[p.building_id] = {
+                    "note": "sahnede gerçek bina eşleşmesi yok (key verilmedi), rota hesaplanmadı."
+                }
                 continue
             entry = self._buildings.get(project_id, {}).get(key)
             if entry is None:
@@ -4668,14 +5175,22 @@ class AppSession:
             for sp in safe_points:
                 try:
                     route = self.find_path(
-                        project_id, start_x=centroid.x, start_y=centroid.y,
-                        goal_x=float(sp["x"]), goal_y=float(sp["y"]), cell_size=2.0,
+                        project_id,
+                        start_x=centroid.x,
+                        start_y=centroid.y,
+                        goal_x=float(sp["x"]),
+                        goal_y=float(sp["y"]),
+                        cell_size=2.0,
                     )
                 except AppSessionError:
                     continue
-                if route["found"] and (best_route is None or route["cost_m"] < best_route["cost_m"]):
+                if route["found"] and (
+                    best_route is None or route["cost_m"] < best_route["cost_m"]
+                ):
                     best_route = {**route, "safe_point": sp.get("name", "isimsiz")}
-            routes[p.building_id] = best_route or {"note": "hiçbir güvenli noktaya rota bulunamadı."}
+            routes[p.building_id] = best_route or {
+                "note": "hiçbir güvenli noktaya rota bulunamadı."
+            }
 
         return {
             "priorities": [
@@ -4710,8 +5225,11 @@ class AppSession:
     _FIRE_SPREAD_KIND = "fire_spread_result"
 
     def simulation_scenario_save(
-        self, project_id: str, scenario_data: dict[str, Any],
-        *, role: Role | None = None,
+        self,
+        project_id: str,
+        scenario_data: dict[str, Any],
+        *,
+        role: Role | None = None,
     ) -> dict[str, Any]:
         """Bir `SimulationScenario`'yu doğrulayıp projeye kaydeder (O.3).
 
@@ -4812,17 +5330,25 @@ class AppSession:
             goal=Point2D(safe_x, safe_y),
             seed=scenario.agents.seed,
         )
-        self._apply_behavior_distribution(agents, scenario.agents.behavior_distribution, scenario.agents.seed)
+        self._apply_behavior_distribution(
+            agents, scenario.agents.behavior_distribution, scenario.agents.seed
+        )
 
         emit_city_event(
-            default_bus, CityEventType.EVACUATION_STARTED,
-            source="app_shell.session", project_id=project_id,
-            scenario_id=scenario.scenario_id, agent_count=len(agents),
+            default_bus,
+            CityEventType.EVACUATION_STARTED,
+            source="app_shell.session",
+            project_id=project_id,
+            scenario_id=scenario.scenario_id,
+            agent_count=len(agents),
         )
 
         recorder = SimulationRecorder(keyframe_interval_s=keyframe_interval_s)
         result = EvacuationSimulator().run(
-            agents, dt=0.1, max_time_s=max_time_s, recorder=recorder,
+            agents,
+            dt=0.1,
+            max_time_s=max_time_s,
+            recorder=recorder,
         )
 
         scene = Scene(name=f"{project_id}_evac_{scenario.scenario_id}")
@@ -4840,7 +5366,9 @@ class AppSession:
         # hesaplaması için birlikte döndürülür.
         agent_visuals = {
             str(a.agent_id): {
-                "mesh_variant": (v := agent_visual_variant(a.agent_id, seed=scenario.agents.seed))[0],
+                "mesh_variant": (v := agent_visual_variant(a.agent_id, seed=scenario.agents.seed))[
+                    0
+                ],
                 "color_hex": v[1],
             }
             for a in agents
@@ -4880,24 +5408,26 @@ class AppSession:
                     "graf üzerinden hesaplanması."
                     if elevator_accessibility_impact is not None
                     and elevator_accessibility_impact.get("room_graph_available")
-                    else
-                    "Bu bir gösterge simülasyonudur, kesin mühendislik raporu "
+                    else "Bu bir gösterge simülasyonudur, kesin mühendislik raporu "
                     "değildir. Asansör kısıtı (disable_elevators) istendi "
                     "ama bu bina için oda-graf verisi (RoomGenerator çıktısı) "
                     "bulunamadığından erişilebilirlik etkisi hesaplanamadı; "
                     "motor düz-alan (open-area) yaklaşımı kullanır."
                 )
-                if scenario.disable_elevators else
-                "Bu bir gösterge simülasyonudur, kesin mühendislik raporu değildir."
+                if scenario.disable_elevators
+                else "Bu bir gösterge simülasyonudur, kesin mühendislik raporu değildir."
             ),
         }
         handle.db.save_object(result_id, self._SIMULATION_RESULT_KIND, result_data)
         self._last_evac_result_id[project_id] = result_id
 
         emit_city_event(
-            default_bus, CityEventType.EVACUATION_COMPLETED,
-            source="app_shell.session", project_id=project_id,
-            scenario_id=scenario.scenario_id, result_id=result_id,
+            default_bus,
+            CityEventType.EVACUATION_COMPLETED,
+            source="app_shell.session",
+            project_id=project_id,
+            scenario_id=scenario.scenario_id,
+            result_id=result_id,
             evacuated_count=result.evacuated_count,
             evacuation_time_s=result.evacuation_time_s,
         )
@@ -4907,7 +5437,7 @@ class AppSession:
         summary["agent_frames_count"] = len(result_data["agent_frames"])
         return summary
 
-    def _elevator_accessibility_impact(self, entry: "_BuildingEntry") -> dict[str, Any]:
+    def _elevator_accessibility_impact(self, entry: _BuildingEntry) -> dict[str, Any]:
         """Katman 2.4 madde 2 + Katman 9.6 (erişilebilirlik uyarı motoru)
         için temel veri: bu bina için gerçek `IndoorNavigationBuilder`
         graf'ı kurulabiliyorsa (RoomGenerator çıktısı mevcutsa), asansörler
@@ -4922,12 +5452,14 @@ class AppSession:
         for f in floors:
             if not getattr(f, "rooms", None):
                 continue
-            indoor_floors.append(IndoorFloor(
-                floor_index=f.level,
-                rooms=f.rooms,
-                stairs=list(getattr(f, "stair_objects", []) or []),
-                elevators=list(getattr(f, "elevator_objects", []) or []),
-            ))
+            indoor_floors.append(
+                IndoorFloor(
+                    floor_index=f.level,
+                    rooms=f.rooms,
+                    stairs=list(getattr(f, "stair_objects", []) or []),
+                    elevators=list(getattr(f, "elevator_objects", []) or []),
+                )
+            )
 
         if len(indoor_floors) < 2:
             return {
@@ -4945,7 +5477,9 @@ class AppSession:
         floor_height = floors[0].height_m if floors and floors[0].height_m else FLOOR_HEIGHT_DEFAULT
         building_graph = IndoorNavigationBuilder.build(indoor_floors, floor_height=floor_height)
         ground_index = min(fl.floor_index for fl in indoor_floors)
-        unreachable = building_graph.unreachable_rooms_without_elevator(ground_floor_index=ground_index)
+        unreachable = building_graph.unreachable_rooms_without_elevator(
+            ground_floor_index=ground_index
+        )
 
         return {
             "room_graph_available": True,
@@ -4960,14 +5494,18 @@ class AppSession:
                 f"ulaşılamayan {len(unreachable)} oda tespit edildi — "
                 "engelli/hareket kısıtlı tahliye planı eksik olabilir "
                 "(ROADMAP_V9.md Katman 2.4 madde 2 çelişki uyarısı)."
-                if unreachable else
-                "Asansörler devre dışı kalsa bile tüm odalara merdivenle "
+                if unreachable
+                else "Asansörler devre dışı kalsa bile tüm odalara merdivenle "
                 "ulaşılabiliyor (bu binanın bu analizi için)."
             ),
         }
 
     def simulation_evacuation_result(
-        self, project_id: str, result_id: str, *, role: Role | None = None,
+        self,
+        project_id: str,
+        result_id: str,
+        *,
+        role: Role | None = None,
     ) -> dict[str, Any]:
         """Tam sonucu (agent_frames animasyon verisi dahil) döner —
         `render_engine/viewer`'ın oynatabileceği aynı `agent_frames` şeması
@@ -5009,7 +5547,8 @@ class AppSession:
         handle = self._handle(project_id)
         profile = (
             get_regulation_profile(regulation_profile_name)
-            if regulation_profile_name else default_regulation_profile()
+            if regulation_profile_name
+            else default_regulation_profile()
         )
         counts = tuple(agent_counts) if agent_counts else DEFAULT_CAPACITY_AGENT_COUNTS
         report = CapacityAnalyzer.run_batch(
@@ -5030,7 +5569,11 @@ class AppSession:
         return result_data
 
     def capacity_analysis_result(
-        self, project_id: str, result_id: str, *, role: Role | None = None,
+        self,
+        project_id: str,
+        result_id: str,
+        *,
+        role: Role | None = None,
     ) -> dict[str, Any]:
         require_scenario_permission(role, ScenarioAction.VIEW_RESULT)
         handle = self._handle(project_id)
@@ -5113,7 +5656,11 @@ class AppSession:
         return result_data
 
     def fire_spread_demo_result(
-        self, project_id: str, result_id: str, *, role: Role | None = None,
+        self,
+        project_id: str,
+        result_id: str,
+        *,
+        role: Role | None = None,
     ) -> dict[str, Any]:
         require_scenario_permission(role, ScenarioAction.VIEW_RESULT)
         handle = self._handle(project_id)
@@ -5168,14 +5715,17 @@ class AppSession:
         baseline = None
         if baseline_temperature_c is not None:
             baseline = HourlyClimateSample(
-                time_iso="manual", temperature_c=baseline_temperature_c,
-                cloud_cover_pct=0.0, shortwave_radiation_wm2=0.0,
-                direct_radiation_wm2=None, diffuse_radiation_wm2=None,
+                time_iso="manual",
+                temperature_c=baseline_temperature_c,
+                cloud_cover_pct=0.0,
+                shortwave_radiation_wm2=0.0,
+                direct_radiation_wm2=None,
+                diffuse_radiation_wm2=None,
             )
         heat_report = estimate_heat_island_index(fabric, baseline=baseline)
 
         aq_reports: list[dict[str, Any]] = []
-        for seg in (road_segments or []):
+        for seg in road_segments or []:
             traffic = RoadSegmentTraffic(
                 segment_id=str(seg.get("segment_id", "seg")),
                 length_m=float(seg.get("length_m", 0.0)),
@@ -5200,7 +5750,11 @@ class AppSession:
         return result_data
 
     def environment_indicators_result(
-        self, project_id: str, result_id: str, *, role: Role | None = None,
+        self,
+        project_id: str,
+        result_id: str,
+        *,
+        role: Role | None = None,
     ) -> dict[str, Any]:
         require_scenario_permission(role, ScenarioAction.VIEW_RESULT)
         handle = self._handle(project_id)
@@ -5232,10 +5786,14 @@ class AppSession:
             raise AppSessionError("en az bir failed_substation_ids gerekli.")
 
         graph = build_power_network_graph(
-            substation_ids, building_ids, [tuple(e) for e in edges],
+            substation_ids,
+            building_ids,
+            [tuple(e) for e in edges],
         )
         engine = OutagePropagationEngine(
-            graph, all_substation_ids=substation_ids, all_building_ids=building_ids,
+            graph,
+            all_substation_ids=substation_ids,
+            all_building_ids=building_ids,
         )
         report = engine.propagate(failed_substation_ids=failed_substation_ids)
 
@@ -5252,7 +5810,11 @@ class AppSession:
         return result_data
 
     def power_outage_demo_result(
-        self, project_id: str, result_id: str, *, role: Role | None = None,
+        self,
+        project_id: str,
+        result_id: str,
+        *,
+        role: Role | None = None,
     ) -> dict[str, Any]:
         require_scenario_permission(role, ScenarioAction.VIEW_RESULT)
         handle = self._handle(project_id)
@@ -5300,9 +5862,13 @@ class AppSession:
             raise AppSessionError("duration_h pozitif olmalı.")
 
         profile = CityEventProfile(
-            event_id=event_id, category=cat, location_ref=location_ref,
-            expected_attendance=expected_attendance, start_hour=start_hour,
-            duration_h=duration_h, ramp_fraction=ramp_fraction,
+            event_id=event_id,
+            category=cat,
+            location_ref=location_ref,
+            expected_attendance=expected_attendance,
+            start_hour=start_hour,
+            duration_h=duration_h,
+            ramp_fraction=ramp_fraction,
         )
         bus = EventSystem()
         simulator = CityEventSimulator(bus=bus)
@@ -5323,7 +5889,11 @@ class AppSession:
         return result_data
 
     def city_event_demo_result(
-        self, project_id: str, result_id: str, *, role: Role | None = None,
+        self,
+        project_id: str,
+        result_id: str,
+        *,
+        role: Role | None = None,
     ) -> dict[str, Any]:
         require_scenario_permission(role, ScenarioAction.VIEW_RESULT)
         handle = self._handle(project_id)
@@ -5347,6 +5917,7 @@ class AppSession:
         require_scenario_permission(role, ScenarioAction.RUN_SCENARIO)
         self._handle(project_id)
         from ..hazard_data.risk_scoring import RiskLevel
+
         try:
             level = RiskLevel(risk_level)
         except ValueError as exc:
@@ -5355,7 +5926,8 @@ class AppSession:
 
         bus = EventSystem()
         area = CommercialAreaResilience(
-            area_id=area_id, risk_level=level,
+            area_id=area_id,
+            risk_level=level,
             closure_days=closure_days_for_risk_level(level),
             disrupted_at=0.0,
         )
@@ -5369,11 +5941,17 @@ class AppSession:
             "risk_level": level.value,
             "closure_days": area.closure_days,
         }
-        self._handle(project_id).db.save_object(result_id, self._ECONOMIC_RESILIENCE_KIND, result_data)
+        self._handle(project_id).db.save_object(
+            result_id, self._ECONOMIC_RESILIENCE_KIND, result_data
+        )
         return result_data
 
     def economic_resilience_demo_result(
-        self, project_id: str, result_id: str, *, role: Role | None = None,
+        self,
+        project_id: str,
+        result_id: str,
+        *,
+        role: Role | None = None,
     ) -> dict[str, Any]:
         require_scenario_permission(role, ScenarioAction.VIEW_RESULT)
         handle = self._handle(project_id)
@@ -5426,7 +6004,9 @@ class AppSession:
             region_id: regional_agent_density(hierarchy, region_id, agent_counts_by_leaf)
             for region_id in candidate_region_ids
         }
-        best_id, best_count = most_congested_region(hierarchy, candidate_region_ids, agent_counts_by_leaf)
+        best_id, best_count = most_congested_region(
+            hierarchy, candidate_region_ids, agent_counts_by_leaf
+        )
 
         result_id = f"cong_{uuid.uuid4().hex[:12]}"
         result_data = {
@@ -5440,7 +6020,11 @@ class AppSession:
         return result_data
 
     def regional_congestion_demo_result(
-        self, project_id: str, result_id: str, *, role: Role | None = None,
+        self,
+        project_id: str,
+        result_id: str,
+        *,
+        role: Role | None = None,
     ) -> dict[str, Any]:
         require_scenario_permission(role, ScenarioAction.VIEW_RESULT)
         handle = self._handle(project_id)
@@ -5486,20 +6070,26 @@ class AppSession:
 
         comparisons = [
             ScenarioComparison(
-                label=label, metric_name="evacuation_time_s",
+                label=label,
+                metric_name="evacuation_time_s",
                 before_value=float(before["evacuation_time_s"]),
                 after_value=float(after["evacuation_time_s"]),
             ).to_dict(),
             ScenarioComparison(
-                label=label, metric_name="evacuated_count",
+                label=label,
+                metric_name="evacuated_count",
                 before_value=float(before["evacuated_count"]),
                 after_value=float(after["evacuated_count"]),
             ).to_dict(),
         ]
-        if before.get("bottleneck_peak_count") is not None and after.get("bottleneck_peak_count") is not None:
+        if (
+            before.get("bottleneck_peak_count") is not None
+            and after.get("bottleneck_peak_count") is not None
+        ):
             comparisons.append(
                 ScenarioComparison(
-                    label=label, metric_name="bottleneck_peak_count",
+                    label=label,
+                    metric_name="bottleneck_peak_count",
                     before_value=float(before["bottleneck_peak_count"]),
                     after_value=float(after["bottleneck_peak_count"]),
                 ).to_dict()
@@ -5531,7 +6121,11 @@ class AppSession:
         return result_data
 
     def scenario_comparison_demo_result(
-        self, project_id: str, result_id: str, *, role: Role | None = None,
+        self,
+        project_id: str,
+        result_id: str,
+        *,
+        role: Role | None = None,
     ) -> dict[str, Any]:
         require_scenario_permission(role, ScenarioAction.VIEW_RESULT)
         handle = self._handle(project_id)
@@ -5570,7 +6164,8 @@ class AppSession:
             raise AppSessionError("avg_household_size pozitif olmalı.")
 
         generator = SyntheticPopulationGenerator(
-            avg_household_size=avg_household_size, seed=seed,
+            avg_household_size=avg_household_size,
+            seed=seed,
         )
         households = generator.generate_for_building(building_ref, household_count)
         individuals = generator.all_individuals(households)
@@ -5580,8 +6175,12 @@ class AppSession:
         mobility_counts: dict[str, int] = {}
         for ind in individuals:
             age_counts[ind.age_group.value] = age_counts.get(ind.age_group.value, 0) + 1
-            routine_counts[ind.routine_type.value] = routine_counts.get(ind.routine_type.value, 0) + 1
-            mobility_counts[ind.mobility_profile.value] = mobility_counts.get(ind.mobility_profile.value, 0) + 1
+            routine_counts[ind.routine_type.value] = (
+                routine_counts.get(ind.routine_type.value, 0) + 1
+            )
+            mobility_counts[ind.mobility_profile.value] = (
+                mobility_counts.get(ind.mobility_profile.value, 0) + 1
+            )
 
         result_id = f"pop_{uuid.uuid4().hex[:12]}"
         result_data = {
@@ -5616,12 +6215,18 @@ class AppSession:
             ),
         }
         self._handle(project_id).db.save_object(
-            result_id, self._SYNTHETIC_POPULATION_KIND, result_data,
+            result_id,
+            self._SYNTHETIC_POPULATION_KIND,
+            result_data,
         )
         return result_data
 
     def synthetic_population_demo_result(
-        self, project_id: str, result_id: str, *, role: Role | None = None,
+        self,
+        project_id: str,
+        result_id: str,
+        *,
+        role: Role | None = None,
     ) -> dict[str, Any]:
         require_scenario_permission(role, ScenarioAction.VIEW_RESULT)
         handle = self._handle(project_id)
@@ -5661,10 +6266,16 @@ class AppSession:
         if epicenter_lon is not None:
             payload["lon"] = epicenter_lon
         triggering_event = emit_city_event(
-            bus, CityEventType.HAZARD_STARTED, source="web_panel_demo", **payload,
+            bus,
+            CityEventType.HAZARD_STARTED,
+            source="web_panel_demo",
+            **payload,
         )
         return {
-            "triggering_event": {"name": triggering_event.name, "payload": triggering_event.payload},
+            "triggering_event": {
+                "name": triggering_event.name,
+                "payload": triggering_event.payload,
+            },
             "triggered": engine.triggered_log,
             "skipped": engine.skipped_log,
             "rule_count": len(DEFAULT_CASCADE_RULES),
@@ -5710,10 +6321,14 @@ class AppSession:
             graph.add_node(node_id, Point2D(float(s["x"]), float(s["y"])))
             graph.add_edge(node_id, "incident")
             types = frozenset(EmergencyUnitType(t) for t in s.get("unit_types", [unit_type]))
-            station_objs.append(EmergencyStation(
-                station_id=s.get("id", node_id), node_id=node_id,
-                position=Point2D(float(s["x"]), float(s["y"])), unit_types=types,
-            ))
+            station_objs.append(
+                EmergencyStation(
+                    station_id=s.get("id", node_id),
+                    node_id=node_id,
+                    position=Point2D(float(s["x"]), float(s["y"])),
+                    unit_types=types,
+                )
+            )
         # İstasyonlar birbirine de bağlı (tam-bağlı graf) - A*'ın gerçekten
         # "maliyete göre en yakın" seçimi yapabilmesi için (yıldız-topoloji
         # tek başına bunu zaten sağlıyor, ama tam-bağlı olması gerçek yol
@@ -5745,7 +6360,9 @@ class AppSession:
 
     @staticmethod
     def _apply_behavior_distribution(
-        agents: list["CrowdAgent"], distribution: dict[str, float], seed: int | None,
+        agents: list[CrowdAgent],
+        distribution: dict[str, float],
+        seed: int | None,
     ) -> None:
         """`spawn_random_agents` her agent'ı `AgentBehavior.NORMAL` ile
         üretir; senaryonun `behavior_distribution`'ına göre (deterministik,
@@ -5791,7 +6408,9 @@ class AppSession:
             raise AppSessionError(str(exc)) from exc
         return {"user_id": user.user_id, "username": user.username}
 
-    def grant_project_role(self, project_id: str, token: str, target_user_id: str, role: str) -> dict[str, Any]:
+    def grant_project_role(
+        self, project_id: str, token: str, target_user_id: str, role: str
+    ) -> dict[str, Any]:
         """Yalnızca projede zaten en az OWNER yetkisine sahip bir
         kullanıcı, başka bir kullanıcıya rol atayabilir. Projenin hiç
         üyesi yoksa (ilk çağrı), token sahibi otomatik OWNER olarak
@@ -5818,16 +6437,18 @@ class AppSession:
     def project_members(self, project_id: str) -> dict[str, Any]:
         members = self._auth.members(project_id)
         return {
-            "members": [
-                {"user_id": m.user_id, "role": m.role.name}
-                for m in members
-            ],
+            "members": [{"user_id": m.user_id, "role": m.role.name} for m in members],
         }
 
     # -- Web arayüzü köprüsü: AI İç Mekan / Çevre Üretimi (ai_reconstruction) --
 
     def generate_interior_layout(
-        self, project_id: str, key: str, *, n_variants: int = 5, min_room_size: float = 3.0,
+        self,
+        project_id: str,
+        key: str,
+        *,
+        n_variants: int = 5,
+        min_room_size: float = 3.0,
     ) -> dict[str, Any]:
         """`AIInteriorLayout`'u binanın zemin ayak izi (footprint) üzerinde
         çalıştırır; `n_variants` alternatif üretip en çeşitli (diversity
@@ -5837,25 +6458,37 @@ class AppSession:
         layout = AIInteriorLayout()
         variants = layout.generate_alternatives(
             entry.building.footprint.polygon,
-            building_type=entry.building.building_type.value if hasattr(entry.building.building_type, "value") else str(entry.building.building_type),
-            min_room_size=min_room_size, n_variants=n_variants,
+            building_type=entry.building.building_type.value
+            if hasattr(entry.building.building_type, "value")
+            else str(entry.building.building_type),
+            min_room_size=min_room_size,
+            n_variants=n_variants,
         )
         best = layout.best_variant(variants)
         return {
             "best_seed": best.seed,
             "best_diversity_score": round(best.diversity_score, 3),
             "best_rooms": [
-                {"room_type": r.room_type, "area_m2": round(r.area_m2, 1)}
-                for r in best.rooms
+                {"room_type": r.room_type, "area_m2": round(r.area_m2, 1)} for r in best.rooms
             ],
             "alternatives": [
-                {"seed": v.seed, "diversity_score": round(v.diversity_score, 3), "room_count": len(v.rooms)}
+                {
+                    "seed": v.seed,
+                    "diversity_score": round(v.diversity_score, 3),
+                    "room_count": len(v.rooms),
+                }
                 for v in variants
             ],
         }
 
     def generate_environment(
-        self, project_id: str, key: str, *, margin_m: float = 15.0, min_setback_m: float = 1.5, seed: int | None = None,
+        self,
+        project_id: str,
+        key: str,
+        *,
+        margin_m: float = 15.0,
+        min_setback_m: float = 1.5,
+        seed: int | None = None,
     ) -> dict[str, Any]:
         """`AIEnvironmentGenerator`'ı binanın footprint'i etrafındaki boş
         alana çevre objesi (ağaç, bank, lamba, direk vb.) yerleştirmek
@@ -5863,7 +6496,9 @@ class AppSession:
         entry = self._entry(project_id, key)
         generator = AIEnvironmentGenerator(seed=seed)
         objects = generator.generate(
-            entry.building.footprint.polygon, margin_m=margin_m, min_setback_m=min_setback_m,
+            entry.building.footprint.polygon,
+            margin_m=margin_m,
+            min_setback_m=min_setback_m,
         )
         counts: dict[str, int] = {}
         for obj in objects:
@@ -5872,8 +6507,13 @@ class AppSession:
             "count": len(objects),
             "counts_by_type": counts,
             "objects": [
-                {"type": o.object_type.value, "x": round(o.position.x, 2), "y": round(o.position.y, 2),
-                 "rotation_deg": round(o.rotation_deg, 1), "scale": round(o.scale, 2)}
+                {
+                    "type": o.object_type.value,
+                    "x": round(o.position.x, 2),
+                    "y": round(o.position.y, 2),
+                    "rotation_deg": round(o.rotation_deg, 1),
+                    "scale": round(o.scale, 2),
+                }
                 for o in objects
             ],
         }
@@ -5915,7 +6555,9 @@ class AppSession:
             out["n_gpu_layers"] = cfg.get("n_gpu_layers", 0)
         else:
             api_key = str(cfg.get("api_key", ""))
-            out["api_key_masked"] = ("*" * max(len(api_key) - 4, 0)) + api_key[-4:] if api_key else ""
+            out["api_key_masked"] = (
+                ("*" * max(len(api_key) - 4, 0)) + api_key[-4:] if api_key else ""
+            )
             out["model"] = cfg.get("model", "")
             if backend == "openai":
                 out["base_url"] = cfg.get("base_url", "https://api.openai.com/v1")
@@ -5973,9 +6615,14 @@ class AppSession:
         katmanlardan biri olması beklenir."""
         result: TileDownloadResult = download_bbox(
             self._offline_cache,
-            min_lat=min_lat, min_lon=min_lon, max_lat=max_lat, max_lon=max_lon,
-            zoom_min=zoom_min, zoom_max=zoom_max,
-            url_template=url_template, region_name=region_name,
+            min_lat=min_lat,
+            min_lon=min_lon,
+            max_lat=max_lat,
+            max_lon=max_lon,
+            zoom_min=zoom_min,
+            zoom_max=zoom_max,
+            url_template=url_template,
+            region_name=region_name,
         )
         return {
             "requested": result.requested,
@@ -6032,6 +6679,12 @@ class AppSession:
     def offline_search_places(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         """A4'ün yerel isim->koordinat aramasının dışa açık ucu."""
         return [
-            {"name": e.name, "lat": e.lat, "lon": e.lon, "category": e.category, "feature_type": e.feature_type}
+            {
+                "name": e.name,
+                "lat": e.lat,
+                "lon": e.lon,
+                "category": e.category,
+                "feature_type": e.feature_type,
+            }
             for e in self._offline_place_index.search(query, limit=limit)
         ]

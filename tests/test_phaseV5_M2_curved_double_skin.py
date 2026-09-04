@@ -6,23 +6,22 @@ from __future__ import annotations
 import math
 
 import pytest
-
-from harita.building_reconstruction.curved_facade import CurvedFootprintGenerator
 from harita.building_reconstruction.building_elements import (
     DoubleSkinFacade,
     DoubleSkinFacadeGenerator,
 )
+from harita.building_reconstruction.curved_facade import CurvedFootprintGenerator
 from harita.building_reconstruction.footprint_parser import Footprint
 from harita.building_reconstruction.procedural_generator import (
-    ProceduralBuildingGenerator,
     BuildingType,
+    ProceduralBuildingGenerator,
 )
 from harita.core_engine.geometry_engine import Point2D, Polygon
-
 
 # ---------------------------------------------------------------------- #
 # CurvedFootprintGenerator
 # ---------------------------------------------------------------------- #
+
 
 class TestCircularFootprint:
     def test_vertex_count_matches_segments(self):
@@ -49,17 +48,28 @@ class TestCircularFootprint:
 class TestEllipticalFootprint:
     def test_produces_valid_polygon(self):
         poly = CurvedFootprintGenerator.elliptical_footprint(
-            Point2D(0, 0), radius_x=10.0, radius_y=5.0, segments=20,
+            Point2D(0, 0),
+            radius_x=10.0,
+            radius_y=5.0,
+            segments=20,
         )
         assert len(poly.closed_ring()) - 1 == 20
         assert not CurvedFootprintGenerator.is_self_intersecting(poly)
 
     def test_rotation_changes_orientation(self):
         base = CurvedFootprintGenerator.elliptical_footprint(
-            Point2D(0, 0), radius_x=10.0, radius_y=4.0, rotation_deg=0.0, segments=16,
+            Point2D(0, 0),
+            radius_x=10.0,
+            radius_y=4.0,
+            rotation_deg=0.0,
+            segments=16,
         )
         rotated = CurvedFootprintGenerator.elliptical_footprint(
-            Point2D(0, 0), radius_x=10.0, radius_y=4.0, rotation_deg=45.0, segments=16,
+            Point2D(0, 0),
+            radius_x=10.0,
+            radius_y=4.0,
+            rotation_deg=45.0,
+            segments=16,
         )
         base_pts = [(round(p.x, 6), round(p.y, 6)) for p in base.closed_ring()[:-1]]
         rot_pts = [(round(p.x, 6), round(p.y, 6)) for p in rotated.closed_ring()[:-1]]
@@ -67,9 +77,15 @@ class TestEllipticalFootprint:
 
 
 class TestRoundedRectangleFootprint:
-    @pytest.mark.parametrize("w,d,r", [
-        (20.0, 12.0, 3.0), (10.0, 10.0, 4.9), (30.0, 8.0, 3.9), (15.0, 15.0, 0.5),
-    ])
+    @pytest.mark.parametrize(
+        "w,d,r",
+        [
+            (20.0, 12.0, 3.0),
+            (10.0, 10.0, 4.9),
+            (30.0, 8.0, 3.9),
+            (15.0, 15.0, 0.5),
+        ],
+    )
     def test_no_self_intersection_across_sizes(self, w, d, r):
         poly = CurvedFootprintGenerator.rounded_rectangle_footprint(w, d, corner_radius=r)
         assert not CurvedFootprintGenerator.is_self_intersecting(poly)
@@ -91,8 +107,12 @@ class TestRoundedRectangleFootprint:
         assert len(poly.closed_ring()) - 1 == 4
 
     def test_segments_per_corner_increases_vertex_count(self):
-        low = CurvedFootprintGenerator.rounded_rectangle_footprint(20, 12, corner_radius=3.0, segments_per_corner=2)
-        high = CurvedFootprintGenerator.rounded_rectangle_footprint(20, 12, corner_radius=3.0, segments_per_corner=10)
+        low = CurvedFootprintGenerator.rounded_rectangle_footprint(
+            20, 12, corner_radius=3.0, segments_per_corner=2
+        )
+        high = CurvedFootprintGenerator.rounded_rectangle_footprint(
+            20, 12, corner_radius=3.0, segments_per_corner=10
+        )
         n_low = len(low.closed_ring()) - 1
         n_high = len(high.closed_ring()) - 1
         assert n_high > n_low
@@ -113,6 +133,7 @@ class TestSelfIntersectionDetector:
 # DoubleSkinFacadeGenerator
 # ---------------------------------------------------------------------- #
 
+
 class TestDoubleSkinFacadeGenerator:
     @pytest.fixture
     def base_polygon(self) -> Polygon:
@@ -120,7 +141,11 @@ class TestDoubleSkinFacadeGenerator:
 
     def test_returns_double_skin_facade_dataclass(self, base_polygon):
         result = DoubleSkinFacadeGenerator.generate(
-            base_polygon, base_z=0.0, floor_count=5, floor_height=3.2, gap_m=0.9,
+            base_polygon,
+            base_z=0.0,
+            floor_count=5,
+            floor_height=3.2,
+            gap_m=0.9,
         )
         assert isinstance(result, DoubleSkinFacade)
         assert result.outer_skin_mesh.triangle_count() > 0
@@ -128,7 +153,11 @@ class TestDoubleSkinFacadeGenerator:
 
     def test_outer_skin_is_outside_primary_footprint(self, base_polygon):
         result = DoubleSkinFacadeGenerator.generate(
-            base_polygon, base_z=0.0, floor_count=3, floor_height=3.0, gap_m=1.2,
+            base_polygon,
+            base_z=0.0,
+            floor_count=3,
+            floor_height=3.0,
+            gap_m=1.2,
         )
         bbox_min, bbox_max = result.outer_skin_mesh.bounding_box()
         base_ring = base_polygon.closed_ring()[:-1]
@@ -141,10 +170,18 @@ class TestDoubleSkinFacadeGenerator:
 
     def test_shading_fins_optional(self, base_polygon):
         with_fins = DoubleSkinFacadeGenerator.generate(
-            base_polygon, base_z=0.0, floor_count=4, floor_height=3.0, add_shading_fins=True,
+            base_polygon,
+            base_z=0.0,
+            floor_count=4,
+            floor_height=3.0,
+            add_shading_fins=True,
         )
         without_fins = DoubleSkinFacadeGenerator.generate(
-            base_polygon, base_z=0.0, floor_count=4, floor_height=3.0, add_shading_fins=False,
+            base_polygon,
+            base_z=0.0,
+            floor_count=4,
+            floor_height=3.0,
+            add_shading_fins=False,
         )
         assert with_fins.shading_fin_mesh is not None
         assert with_fins.fin_count > 0
@@ -153,7 +190,11 @@ class TestDoubleSkinFacadeGenerator:
 
     def test_gap_zero_returns_same_footprint_shell(self, base_polygon):
         result = DoubleSkinFacadeGenerator.generate(
-            base_polygon, base_z=0.0, floor_count=2, floor_height=3.0, gap_m=0.0,
+            base_polygon,
+            base_z=0.0,
+            floor_count=2,
+            floor_height=3.0,
+            gap_m=0.0,
         )
         bbox_min, bbox_max = result.outer_skin_mesh.bounding_box()
         base_ring = base_polygon.closed_ring()[:-1]
@@ -163,7 +204,10 @@ class TestDoubleSkinFacadeGenerator:
     def test_total_height_covers_all_floors(self, base_polygon):
         floor_count, floor_height = 6, 3.1
         result = DoubleSkinFacadeGenerator.generate(
-            base_polygon, base_z=10.0, floor_count=floor_count, floor_height=floor_height,
+            base_polygon,
+            base_z=10.0,
+            floor_count=floor_count,
+            floor_height=floor_height,
         )
         bbox_min, bbox_max = result.outer_skin_mesh.bounding_box()
         assert abs(bbox_min[2] - 10.0) < 0.1
@@ -173,6 +217,7 @@ class TestDoubleSkinFacadeGenerator:
 # ---------------------------------------------------------------------- #
 # ProceduralBuildingGenerator integration (opt-in, backward compatible)
 # ---------------------------------------------------------------------- #
+
 
 class TestProceduralGeneratorDoubleSkinIntegration:
     def test_default_behavior_unchanged_without_opt_in(self):
@@ -187,7 +232,10 @@ class TestProceduralGeneratorDoubleSkinIntegration:
 
         without = ProceduralBuildingGenerator.generate(fp, building_type=BuildingType.OFIS)
         with_ds = ProceduralBuildingGenerator.generate(
-            fp, building_type=BuildingType.OFIS, add_double_skin=True, double_skin_gap_m=0.8,
+            fp,
+            building_type=BuildingType.OFIS,
+            add_double_skin=True,
+            double_skin_gap_m=0.8,
         )
 
         assert with_ds.double_skin is not None

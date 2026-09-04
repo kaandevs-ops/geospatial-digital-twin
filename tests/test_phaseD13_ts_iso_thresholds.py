@@ -21,31 +21,38 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from harita.building_reconstruction.facade_generator import (
+    FIRE_ESCAPE_MIN_FLOORS,
+    Facade,
+    FacadeGenerator,
+    FacadeMaterial,
+)
+from harita.building_reconstruction.facade_generator import (
+    THRESHOLD_SOURCES as FACADE_THRESHOLD_SOURCES,
+)
 from harita.building_reconstruction.room_generator import (
     MIN_CORRIDOR_WIDTH_M,
     MIN_ROOM_AREA_M2,
-    THRESHOLD_SOURCES as ROOM_THRESHOLD_SOURCES,
     Room,
     RoomGenerator,
     RoomType,
 )
-from harita.building_reconstruction.facade_generator import (
-    FIRE_ESCAPE_MIN_FLOORS,
-    MIN_WINDOW_WALL_RATIO,
-    THRESHOLD_SOURCES as FACADE_THRESHOLD_SOURCES,
-    Facade,
-    FacadeGenerator,
-    FacadeMaterial,
+from harita.building_reconstruction.room_generator import (
+    THRESHOLD_SOURCES as ROOM_THRESHOLD_SOURCES,
 )
 from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.material_engine import ProceduralMaterials
 
 
 def _square(size: float) -> Polygon:
-    return Polygon([
-        Point2D(0.0, 0.0), Point2D(size, 0.0),
-        Point2D(size, size), Point2D(0.0, size),
-    ])
+    return Polygon(
+        [
+            Point2D(0.0, 0.0),
+            Point2D(size, 0.0),
+            Point2D(size, size),
+            Point2D(0.0, size),
+        ]
+    )
 
 
 class TestThresholdSourcesDocumented:
@@ -91,10 +98,14 @@ class TestRoomComplianceRegression:
 
     def test_narrow_corridor_flagged(self):
         narrow_corridor = Room(
-            polygon=Polygon([
-                Point2D(0.0, 0.0), Point2D(5.0, 0.0),
-                Point2D(5.0, 0.8), Point2D(0.0, 0.8),
-            ]),
+            polygon=Polygon(
+                [
+                    Point2D(0.0, 0.0),
+                    Point2D(5.0, 0.0),
+                    Point2D(5.0, 0.8),
+                    Point2D(0.0, 0.8),
+                ]
+            ),
             room_type=RoomType.KORIDOR.value,
             room_id=0,
         )
@@ -109,7 +120,10 @@ class TestFacadeComplianceRegression:
         facade = Facade(material=FacadeMaterial.BETON, pbr_material=pbr, windows=[], mesh=None)
         polygon = _square(10.0)
         report = FacadeGenerator.check_compliance(
-            facade, polygon, floor_height=3.0, floor_count=1,
+            facade,
+            polygon,
+            floor_height=3.0,
+            floor_count=1,
             building_type="apartman",
         )
         assert report.window_wall_ratio == 0.0
@@ -119,11 +133,18 @@ class TestFacadeComplianceRegression:
     def test_tall_building_without_second_egress_flagged(self):
         pbr = ProceduralMaterials.create(FacadeMaterial.BETON.value, variation_seed=1)
         facade = FacadeGenerator.generate(
-            _square(10.0), "apartman", base_z=0.0, floor_height=3.0, seed=1,
+            _square(10.0),
+            "apartman",
+            base_z=0.0,
+            floor_height=3.0,
+            seed=1,
         )
         report = FacadeGenerator.check_compliance(
-            facade, _square(10.0), floor_height=3.0,
-            floor_count=FIRE_ESCAPE_MIN_FLOORS, building_type="apartman",
+            facade,
+            _square(10.0),
+            floor_height=3.0,
+            floor_count=FIRE_ESCAPE_MIN_FLOORS,
+            building_type="apartman",
             has_second_egress=False,
         )
         assert report.requires_fire_escape
@@ -131,11 +152,18 @@ class TestFacadeComplianceRegression:
 
     def test_tall_building_with_second_egress_not_flagged_for_escape(self):
         facade = FacadeGenerator.generate(
-            _square(10.0), "apartman", base_z=0.0, floor_height=3.0, seed=1,
+            _square(10.0),
+            "apartman",
+            base_z=0.0,
+            floor_height=3.0,
+            seed=1,
         )
         report = FacadeGenerator.check_compliance(
-            facade, _square(10.0), floor_height=3.0,
-            floor_count=FIRE_ESCAPE_MIN_FLOORS, building_type="apartman",
+            facade,
+            _square(10.0),
+            floor_height=3.0,
+            floor_count=FIRE_ESCAPE_MIN_FLOORS,
+            building_type="apartman",
             has_second_egress=True,
         )
         assert report.requires_fire_escape

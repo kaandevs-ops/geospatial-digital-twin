@@ -24,13 +24,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from harita.core_engine.geometry_engine import Point2D, Polygon
-from harita.mesh_engine import MeshBuilder, Mesh3D
+from harita.mesh_engine import Mesh3D, MeshBuilder
 from harita.render_engine import (
-    Scene,
     DEFAULT_LOD_RATIOS,
-    DEFAULT_LOD_DISTANCES,
-    select_lod_for_distance,
+    Scene,
     node_world_center,
+    select_lod_for_distance,
     total_triangle_count_for_camera,
     total_triangle_count_full_detail,
     visible_node_names,
@@ -41,10 +40,14 @@ from harita.visualization.camera_rig import Camera
 def _building_mesh(cx: float, cz: float, name: str) -> Mesh3D:
     """Basit dikdörtgen prizma bina - her biri aynı sabit üçgen sayısına
     sahip (extrude_polygon 4 duvar + taban + tavan -> sabit topoloji)."""
-    poly = Polygon(points=[
-        Point2D(cx, cz), Point2D(cx + 8, cz),
-        Point2D(cx + 8, cz + 8), Point2D(cx, cz + 8),
-    ])
+    poly = Polygon(
+        points=[
+            Point2D(cx, cz),
+            Point2D(cx + 8, cz),
+            Point2D(cx + 8, cz + 8),
+            Point2D(cx, cz + 8),
+        ]
+    )
     return MeshBuilder.extrude_polygon(poly, base_z=0.0, height=12.0, name=name)
 
 
@@ -83,7 +86,9 @@ class TestAddMeshWithLod:
         scene = Scene()
         mesh = _building_mesh(0, 0, "bina")
         node = scene.add_mesh_with_lod(
-            mesh, lod_ratios=(1.0, 0.3), lod_distances=(10.0, math.inf),
+            mesh,
+            lod_ratios=(1.0, 0.3),
+            lod_distances=(10.0, math.inf),
         )
         assert len(node.lod_levels) == 2
         assert node.lod_levels[0][0] == 10.0
@@ -131,6 +136,7 @@ class TestSceneToDictLodGroups:
         # D2 sahne şemasına yeni alan (lod_groups) eklendiği için versiyon
         # Faz 15'teki 1.0'dan ileri gitmeli (geriye uyumlu ek alan).
         from harita.render_engine import SCENE_SCHEMA_VERSION
+
         assert SCENE_SCHEMA_VERSION > "1.0"
 
 

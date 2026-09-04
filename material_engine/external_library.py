@@ -41,7 +41,6 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from . import PBRMaterial, ProceduralMaterials
 
@@ -74,7 +73,7 @@ class ExternalMaterialAsset:
     display_name: str
     category: str
     download_urls: dict[str, str] = field(default_factory=dict)  # map_type -> url
-    preview_url: Optional[str] = None
+    preview_url: str | None = None
     license: str = "CC0"
 
 
@@ -89,7 +88,9 @@ class AmbientCGClient:
         self.base_url = base_url
         self.timeout = timeout
 
-    def search(self, query: str, limit: int = 5, category: str = "Atlas,Decal,Material") -> list[ExternalMaterialAsset]:
+    def search(
+        self, query: str, limit: int = 5, category: str = "Atlas,Decal,Material"
+    ) -> list[ExternalMaterialAsset]:
         """Verilen anahtar kelimeyle malzeme ara.
 
         ambientCG şeması: `{"foundAssets": [{"assetId": ..., "displayName":
@@ -130,7 +131,11 @@ class AmbientCGClient:
         downloads: dict[str, str] = {}
         folders = item.get("downloadFolders", {})
         default_folder = folders.get("default", {}) if isinstance(folders, dict) else {}
-        filetypes = default_folder.get("downloadFiletypeCategories", {}) if isinstance(default_folder, dict) else {}
+        filetypes = (
+            default_folder.get("downloadFiletypeCategories", {})
+            if isinstance(default_folder, dict)
+            else {}
+        )
         zip_cat = filetypes.get("zip", {}) if isinstance(filetypes, dict) else {}
         for entry in zip_cat.get("downloads", []) if isinstance(zip_cat, dict) else []:
             attr = entry.get("attribute")
@@ -177,7 +182,7 @@ class PBRMaterialLibrary:
     çağırana hangi yoldan geldiğini söyler.
     """
 
-    def __init__(self, cache_dir: str | Path, client: Optional[AmbientCGClient] = None) -> None:
+    def __init__(self, cache_dir: str | Path, client: AmbientCGClient | None = None) -> None:
         self.cache_dir = Path(cache_dir)
         self.client = client or AmbientCGClient()
         self._index_path = self.cache_dir / "index.json"
@@ -193,9 +198,11 @@ class PBRMaterialLibrary:
 
     def _save_index(self, index: dict[str, dict]) -> None:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self._index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
+        self._index_path.write_text(
+            json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
 
-    def cached_entry(self, material_type: str) -> Optional[LibraryCacheEntry]:
+    def cached_entry(self, material_type: str) -> LibraryCacheEntry | None:
         index = self._load_index()
         raw = index.get(material_type)
         if raw is None:
@@ -256,4 +263,6 @@ class PBRMaterialLibrary:
 
         # Fallback: hiçbir gerçek doku bulunamadı/indirilemedi -> mevcut
         # prosedürel placeholder (davranış roadmap-öncesiyle birebir aynı).
-        return ProceduralMaterials.create(material_type, variation_seed=variation_seed), "procedural"
+        return ProceduralMaterials.create(
+            material_type, variation_seed=variation_seed
+        ), "procedural"

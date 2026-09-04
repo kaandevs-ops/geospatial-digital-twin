@@ -57,38 +57,62 @@ class Room:
 # seçimde daha 'gerçekçi' dağılım için).
 _ROOM_POOLS: dict[str, list[tuple[RoomType, float]]] = {
     "apartman": [
-        (RoomType.SALON, 3.0), (RoomType.YATAK_ODASI, 3.0), (RoomType.WC, 1.5),
-        (RoomType.MUTFAK, 2.0), (RoomType.KORIDOR, 1.0),
+        (RoomType.SALON, 3.0),
+        (RoomType.YATAK_ODASI, 3.0),
+        (RoomType.WC, 1.5),
+        (RoomType.MUTFAK, 2.0),
+        (RoomType.KORIDOR, 1.0),
     ],
     "villa": [
-        (RoomType.SALON, 2.5), (RoomType.YATAK_ODASI, 3.5), (RoomType.WC, 2.0),
-        (RoomType.MUTFAK, 1.5), (RoomType.KORIDOR, 1.0), (RoomType.GARAJ, 1.0),
+        (RoomType.SALON, 2.5),
+        (RoomType.YATAK_ODASI, 3.5),
+        (RoomType.WC, 2.0),
+        (RoomType.MUTFAK, 1.5),
+        (RoomType.KORIDOR, 1.0),
+        (RoomType.GARAJ, 1.0),
     ],
     "ofis": [
-        (RoomType.OFIS, 4.0), (RoomType.TOPLANTI, 2.0), (RoomType.WC, 1.0),
-        (RoomType.KORIDOR, 2.0), (RoomType.SUNUCU_ODASI, 0.5),
+        (RoomType.OFIS, 4.0),
+        (RoomType.TOPLANTI, 2.0),
+        (RoomType.WC, 1.0),
+        (RoomType.KORIDOR, 2.0),
+        (RoomType.SUNUCU_ODASI, 0.5),
         (RoomType.ELEKTRIK_ODASI, 0.5),
     ],
     "fabrika": [
-        (RoomType.MAKINE_ODASI, 3.0), (RoomType.DEPO, 3.0),
-        (RoomType.ELEKTRIK_ODASI, 1.0), (RoomType.KORIDOR, 1.0),
-        (RoomType.OFIS, 1.0), (RoomType.WC, 0.5),
+        (RoomType.MAKINE_ODASI, 3.0),
+        (RoomType.DEPO, 3.0),
+        (RoomType.ELEKTRIK_ODASI, 1.0),
+        (RoomType.KORIDOR, 1.0),
+        (RoomType.OFIS, 1.0),
+        (RoomType.WC, 0.5),
     ],
     "hastane": [
-        (RoomType.KORIDOR, 3.0), (RoomType.LABORATUVAR, 1.5),
-        (RoomType.OFIS, 1.0), (RoomType.WC, 2.0), (RoomType.DEPO, 1.0),
+        (RoomType.KORIDOR, 3.0),
+        (RoomType.LABORATUVAR, 1.5),
+        (RoomType.OFIS, 1.0),
+        (RoomType.WC, 2.0),
+        (RoomType.DEPO, 1.0),
         (RoomType.ELEKTRIK_ODASI, 0.5),
     ],
     "okul": [
-        (RoomType.OFIS, 1.0), (RoomType.KORIDOR, 3.0), (RoomType.WC, 2.0),
-        (RoomType.DEPO, 1.0), (RoomType.TOPLANTI, 1.0),
+        (RoomType.OFIS, 1.0),
+        (RoomType.KORIDOR, 3.0),
+        (RoomType.WC, 2.0),
+        (RoomType.DEPO, 1.0),
+        (RoomType.TOPLANTI, 1.0),
     ],
     "depo": [
-        (RoomType.DEPO, 6.0), (RoomType.KORIDOR, 1.0), (RoomType.ELEKTRIK_ODASI, 0.5),
+        (RoomType.DEPO, 6.0),
+        (RoomType.KORIDOR, 1.0),
+        (RoomType.ELEKTRIK_ODASI, 0.5),
     ],
     "_default": [
-        (RoomType.SALON, 2.0), (RoomType.KORIDOR, 2.0), (RoomType.DEPO, 1.0),
-        (RoomType.WC, 1.0), (RoomType.OFIS, 1.0),
+        (RoomType.SALON, 2.0),
+        (RoomType.KORIDOR, 2.0),
+        (RoomType.DEPO, 1.0),
+        (RoomType.WC, 1.0),
+        (RoomType.OFIS, 1.0),
     ],
 }
 
@@ -178,20 +202,28 @@ class _Rect:
         return self.max_y - self.min_y
 
     def to_polygon(self) -> Polygon:
-        return Polygon([
-            Point2D(self.min_x, self.min_y),
-            Point2D(self.max_x, self.min_y),
-            Point2D(self.max_x, self.max_y),
-            Point2D(self.min_x, self.max_y),
-        ])
+        return Polygon(
+            [
+                Point2D(self.min_x, self.min_y),
+                Point2D(self.max_x, self.min_y),
+                Point2D(self.max_x, self.max_y),
+                Point2D(self.min_x, self.max_y),
+            ]
+        )
 
-    def touches(self, other: "_Rect", eps: float = 1e-6) -> bool:
+    def touches(self, other: _Rect, eps: float = 1e-6) -> bool:
         """İki dikdörtgen bir kenar boyunca komşu mu (bitişik mi)?"""
         x_overlap = min(self.max_x, other.max_x) - max(self.min_x, other.min_x)
         y_overlap = min(self.max_y, other.max_y) - max(self.min_y, other.min_y)
-        vertically_adjacent = abs(self.max_x - other.min_x) < eps or abs(other.max_x - self.min_x) < eps
-        horizontally_adjacent = abs(self.max_y - other.min_y) < eps or abs(other.max_y - self.min_y) < eps
-        return (vertically_adjacent and y_overlap > eps) or (horizontally_adjacent and x_overlap > eps)
+        vertically_adjacent = (
+            abs(self.max_x - other.min_x) < eps or abs(other.max_x - self.min_x) < eps
+        )
+        horizontally_adjacent = (
+            abs(self.max_y - other.min_y) < eps or abs(other.max_y - self.min_y) < eps
+        )
+        return (vertically_adjacent and y_overlap > eps) or (
+            horizontally_adjacent and x_overlap > eps
+        )
 
 
 class RoomGenerator:
@@ -245,9 +277,8 @@ class RoomGenerator:
             left = _Rect(rect.min_x, rect.min_y, rect.max_x, cut)
             right = _Rect(rect.min_x, cut, rect.max_x, rect.max_y)
 
-        return (
-            RoomGenerator._bsp_split(left, rng, min_size, depth - 1)
-            + RoomGenerator._bsp_split(right, rng, min_size, depth - 1)
+        return RoomGenerator._bsp_split(left, rng, min_size, depth - 1) + RoomGenerator._bsp_split(
+            right, rng, min_size, depth - 1
         )
 
     # ------------------------------------------------------------------ #
@@ -284,8 +315,10 @@ class RoomGenerator:
     def _build_adjacency(rooms: list[Room]) -> None:
         rects = [
             _Rect(
-                min(p.x for p in r.polygon.points), min(p.y for p in r.polygon.points),
-                max(p.x for p in r.polygon.points), max(p.y for p in r.polygon.points),
+                min(p.x for p in r.polygon.points),
+                min(p.y for p in r.polygon.points),
+                max(p.x for p in r.polygon.points),
+                max(p.y for p in r.polygon.points),
             )
             for r in rooms
         ]
@@ -326,26 +359,30 @@ class RoomGenerator:
         for room in rooms:
             min_area = active_profile.room_area_threshold(room.room_type)
             if min_area is not None and room.area_m2 < min_area:
-                issues.append(RoomComplianceIssue(
-                    room_id=room.room_id,
-                    room_type=room.room_type,
-                    reason=(
-                        f"alan {room.area_m2:.2f}m2 < asgari {min_area:.2f}m2 "
-                        f"[PAİY-27 | profil={active_profile.name}]"
-                    ),
-                ))
+                issues.append(
+                    RoomComplianceIssue(
+                        room_id=room.room_id,
+                        room_type=room.room_type,
+                        reason=(
+                            f"alan {room.area_m2:.2f}m2 < asgari {min_area:.2f}m2 "
+                            f"[PAİY-27 | profil={active_profile.name}]"
+                        ),
+                    )
+                )
             if room.room_type == RoomType.KORIDOR.value:
                 xs = [p.x for p in room.polygon.points]
                 ys = [p.y for p in room.polygon.points]
                 short_side = min(max(xs) - min(xs), max(ys) - min(ys))
                 if short_side < active_profile.min_corridor_width_m:
-                    issues.append(RoomComplianceIssue(
-                        room_id=room.room_id,
-                        room_type=room.room_type,
-                        reason=(
-                            f"koridor genisligi {short_side:.2f}m < asgari "
-                            f"{active_profile.min_corridor_width_m:.2f}m "
-                            f"[ISO 21542/BYKHY | profil={active_profile.name}]"
-                        ),
-                    ))
+                    issues.append(
+                        RoomComplianceIssue(
+                            room_id=room.room_id,
+                            room_type=room.room_type,
+                            reason=(
+                                f"koridor genisligi {short_side:.2f}m < asgari "
+                                f"{active_profile.min_corridor_width_m:.2f}m "
+                                f"[ISO 21542/BYKHY | profil={active_profile.name}]"
+                            ),
+                        )
+                    )
         return RoomComplianceReport(total_rooms=len(rooms), issues=issues)

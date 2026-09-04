@@ -32,9 +32,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from harita.app_shell.session import AppSession, AppSessionError
 from harita.app_shell.api import build_app_router
-
+from harita.app_shell.session import AppSession, AppSessionError
 
 _SAMPLE_FEATURE_COLLECTION = {
     "type": "FeatureCollection",
@@ -78,6 +77,7 @@ def _make_session():
 # 1. AppSession.import_geojson
 # ------------------------------------------------------------------ #
 
+
 def test_import_geojson_creates_buildings_and_skips_non_polygon():
     sess, pid, _tmp = _make_session()
     result = sess.import_geojson(pid, json.dumps(_SAMPLE_FEATURE_COLLECTION))
@@ -118,6 +118,7 @@ def test_import_geojson_empty_collection_creates_nothing():
 # ------------------------------------------------------------------ #
 # 2. AppSession.export_scene - 7 format, gerçek dosya I/O
 # ------------------------------------------------------------------ #
+
 
 def test_export_scene_requires_at_least_one_building():
     sess, pid, tmp = _make_session()
@@ -172,10 +173,10 @@ def test_export_scene_glb_embeds_real_pbr_materials():
     assert total_length == len(data)
 
     offset = 12
-    json_chunk_len, json_chunk_type = _struct.unpack("<II", data[offset:offset + 8])
+    json_chunk_len, json_chunk_type = _struct.unpack("<II", data[offset : offset + 8])
     assert json_chunk_type == 0x4E4F534A  # 'JSON'
     offset += 8
-    json_bytes = data[offset:offset + json_chunk_len]
+    json_bytes = data[offset : offset + json_chunk_len]
     gltf = json.loads(json_bytes.decode("utf-8"))
 
     # En az 1 mesh/node, en az 1 materyal ve gerçek baseColorFactor rengi
@@ -221,6 +222,7 @@ def test_export_scene_ifc_produces_syntactically_valid_step():
     out_dir = os.path.join(tmp, "exports")
     result = sess.export_scene(pid, "ifc", out_dir=out_dir)
     from harita.export.ifc_export import IFCExporter as _IFCExporter
+
     text = Path(result["path"]).read_text(encoding="utf-8")
     _IFCExporter.validate_step(text)  # hata fırlatmazsa geçerli
 
@@ -231,6 +233,7 @@ def test_export_scene_3dtiles_produces_valid_tileset():
     out_dir = os.path.join(tmp, "exports")
     result = sess.export_scene(pid, "3dtiles", out_dir=out_dir)
     from harita.export.tiles_3d import Tiles3DExporter as _Tiles3DExporter
+
     tileset_path = Path(result["path"]) / "tileset.json"
     assert tileset_path.exists()
     _Tiles3DExporter.validate_tileset(json.loads(tileset_path.read_text(encoding="utf-8")))
@@ -240,11 +243,13 @@ def test_export_scene_3dtiles_produces_valid_tileset():
 # 3. REST köprüsü: POST /api/projects/<id>/import ve /export
 # ------------------------------------------------------------------ #
 
+
 def test_rest_import_endpoint_returns_201_and_creates_buildings():
     sess, pid, _tmp = _make_session()
     router = build_app_router(sess)
     resp = router.dispatch(
-        "POST", f"/api/projects/{pid}/import",
+        "POST",
+        f"/api/projects/{pid}/import",
         body={"geojson": json.dumps(_SAMPLE_FEATURE_COLLECTION)},
     )
     assert resp.status == 201
@@ -262,11 +267,13 @@ def test_rest_export_endpoint_returns_200_with_path():
     sess, pid, tmp = _make_session()
     router = build_app_router(sess)
     router.dispatch(
-        "POST", f"/api/projects/{pid}/import",
+        "POST",
+        f"/api/projects/{pid}/import",
         body={"geojson": json.dumps(_SAMPLE_FEATURE_COLLECTION)},
     )
     resp = router.dispatch(
-        "POST", f"/api/projects/{pid}/export",
+        "POST",
+        f"/api/projects/{pid}/export",
         body={"format": "obj", "out_dir": os.path.join(tmp, "rest_exports")},
     )
     assert resp.status == 200
@@ -277,7 +284,8 @@ def test_rest_export_endpoint_returns_400_on_empty_scene():
     sess, pid, tmp = _make_session()
     router = build_app_router(sess)
     resp = router.dispatch(
-        "POST", f"/api/projects/{pid}/export",
+        "POST",
+        f"/api/projects/{pid}/export",
         body={"format": "obj", "out_dir": os.path.join(tmp, "rest_exports")},
     )
     assert resp.status == 400
@@ -294,12 +302,14 @@ def test_rest_export_endpoint_returns_422_when_format_missing():
 # 4. Uçtan uca: içe aktar -> düzenle (kat ekle) -> dışa aktar
 # ------------------------------------------------------------------ #
 
+
 def test_end_to_end_import_edit_export_flow():
     sess, pid, tmp = _make_session()
     router = build_app_router(sess)
 
     imp = router.dispatch(
-        "POST", f"/api/projects/{pid}/import",
+        "POST",
+        f"/api/projects/{pid}/import",
         body={"geojson": json.dumps(_SAMPLE_FEATURE_COLLECTION)},
     )
     assert imp.status == 201
@@ -311,7 +321,8 @@ def test_end_to_end_import_edit_export_flow():
     assert add_floor.body["floor_count"] == floors_before + 1
 
     exp = router.dispatch(
-        "POST", f"/api/projects/{pid}/export",
+        "POST",
+        f"/api/projects/{pid}/export",
         body={"format": "gltf", "out_dir": os.path.join(tmp, "e2e_exports")},
     )
     assert exp.status == 200

@@ -12,9 +12,9 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import List, Optional, Sequence
 
 
 class HazardError(Exception):
@@ -80,8 +80,8 @@ class AFADClient:
         max_lat: float,
         min_lon: float,
         max_lon: float,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
         min_magnitude: float = 0.0,
     ) -> dict | list:
         """Bir bbox + zaman aralığı için ham AFAD JSON yanıtını çeker.
@@ -90,8 +90,10 @@ class AFADClient:
         `HazardNetworkError` fırlatılır (sessizce boş liste dönmez).
         """
         params = {
-            "minlat": min_lat, "maxlat": max_lat,
-            "minlon": min_lon, "maxlon": max_lon,
+            "minlat": min_lat,
+            "maxlat": max_lat,
+            "minlon": min_lon,
+            "maxlon": max_lon,
             "minmag": min_magnitude,
         }
         if start is not None:
@@ -100,19 +102,25 @@ class AFADClient:
             params["end"] = end.strftime("%Y-%m-%d %H:%M:%S")
 
         query = urllib.parse.urlencode(params)
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
 
         for endpoint in self.endpoints:
             url = f"{endpoint}?{query}"
             request = urllib.request.Request(
-                url, headers={"User-Agent": self.user_agent, "Accept": "application/json"},
+                url,
+                headers={"User-Agent": self.user_agent, "Accept": "application/json"},
             )
             try:
                 with urllib.request.urlopen(request, timeout=self.timeout_s) as response:
                     raw_bytes = response.read()
                 return json.loads(raw_bytes.decode("utf-8"))
-            except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError,
-                    OSError, ValueError) as exc:
+            except (
+                urllib.error.URLError,
+                urllib.error.HTTPError,
+                TimeoutError,
+                OSError,
+                ValueError,
+            ) as exc:
                 last_error = exc
                 continue
 
@@ -128,18 +136,23 @@ class AFADClient:
         max_lat: float,
         min_lon: float,
         max_lon: float,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
         min_magnitude: float = 0.0,
-    ) -> List[AFADEarthquake]:
+    ) -> list[AFADEarthquake]:
         raw = self.fetch_raw(
-            min_lat=min_lat, max_lat=max_lat, min_lon=min_lon, max_lon=max_lon,
-            start=start, end=end, min_magnitude=min_magnitude,
+            min_lat=min_lat,
+            max_lat=max_lat,
+            min_lon=min_lon,
+            max_lon=max_lon,
+            start=start,
+            end=end,
+            min_magnitude=min_magnitude,
         )
         return parse_afad_response(raw)
 
 
-def parse_afad_response(raw: dict | list) -> List[AFADEarthquake]:
+def parse_afad_response(raw: dict | list) -> list[AFADEarthquake]:
     """AFAD'ın döndürdüğü JSON'u (liste ya da `{"result": [...]}` sarmalı
     olabilir — servis sürümüne göre değişir) `AFADEarthquake` listesine çevirir."""
     if isinstance(raw, dict):
@@ -154,7 +167,7 @@ def parse_afad_response(raw: dict | list) -> List[AFADEarthquake]:
     else:
         raise HazardParseError(f"Beklenmeyen AFAD yanıt tipi: {type(raw).__name__}")
 
-    results: List[AFADEarthquake] = []
+    results: list[AFADEarthquake] = []
     for item in items:
         try:
             results.append(_parse_one_event(item))

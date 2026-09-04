@@ -15,7 +15,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-import pytest
 
 from harita.core_engine.geometry_engine import Point2D
 from harita.mobility.crowd_simulation import (
@@ -24,7 +23,7 @@ from harita.mobility.crowd_simulation import (
     spawn_random_agents,
 )
 from harita.mobility.simulation_recorder import AgentFrameState, SimulationRecorder
-from harita.render_engine import Scene, SCENE_SCHEMA_VERSION
+from harita.render_engine import SCENE_SCHEMA_VERSION, Scene
 
 
 def test_schema_version_bumped_for_agent_frames():
@@ -40,10 +39,13 @@ def test_empty_scene_agent_frames_backward_compatible():
 
 def test_push_agent_frame_from_dicts():
     scene = Scene(name="s")
-    frame = scene.push_agent_frame(1.5, [
-        {"agent_id": 0, "x": 1.0, "y": 2.0, "state": "moving"},
-        {"id": 1, "x": 3.0, "y": 4.0, "state": "panic"},
-    ])
+    frame = scene.push_agent_frame(
+        1.5,
+        [
+            {"agent_id": 0, "x": 1.0, "y": 2.0, "state": "moving"},
+            {"id": 1, "x": 3.0, "y": 4.0, "state": "panic"},
+        ],
+    )
     assert frame["t"] == 1.5
     assert frame["agents"] == [
         {"id": 0, "x": 1.0, "y": 2.0, "state": "moving"},

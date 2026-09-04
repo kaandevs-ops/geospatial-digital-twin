@@ -41,7 +41,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.core_engine.tile_engine import TileCoordinate
 from harita.core_engine.tile_sources import (
     TileFetchError,
@@ -95,9 +94,7 @@ def _http_reachable(url: str, timeout_s: float = 4.0) -> bool:
     import urllib.request
 
     try:
-        req = urllib.request.Request(
-            url, headers={"User-Agent": "harita-modelleme-r4-probe/1.0"}
-        )
+        req = urllib.request.Request(url, headers={"User-Agent": "harita-modelleme-r4-probe/1.0"})
         with urllib.request.urlopen(req, timeout=timeout_s):
             return True
     except Exception:
@@ -130,6 +127,7 @@ _NETWORK_REASON_NATIONALMAP = (
 # ---------------------------------------------------------------------------
 # 1) Ağ gerektirmeyen sağlamlık testleri — bu ortamda her zaman çalışır
 # ---------------------------------------------------------------------------
+
 
 class TestOfflineSanity:
     def test_gibs_wmts_url_is_well_formed(self):
@@ -169,6 +167,7 @@ class TestOfflineSanity:
 # ---------------------------------------------------------------------------
 # 2) Gerçek ağ isteği atan canlı testler — bu ortamda skip edilir
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.skipif(
     not _http_reachable(f"https://{GIBS_WMTS_HOST}/wmts/epsg4326/best/1.0.0/WMTSCapabilities.xml"),

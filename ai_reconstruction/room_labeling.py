@@ -23,10 +23,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Optional
 
-from ..building_reconstruction.room_generator import Room
 from ..ai_assistant.llm_providers import LLMCallError, LLMProvider, ProviderUnavailableError
+from ..building_reconstruction.room_generator import Room
 
 __all__ = ["RoomLabel", "suggest_room_labels"]
 
@@ -68,7 +67,7 @@ def _fallback_label(room: Room) -> RoomLabel:
 def suggest_room_labels(
     rooms: list[Room],
     context: str = "",
-    provider: Optional[LLMProvider] = None,
+    provider: LLMProvider | None = None,
 ) -> list[RoomLabel]:
     """Verilen oda listesi + serbest metin bağlam (örn. "4 kişilik aile
     evi, çalışan bir çift") için oda başına kullanım etiketi önerir.
@@ -116,11 +115,14 @@ def suggest_room_labels(
         rationale = item.get("rationale")
         if not isinstance(label, str) or not label.strip():
             continue
-        result.append(RoomLabel(
-            room_id=rid, room_type=room.room_type,
-            label=label.strip(),
-            rationale=rationale.strip() if isinstance(rationale, str) else "",
-        ))
+        result.append(
+            RoomLabel(
+                room_id=rid,
+                room_type=room.room_type,
+                label=label.strip(),
+                rationale=rationale.strip() if isinstance(rationale, str) else "",
+            )
+        )
         seen_ids.add(rid)
 
     # LLM bazı odaları atladıysa/uydurma id döndürdüyse, eksik kalanları

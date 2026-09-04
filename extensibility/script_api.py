@@ -23,8 +23,9 @@ from __future__ import annotations
 import builtins
 import signal
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from .sandbox_guard import check_source
 
@@ -64,10 +65,34 @@ class ScriptError(Exception):
 _SAFE_BUILTINS = {
     name: getattr(builtins, name)
     for name in (
-        "abs", "all", "any", "bool", "dict", "enumerate", "float", "int",
-        "len", "list", "map", "max", "min", "range", "repr", "reversed",
-        "round", "set", "sorted", "str", "sum", "tuple", "zip", "print",
-        "isinstance", "True", "False", "None",
+        "abs",
+        "all",
+        "any",
+        "bool",
+        "dict",
+        "enumerate",
+        "float",
+        "int",
+        "len",
+        "list",
+        "map",
+        "max",
+        "min",
+        "range",
+        "repr",
+        "reversed",
+        "round",
+        "set",
+        "sorted",
+        "str",
+        "sum",
+        "tuple",
+        "zip",
+        "print",
+        "isinstance",
+        "True",
+        "False",
+        "None",
         # `class` ifadesinin çalışması için CPython'ın gerektirdiği dahili
         # kanca — introspection/erişim riski taşımaz, salt dil mekaniğidir;
         # kullanıcı tanımlı sınıflar (`sandbox_guard`'ın izin verdiği
@@ -83,7 +108,7 @@ class ScriptResult:
     ok: bool
     result: Any = None
     stdout: str = ""
-    error: Optional[str] = None
+    error: str | None = None
     elapsed_seconds: float = 0.0
 
 
@@ -91,10 +116,10 @@ class ScriptResult:
 class ScriptContext:
     """Script'e enjekte edilecek isim -> değer eşlemesi (API yüzeyi)."""
 
-    variables: Dict[str, Any] = field(default_factory=dict)
-    functions: Dict[str, Callable[..., Any]] = field(default_factory=dict)
+    variables: dict[str, Any] = field(default_factory=dict)
+    functions: dict[str, Callable[..., Any]] = field(default_factory=dict)
 
-    def as_globals(self) -> Dict[str, Any]:
+    def as_globals(self) -> dict[str, Any]:
         merged = dict(self.variables)
         merged.update(self.functions)
         return merged
@@ -114,7 +139,7 @@ class PythonScriptEngine:
     def __init__(self, timeout_seconds: float = DEFAULT_SCRIPT_TIMEOUT_SECONDS) -> None:
         self.timeout_seconds = timeout_seconds
 
-    def run(self, source: str, context: Optional[ScriptContext] = None) -> ScriptResult:
+    def run(self, source: str, context: ScriptContext | None = None) -> ScriptResult:
         context = context or ScriptContext()
 
         # 1) Statik güvenlik denetimi — exec'ten ÖNCE, yan etkisiz.
@@ -125,7 +150,7 @@ class PythonScriptEngine:
                 error=f"SandboxViolation: {guard.reason}",
             )
 
-        scope: Dict[str, Any] = {
+        scope: dict[str, Any] = {
             "__builtins__": dict(_SAFE_BUILTINS),
             # `class` ifadesi (üzerinden `__build_class__`) modül seviyesinde
             # `__name__`'in tanımlı olmasını bekler; introspection riski
@@ -135,7 +160,7 @@ class PythonScriptEngine:
         scope.update(context.as_globals())
         scope["_result"] = None
 
-        captured: List[str] = []
+        captured: list[str] = []
 
         def _capture_print(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
             captured.append(" ".join(str(a) for a in args))
@@ -202,7 +227,7 @@ class LuaScriptEngine:
                 ) from exc
         return self._lupa
 
-    def run(self, source: str, context: Optional[ScriptContext] = None) -> ScriptResult:
+    def run(self, source: str, context: ScriptContext | None = None) -> ScriptResult:
         lupa = self._ensure()
         context = context or ScriptContext()
         start = time.perf_counter()
@@ -236,7 +261,7 @@ class JavaScriptEngine:
                 ) from exc
         return self._ctx
 
-    def run(self, source: str, context: Optional[ScriptContext] = None) -> ScriptResult:
+    def run(self, source: str, context: ScriptContext | None = None) -> ScriptResult:
         ctx = self._ensure()
         context = context or ScriptContext()
         start = time.perf_counter()
@@ -258,7 +283,7 @@ class ScriptAPI:
     """
 
     def __init__(self) -> None:
-        self._engines: Dict[str, Any] = {
+        self._engines: dict[str, Any] = {
             "python": PythonScriptEngine(),
             "lua": LuaScriptEngine(),
             "javascript": JavaScriptEngine(),
@@ -276,7 +301,7 @@ class ScriptAPI:
         self,
         language: str,
         source: str,
-        context: Optional[ScriptContext] = None,
+        context: ScriptContext | None = None,
     ) -> ScriptResult:
         language = language.lower()
         if language not in self._engines:
@@ -290,7 +315,7 @@ class ScriptAPI:
         except ScriptEngineUnavailable as exc:
             return ScriptResult(ok=False, error=str(exc))
 
-    def available_languages(self) -> List[str]:
+    def available_languages(self) -> list[str]:
         """Hangi dillerin gerçekten çalışabileceğini (opsiyonel bağımlılık
         kurulu mu) kontrol ederek döner. Python her zaman kullanılabilir."""
         available = ["python"]

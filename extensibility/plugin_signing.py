@@ -41,12 +41,11 @@ import json
 import os
 import random
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
-
 
 # ---------------------------------------------------------------------------
 # Asal sayı üretimi (Miller-Rabin) - stdlib-only
 # ---------------------------------------------------------------------------
+
 
 def _is_probable_prime(n: int, rounds: int = 20) -> bool:
     if n < 2:
@@ -87,7 +86,7 @@ def _generate_prime(bits: int) -> int:
             return candidate
 
 
-def _egcd(a: int, b: int) -> Tuple[int, int, int]:
+def _egcd(a: int, b: int) -> tuple[int, int, int]:
     if a == 0:
         return b, 0, 1
     g, x1, y1 = _egcd(b % a, a)
@@ -105,16 +104,17 @@ def _modinv(a: int, m: int) -> int:
 # RSA anahtar çifti
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class RSAPublicKey:
     n: int
     e: int
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> dict[str, str]:
         return {"n": hex(self.n), "e": hex(self.e)}
 
     @classmethod
-    def from_dict(cls, data: Dict[str, str]) -> "RSAPublicKey":
+    def from_dict(cls, data: dict[str, str]) -> RSAPublicKey:
         return cls(n=int(data["n"], 16), e=int(data["e"], 16))
 
 
@@ -123,11 +123,11 @@ class RSAPrivateKey:
     n: int
     d: int
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> dict[str, str]:
         return {"n": hex(self.n), "d": hex(self.d)}
 
     @classmethod
-    def from_dict(cls, data: Dict[str, str]) -> "RSAPrivateKey":
+    def from_dict(cls, data: dict[str, str]) -> RSAPrivateKey:
         return cls(n=int(data["n"], 16), d=int(data["d"], 16))
 
 
@@ -137,7 +137,7 @@ class RSAKeyPair:
     private_key: RSAPrivateKey
 
     @classmethod
-    def generate(cls, bits: int = 1024) -> "RSAKeyPair":
+    def generate(cls, bits: int = 1024) -> RSAKeyPair:
         """Yeni bir RSA anahtar çifti üretir.
 
         `bits`, her asal çarpan için bit uzunluğudur (n ~= 2*bits bit).
@@ -165,6 +165,7 @@ class RSAKeyPair:
 # ---------------------------------------------------------------------------
 # İmzalama / doğrulama
 # ---------------------------------------------------------------------------
+
 
 class SignatureError(Exception):
     """İmza doğrulaması başarısız olduğunda ya da bozuk girdi olduğunda."""
@@ -213,6 +214,7 @@ def verify_file(path: str, signature: str, public_key: RSAPublicKey) -> bool:
 # Güven deposu (trust store) - hangi imzalayanlara (public key) güvenildiği
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class TrustEntry:
     signer_name: str
@@ -228,9 +230,9 @@ class PluginTrustStore:
     """
 
     def __init__(self) -> None:
-        self._trusted_signers: Dict[str, RSAPublicKey] = {}
+        self._trusted_signers: dict[str, RSAPublicKey] = {}
         # plugin dosya adı (basename) -> (signer_name, signature)
-        self._signatures: Dict[str, Tuple[str, str]] = {}
+        self._signatures: dict[str, tuple[str, str]] = {}
 
     def trust_signer(self, signer_name: str, public_key: RSAPublicKey) -> None:
         self._trusted_signers[signer_name] = public_key
@@ -244,10 +246,10 @@ class PluginTrustStore:
     def record_signature(self, plugin_filename: str, signer_name: str, signature: str) -> None:
         self._signatures[plugin_filename] = (signer_name, signature)
 
-    def get_signature(self, plugin_filename: str) -> Optional[Tuple[str, str]]:
+    def get_signature(self, plugin_filename: str) -> tuple[str, str] | None:
         return self._signatures.get(plugin_filename)
 
-    def verify_plugin_file(self, path: str) -> Tuple[bool, str]:
+    def verify_plugin_file(self, path: str) -> tuple[bool, str]:
         """Bir plugin dosyasının imzasını depodaki bilgiyle doğrular.
 
         Dönüş: (ok, reason). `ok=False` durumunda `reason` insan-okur bir
@@ -263,15 +265,16 @@ class PluginTrustStore:
         if public_key is None:
             return False, f"imzalayan '{signer_name}' güvenilir listede değil"
         if not verify_file(path, signature, public_key):
-            return False, f"'{filename}' imzası '{signer_name}' anahtarıyla doğrulanamadı (dosya değişmiş olabilir)"
+            return (
+                False,
+                f"'{filename}' imzası '{signer_name}' anahtarıyla doğrulanamadı (dosya değişmiş olabilir)",
+            )
         return True, "ok"
 
     # -- kalıcılık ---------------------------------------------------------
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return {
-            "trusted_signers": {
-                name: key.to_dict() for name, key in self._trusted_signers.items()
-            },
+            "trusted_signers": {name: key.to_dict() for name, key in self._trusted_signers.items()},
             "signatures": {
                 fname: {"signer": signer, "signature": sig}
                 for fname, (signer, sig) in self._signatures.items()
@@ -279,7 +282,7 @@ class PluginTrustStore:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, object]) -> "PluginTrustStore":
+    def from_dict(cls, data: dict[str, object]) -> PluginTrustStore:
         store = cls()
         for name, key_data in data.get("trusted_signers", {}).items():  # type: ignore[union-attr]
             store.trust_signer(name, RSAPublicKey.from_dict(key_data))  # type: ignore[arg-type]
@@ -292,6 +295,6 @@ class PluginTrustStore:
             json.dump(self.to_dict(), fh, indent=2, ensure_ascii=False)
 
     @classmethod
-    def load(cls, path: str) -> "PluginTrustStore":
-        with open(path, "r", encoding="utf-8") as fh:
+    def load(cls, path: str) -> PluginTrustStore:
+        with open(path, encoding="utf-8") as fh:
             return cls.from_dict(json.load(fh))

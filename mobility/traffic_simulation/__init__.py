@@ -31,7 +31,7 @@ from ..pathfinding import AStar, NavGraph, NodeId
 
 
 class VehicleType(str, Enum):
-    ARAC = "arac"          # otomobil
+    ARAC = "arac"  # otomobil
     OTOBUS = "otobus"
     KAMYON = "kamyon"
     BISIKLET = "bisiklet"
@@ -43,30 +43,55 @@ class IDMParams:
     """Intelligent Driver Model parametreleri (araç tipine göre varsayılan
     değerler `VEHICLE_IDM_DEFAULTS`'ta tanımlıdır)."""
 
-    desired_speed: float        # v0 (m/s) - serbest akış hızı
-    safe_time_headway: float    # T (s)
-    max_acceleration: float     # a (m/s^2)
+    desired_speed: float  # v0 (m/s) - serbest akış hızı
+    safe_time_headway: float  # T (s)
+    max_acceleration: float  # a (m/s^2)
     comfortable_braking: float  # b (m/s^2)
-    min_gap: float              # s0 (m) - dur/dur mesafesi
-    vehicle_length: float       # m
+    min_gap: float  # s0 (m) - dur/dur mesafesi
+    vehicle_length: float  # m
 
 
 VEHICLE_IDM_DEFAULTS: dict[VehicleType, IDMParams] = {
-    VehicleType.ARAC: IDMParams(desired_speed=15.0, safe_time_headway=1.5,
-                                  max_acceleration=1.5, comfortable_braking=2.0,
-                                  min_gap=2.0, vehicle_length=4.5),
-    VehicleType.OTOBUS: IDMParams(desired_speed=11.0, safe_time_headway=2.0,
-                                    max_acceleration=1.0, comfortable_braking=1.5,
-                                    min_gap=3.0, vehicle_length=12.0),
-    VehicleType.KAMYON: IDMParams(desired_speed=12.0, safe_time_headway=2.2,
-                                    max_acceleration=0.8, comfortable_braking=1.5,
-                                    min_gap=3.5, vehicle_length=8.0),
-    VehicleType.BISIKLET: IDMParams(desired_speed=5.5, safe_time_headway=1.2,
-                                      max_acceleration=1.2, comfortable_braking=2.5,
-                                      min_gap=1.0, vehicle_length=1.8),
-    VehicleType.YAYA: IDMParams(desired_speed=1.34, safe_time_headway=1.0,
-                                  max_acceleration=1.0, comfortable_braking=2.0,
-                                  min_gap=0.5, vehicle_length=0.5),
+    VehicleType.ARAC: IDMParams(
+        desired_speed=15.0,
+        safe_time_headway=1.5,
+        max_acceleration=1.5,
+        comfortable_braking=2.0,
+        min_gap=2.0,
+        vehicle_length=4.5,
+    ),
+    VehicleType.OTOBUS: IDMParams(
+        desired_speed=11.0,
+        safe_time_headway=2.0,
+        max_acceleration=1.0,
+        comfortable_braking=1.5,
+        min_gap=3.0,
+        vehicle_length=12.0,
+    ),
+    VehicleType.KAMYON: IDMParams(
+        desired_speed=12.0,
+        safe_time_headway=2.2,
+        max_acceleration=0.8,
+        comfortable_braking=1.5,
+        min_gap=3.5,
+        vehicle_length=8.0,
+    ),
+    VehicleType.BISIKLET: IDMParams(
+        desired_speed=5.5,
+        safe_time_headway=1.2,
+        max_acceleration=1.2,
+        comfortable_braking=2.5,
+        min_gap=1.0,
+        vehicle_length=1.8,
+    ),
+    VehicleType.YAYA: IDMParams(
+        desired_speed=1.34,
+        safe_time_headway=1.0,
+        max_acceleration=1.0,
+        comfortable_braking=2.0,
+        min_gap=0.5,
+        vehicle_length=0.5,
+    ),
 }
 
 
@@ -74,7 +99,7 @@ VEHICLE_IDM_DEFAULTS: dict[VehicleType, IDMParams] = {
 class TrafficAgent:
     agent_id: int
     vehicle_type: VehicleType
-    route_nodes: list[NodeId]         # NavGraph düğüm dizisi (A* çıktısı)
+    route_nodes: list[NodeId]  # NavGraph düğüm dizisi (A* çıktısı)
     route_positions: list[Point2D] = field(default_factory=list)
     distance_along_route: float = 0.0  # metre cinsinden rota üzerindeki konum
     speed: float = 0.0
@@ -84,8 +109,10 @@ class TrafficAgent:
         return VEHICLE_IDM_DEFAULTS[self.vehicle_type]
 
     def route_length(self) -> float:
-        return sum(self.route_positions[i].distance_to(self.route_positions[i + 1])
-                   for i in range(len(self.route_positions) - 1))
+        return sum(
+            self.route_positions[i].distance_to(self.route_positions[i + 1])
+            for i in range(len(self.route_positions) - 1)
+        )
 
     def current_position(self) -> Point2D:
         if not self.route_positions:
@@ -103,14 +130,19 @@ class TrafficAgent:
         return self.route_positions[-1]
 
 
-def build_route(graph: NavGraph, start: NodeId, goal: NodeId,
-                  vehicle_type: VehicleType, agent_id: int) -> TrafficAgent | None:
+def build_route(
+    graph: NavGraph, start: NodeId, goal: NodeId, vehicle_type: VehicleType, agent_id: int
+) -> TrafficAgent | None:
     result = AStar.find_path(graph, start, goal)
     if not result.found:
         return None
     positions = [graph.positions[n] for n in result.path]
-    return TrafficAgent(agent_id=agent_id, vehicle_type=vehicle_type,
-                          route_nodes=result.path, route_positions=positions)
+    return TrafficAgent(
+        agent_id=agent_id,
+        vehicle_type=vehicle_type,
+        route_nodes=result.path,
+        route_positions=positions,
+    )
 
 
 class IDMModel:
@@ -136,12 +168,19 @@ class IDMModel:
         if leader is None:
             interaction_term = 0.0
         else:
-            gap = (leader.distance_along_route - leader.params().vehicle_length
-                   - agent.distance_along_route - agent.params().vehicle_length / 2)
+            gap = (
+                leader.distance_along_route
+                - leader.params().vehicle_length
+                - agent.distance_along_route
+                - agent.params().vehicle_length / 2
+            )
             gap = max(gap, 0.01)
             dv = v - leader.speed
-            s_star = (p.min_gap + max(0.0, v * p.safe_time_headway
-                      + (v * dv) / (2 * math.sqrt(p.max_acceleration * p.comfortable_braking))))
+            s_star = p.min_gap + max(
+                0.0,
+                v * p.safe_time_headway
+                + (v * dv) / (2 * math.sqrt(p.max_acceleration * p.comfortable_braking)),
+            )
             interaction_term = (s_star / gap) ** 2
 
         accel = p.max_acceleration * (free_road_term - interaction_term)
@@ -153,8 +192,9 @@ class IDMModel:
         ilerleme sırasına göre önden arkaya dizilmiş kabul edilir. Liste,
         `distance_along_route`'a göre azalan sırada (en öndeki ilk) olmalı;
         fonksiyon bunu otomatik sıralar."""
-        ordered = sorted([a for a in agents if not a.arrived],
-                          key=lambda a: -a.distance_along_route)
+        ordered = sorted(
+            [a for a in agents if not a.arrived], key=lambda a: -a.distance_along_route
+        )
 
         accelerations: dict[int, float] = {}
         for i, agent in enumerate(ordered):
@@ -189,8 +229,8 @@ class GreenshieldsModel:
     Highway Research Board Proceedings, 14, 1935, s. 448-477.
     """
 
-    free_flow_speed: float   # v_f (km/h)
-    jam_density: float       # k_j (araç/km/şerit)
+    free_flow_speed: float  # v_f (km/h)
+    jam_density: float  # k_j (araç/km/şerit)
 
     def speed_at_density(self, density: float) -> float:
         k = max(0.0, min(density, self.jam_density))
@@ -258,9 +298,14 @@ class _VirtualStopLeader:
     speed: float = 0.0
 
     def params(self) -> IDMParams:
-        return IDMParams(desired_speed=0.0, safe_time_headway=0.0,
-                          max_acceleration=0.0, comfortable_braking=0.0,
-                          min_gap=0.0, vehicle_length=0.0)
+        return IDMParams(
+            desired_speed=0.0,
+            safe_time_headway=0.0,
+            max_acceleration=0.0,
+            comfortable_braking=0.0,
+            min_gap=0.0,
+            vehicle_length=0.0,
+        )
 
 
 class TrafficSimulator:
@@ -301,8 +346,9 @@ class TrafficSimulator:
                 IDMModel.step(group, dt=dt)
                 continue
 
-            ordered = sorted([a for a in group if not a.arrived],
-                              key=lambda a: -a.distance_along_route)
+            ordered = sorted(
+                [a for a in group if not a.arrived], key=lambda a: -a.distance_along_route
+            )
             accelerations: dict[int, float] = {}
             for i, agent in enumerate(ordered):
                 real_leader = ordered[i - 1] if i > 0 else None

@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from harita.feature_survey.codes import FeatureCode
 from harita.feature_survey.field_point import FieldPoint, FieldSurveySession
 from harita.feature_survey.geodetic_engine.gnss_adjustment import compare_to_control_point
@@ -25,9 +24,7 @@ def _passing_report():
         compare_to_control_point(0, 0, 0, 0.01, -0.01, 0.02),
         compare_to_control_point(100, 100, 10, 100.02, 99.99, 10.01),
     ]
-    checkpoint = generate_checkpoint_report(
-        comparisons, 0.05, 0.05, "Test standardı ±5cm"
-    )
+    checkpoint = generate_checkpoint_report(comparisons, 0.05, 0.05, "Test standardı ±5cm")
     return build_survey_quality_report(checkpoint=checkpoint, closure=None)
 
 
@@ -36,9 +33,7 @@ def _failing_report():
         compare_to_control_point(0, 0, 0, 0.01, -0.01, 0.02),
         compare_to_control_point(100, 100, 10, 100.50, 99.40, 10.01),
     ]
-    checkpoint = generate_checkpoint_report(
-        comparisons, 0.05, 0.05, "Test standardı ±5cm"
-    )
+    checkpoint = generate_checkpoint_report(comparisons, 0.05, 0.05, "Test standardı ±5cm")
     return build_survey_quality_report(checkpoint=checkpoint, closure=None)
 
 

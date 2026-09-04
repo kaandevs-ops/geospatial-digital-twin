@@ -15,9 +15,8 @@ from __future__ import annotations
 import unittest
 
 from harita.core_engine.gis_core.osm_client import (
-    BBox,
     DEFAULT_CATEGORIES,
-    OSMCategory,
+    BBox,
     OSMCategoryParser,
     build_category_query,
     summarize_categories,
@@ -50,37 +49,42 @@ class TestCategoryParser(unittest.TestCase):
         return {
             "elements": [
                 # Tekil ağaç -> Point ("trees")
-                {"type": "node", "id": 1, "lat": 40.001, "lon": 32.001,
-                 "tags": {"natural": "tree"}},
+                {
+                    "type": "node",
+                    "id": 1,
+                    "lat": 40.001,
+                    "lon": 32.001,
+                    "tags": {"natural": "tree"},
+                },
                 # Yol için iki uç node (geometri yok, sadece koordinat kaynağı)
                 {"type": "node", "id": 2, "lat": 40.002, "lon": 32.002},
                 {"type": "node", "id": 3, "lat": 40.003, "lon": 32.003},
                 {"type": "node", "id": 4, "lat": 40.004, "lon": 32.004},
                 # Yol -> LineString ("roads")
-                {"type": "way", "id": 10, "nodes": [2, 3],
-                 "tags": {"highway": "residential"}},
+                {"type": "way", "id": 10, "nodes": [2, 3], "tags": {"highway": "residential"}},
                 # Orman -> Polygon ("forest"), kapanmamış halka verildi
-                {"type": "way", "id": 11, "nodes": [2, 3, 4],
-                 "tags": {"landuse": "forest"}},
+                {"type": "way", "id": 11, "nodes": [2, 3, 4], "tags": {"landuse": "forest"}},
                 # Göl -> Polygon ("water_area")
-                {"type": "way", "id": 12, "nodes": [2, 3, 4, 2],
-                 "tags": {"natural": "water"}},
+                {"type": "way", "id": 12, "nodes": [2, 3, 4, 2], "tags": {"natural": "water"}},
                 # Dere -> LineString ("waterway")
-                {"type": "way", "id": 13, "nodes": [3, 4],
-                 "tags": {"waterway": "stream"}},
+                {"type": "way", "id": 13, "nodes": [3, 4], "tags": {"waterway": "stream"}},
                 # Bilinmeyen kategori -> yok sayılmalı
-                {"type": "node", "id": 5, "lat": 40.005, "lon": 32.005,
-                 "tags": {"amenity": "restaurant"}},
+                {
+                    "type": "node",
+                    "id": 5,
+                    "lat": 40.005,
+                    "lon": 32.005,
+                    "tags": {"amenity": "restaurant"},
+                },
             ]
         }
 
     def test_geometry_and_category_classification(self) -> None:
         coll = OSMCategoryParser.parse_overpass_json(
-            self._sample_raw(), list(DEFAULT_CATEGORIES.values()),
+            self._sample_raw(),
+            list(DEFAULT_CATEGORIES.values()),
         )
-        by_category = {
-            f.properties["__category__"]: f for f in coll.features
-        }
+        by_category = {f.properties["__category__"]: f for f in coll.features}
         self.assertEqual(by_category["trees"].geometry_type, "Point")
         self.assertEqual(by_category["roads"].geometry_type, "LineString")
         self.assertEqual(by_category["forest"].geometry_type, "Polygon")
@@ -92,7 +96,8 @@ class TestCategoryParser(unittest.TestCase):
 
     def test_polygon_ring_is_auto_closed(self) -> None:
         coll = OSMCategoryParser.parse_overpass_json(
-            self._sample_raw(), [DEFAULT_CATEGORIES["forest"]],
+            self._sample_raw(),
+            [DEFAULT_CATEGORIES["forest"]],
         )
         forest_features = [f for f in coll.features if f.geometry_type == "Polygon"]
         self.assertEqual(len(forest_features), 1)
@@ -112,7 +117,8 @@ class TestCategoryParser(unittest.TestCase):
 
     def test_summarize_categories_counts(self) -> None:
         coll = OSMCategoryParser.parse_overpass_json(
-            self._sample_raw(), list(DEFAULT_CATEGORIES.values()),
+            self._sample_raw(),
+            list(DEFAULT_CATEGORIES.values()),
         )
         counts = summarize_categories(coll)
         self.assertEqual(counts["trees"], 1)
@@ -122,7 +128,8 @@ class TestCategoryParser(unittest.TestCase):
         self.assertEqual(counts["waterway"], 1)
 
     def test_unknown_category_key_raises(self) -> None:
-        from harita.core_engine.gis_core.osm_client import fetch_category_features, OverpassError
+        from harita.core_engine.gis_core.osm_client import fetch_category_features
+
         with self.assertRaises(ValueError):
             fetch_category_features(
                 BBox(min_lat=1.0, min_lon=2.0, max_lat=3.0, max_lon=4.0),

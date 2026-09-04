@@ -90,7 +90,8 @@ class PowerInfrastructureGenerator:
 
     @staticmethod
     def power_line_from_points(
-        points: list[Point2D], osm_id: str = "power_line",
+        points: list[Point2D],
+        osm_id: str = "power_line",
     ) -> Road:
         """`power=line` (LineString) -> yeniden kullanılan `Road`
         tape-extrusion altyapısı (B2 "çizgi feature" stratejisi,
@@ -175,7 +176,7 @@ class PowerInfrastructureGenerator:
             else:
                 dx = sampled[i + 1][0].x - sampled[i - 1][0].x
                 dy = sampled[i + 1][0].y - sampled[i - 1][0].y
-            length = (dx ** 2 + dy ** 2) ** 0.5 or 1.0
+            length = (dx**2 + dy**2) ** 0.5 or 1.0
             nx, ny = -dy / length, dx / length
             left.append(Vertex3D(p.x + nx * half_w, p.y + ny * half_w, z))
             right.append(Vertex3D(p.x - nx * half_w, p.y - ny * half_w, z))
@@ -197,7 +198,10 @@ class PowerInfrastructureGenerator:
         """`power=substation` (Polygon) -> alçak platform prizması
         (mevcut `MeshBuilder.extrude_polygon`, değiştirilmedi)."""
         return MeshBuilder.extrude_polygon(
-            item.polygon, base_z=0.0, height=height_m, name="power_substation",
+            item.polygon,
+            base_z=0.0,
+            height=height_m,
+            name="power_substation",
         )
 
     @staticmethod
@@ -211,27 +215,53 @@ class PowerInfrastructureGenerator:
         h = item.height_m
         segment_h = h / 3.0
         base = MeshBuilder.build_cylinder(
-            radius=0.6, height=segment_h, center_x=x, center_y=y,
-            base_z=gz, segments=8, name="tower_segment_base",
+            radius=0.6,
+            height=segment_h,
+            center_x=x,
+            center_y=y,
+            base_z=gz,
+            segments=8,
+            name="tower_segment_base",
         )
         mid = MeshBuilder.build_cylinder(
-            radius=0.35, height=segment_h, center_x=x, center_y=y,
-            base_z=gz + segment_h, segments=8, name="tower_segment_mid",
+            radius=0.35,
+            height=segment_h,
+            center_x=x,
+            center_y=y,
+            base_z=gz + segment_h,
+            segments=8,
+            name="tower_segment_mid",
         )
         top = MeshBuilder.build_cylinder(
-            radius=0.15, height=segment_h, center_x=x, center_y=y,
-            base_z=gz + 2 * segment_h, segments=8, name="tower_segment_top",
+            radius=0.15,
+            height=segment_h,
+            center_x=x,
+            center_y=y,
+            base_z=gz + 2 * segment_h,
+            segments=8,
+            name="tower_segment_top",
         )
         antenna_a = MeshBuilder.build_box(
-            0.15, 0.6, 1.0, center_x=x - 0.3, center_y=y,
-            base_z=gz + h - 0.5, name="tower_antenna_a",
+            0.15,
+            0.6,
+            1.0,
+            center_x=x - 0.3,
+            center_y=y,
+            base_z=gz + h - 0.5,
+            name="tower_antenna_a",
         )
         antenna_b = MeshBuilder.build_box(
-            0.15, 0.6, 1.0, center_x=x + 0.3, center_y=y,
-            base_z=gz + h - 0.5, name="tower_antenna_b",
+            0.15,
+            0.6,
+            1.0,
+            center_x=x + 0.3,
+            center_y=y,
+            base_z=gz + h - 0.5,
+            name="tower_antenna_b",
         )
         return MeshMerger.merge(
-            [base, mid, top, antenna_a, antenna_b], name="communication_tower",
+            [base, mid, top, antenna_a, antenna_b],
+            name="communication_tower",
         )
 
 
@@ -239,8 +269,8 @@ class PowerInfrastructureGenerator:
 # bu modülün tanımları hazır olduktan sonra en altta import edilir
 # (döngüsel importu önlemek için önceki köprülerle aynı desen).
 from .osm_bridge import (  # noqa: E402
-    infra_item_from_feature,
     generate_power_infrastructure_for_collection,
+    infra_item_from_feature,
 )
 
 __all__ = [

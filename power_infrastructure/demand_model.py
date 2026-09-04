@@ -26,11 +26,11 @@ eden **normalize edilmiş, toplamı 1.0 olan** bir dağılımdır (yıllık topl
 enerji korunur, yalnızca gün içi dağılım şekli temsili). Gerçek bir enerji
 yönetim sistemi (EYS) ölçümünün yerini tutmaz.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 from ..digital_twin import DigitalTwin, DigitalTwinRegistry
 from ..digital_twin.hierarchy import TwinHierarchy
@@ -55,17 +55,57 @@ class BuildingDemandType(str, Enum):
 #: Konut: sabah (07-09) ve akşam (18-22) çift-tepe, gece düşük - yaygın
 #: bilinen "residential load duck-curve"in basitleştirilmiş şekli.
 _RESIDENTIAL_RAW_WEIGHTS = [
-    0.4, 0.35, 0.3, 0.3, 0.35, 0.5,   # 00-05 gece
-    0.8, 1.3, 1.5, 1.1, 0.9, 0.85,    # 06-11 sabah tepesi
-    0.9, 0.85, 0.8, 0.85, 0.95, 1.2,  # 12-17 öğleden sonra
-    1.6, 1.7, 1.5, 1.2, 0.9, 0.6,     # 18-23 akşam tepesi
+    0.4,
+    0.35,
+    0.3,
+    0.3,
+    0.35,
+    0.5,  # 00-05 gece
+    0.8,
+    1.3,
+    1.5,
+    1.1,
+    0.9,
+    0.85,  # 06-11 sabah tepesi
+    0.9,
+    0.85,
+    0.8,
+    0.85,
+    0.95,
+    1.2,  # 12-17 öğleden sonra
+    1.6,
+    1.7,
+    1.5,
+    1.2,
+    0.9,
+    0.6,  # 18-23 akşam tepesi
 ]
 #: Ticari/işyeri: gündüz (09-18) tek yayvan tepe, gece/hafta sonu düşük.
 _COMMERCIAL_RAW_WEIGHTS = [
-    0.25, 0.2, 0.2, 0.2, 0.2, 0.3,    # 00-05
-    0.45, 0.7, 1.1, 1.4, 1.5, 1.55,   # 06-11
-    1.5, 1.55, 1.5, 1.45, 1.3, 1.0,   # 12-17
-    0.7, 0.5, 0.4, 0.35, 0.3, 0.25,   # 18-23
+    0.25,
+    0.2,
+    0.2,
+    0.2,
+    0.2,
+    0.3,  # 00-05
+    0.45,
+    0.7,
+    1.1,
+    1.4,
+    1.5,
+    1.55,  # 06-11
+    1.5,
+    1.55,
+    1.5,
+    1.45,
+    1.3,
+    1.0,  # 12-17
+    0.7,
+    0.5,
+    0.4,
+    0.35,
+    0.3,
+    0.25,  # 18-23
 ]
 
 
@@ -133,7 +173,7 @@ class BuildingDemandRegistry:
     def register(self, profile: BuildingDemandProfile) -> None:
         self.profiles[profile.building_id] = profile
 
-    def get(self, building_id: str) -> Optional[BuildingDemandProfile]:
+    def get(self, building_id: str) -> BuildingDemandProfile | None:
         return self.profiles.get(building_id)
 
     def metric_fn_for_hour(self, hour: int):
@@ -142,7 +182,7 @@ class BuildingDemandRegistry:
         imzası korunur (`twin=None` -> 0.0, roadmap'in "yaprakta twin yoksa
         metric_fn(None) çağrılır" sözleşmesiyle tutarlı)."""
 
-        def _metric(twin: Optional[DigitalTwin]) -> float:
+        def _metric(twin: DigitalTwin | None) -> float:
             if twin is None:
                 return 0.0
             profile = self.profiles.get(twin.id)
@@ -168,7 +208,11 @@ def aggregate_city_demand_kw(
     """
     metric_fn = demand_registry.metric_fn_for_hour(hour)
     return hierarchy.aggregate(
-        registry, root_twin_id, metric_fn, sum, cache_key=f"power_demand_h{hour}",
+        registry,
+        root_twin_id,
+        metric_fn,
+        sum,
+        cache_key=f"power_demand_h{hour}",
     )
 
 

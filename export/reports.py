@@ -16,8 +16,9 @@ import csv
 import io
 import json
 import time
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any
 from xml.sax.saxutils import escape as _xml_escape
 
 from .geometry_3d import ExportResult
@@ -40,8 +41,9 @@ class CSVReportExporter:
     otomatik çıkarılır."""
 
     @staticmethod
-    def export(rows: Sequence[Mapping[str, Any]], path: str,
-               fieldnames: Sequence[str] | None = None) -> ExportResult:
+    def export(
+        rows: Sequence[Mapping[str, Any]], path: str, fieldnames: Sequence[str] | None = None
+    ) -> ExportResult:
         if fieldnames is None:
             fieldnames = []
             seen = set()
@@ -93,10 +95,16 @@ class MarkdownReportExporter:
     ihtiyacına giden en pratik ilk adım: Markdown -> (harici araçla) PDF."""
 
     @staticmethod
-    def export(title: str, sections: Sequence["ReportSection"], path: str,
-               generated_at: float | None = None) -> ExportResult:
+    def export(
+        title: str, sections: Sequence[ReportSection], path: str, generated_at: float | None = None
+    ) -> ExportResult:
         ts = generated_at if generated_at is not None else time.time()
-        lines = [f"# {title}", "", f"_Oluşturulma zamanı: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(ts))}_", ""]
+        lines = [
+            f"# {title}",
+            "",
+            f"_Oluşturulma zamanı: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(ts))}_",
+            "",
+        ]
         for section in sections:
             lines.append(f"## {section.heading}")
             lines.append("")
@@ -124,10 +132,14 @@ class ReportSection:
 
     __slots__ = ("heading", "summary", "table_headers", "table_rows", "notes")
 
-    def __init__(self, heading: str, summary: Mapping[str, Any] | None = None,
-                 table_headers: Sequence[str] | None = None,
-                 table_rows: Sequence[Mapping[str, Any]] | None = None,
-                 notes: str = ""):
+    def __init__(
+        self,
+        heading: str,
+        summary: Mapping[str, Any] | None = None,
+        table_headers: Sequence[str] | None = None,
+        table_rows: Sequence[Mapping[str, Any]] | None = None,
+        notes: str = "",
+    ):
         self.heading = heading
         self.summary = dict(summary) if summary else {}
         self.table_headers = list(table_headers) if table_headers else None
@@ -190,6 +202,7 @@ class ReportBuilder:
 
     def export_pdf(self, path: str):
         from .vector_2d import PDFExporter
+
         lines: list[str] = []
         for section in self.sections:
             lines.extend(section.to_plain_lines())

@@ -31,10 +31,9 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from ..extensibility.websocket_api import WSConnection, WSMessage, WebSocketRouter
-
+from ..extensibility.websocket_api import WebSocketRouter, WSConnection, WSMessage
 from .auth import AuthService, PermissionDeniedError, Role
 from .crdt import CRDTBuildingState
 
@@ -85,7 +84,7 @@ class CollaborationHub:
         self,
         auth: AuthService,
         router: WebSocketRouter | None = None,
-        db: Optional["ProjectDatabase"] = None,
+        db: ProjectDatabase | None = None,
     ) -> None:
         self._auth = auth
         self._router = router or WebSocketRouter()
@@ -186,8 +185,7 @@ class CollaborationHub:
         member = room.members.get(connection.connection_id)
         if member is None or not member.role.can_write():
             raise PermissionDeniedError(
-                f"user={member.user_id if member else '?'} bu odada yazma "
-                f"yetkisine sahip degil"
+                f"user={member.user_id if member else '?'} bu odada yazma yetkisine sahip degil"
             )
         ts = timestamp if timestamp is not None else time.time()
         room.state.set_field(field_name, value, ts, member.user_id)
@@ -204,7 +202,12 @@ class CollaborationHub:
         return room.state
 
     def apply_add_floor(
-        self, connection: WSConnection, *, project_id: str, building_key: str, floor_id: str,
+        self,
+        connection: WSConnection,
+        *,
+        project_id: str,
+        building_key: str,
+        floor_id: str,
     ) -> CRDTBuildingState:
         room = self._room(project_id, building_key)
         member = room.members.get(connection.connection_id)
@@ -217,7 +220,12 @@ class CollaborationHub:
         return room.state
 
     def apply_remove_floor(
-        self, connection: WSConnection, *, project_id: str, building_key: str, floor_id: str,
+        self,
+        connection: WSConnection,
+        *,
+        project_id: str,
+        building_key: str,
+        floor_id: str,
     ) -> CRDTBuildingState:
         room = self._room(project_id, building_key)
         member = room.members.get(connection.connection_id)
@@ -252,7 +260,12 @@ class CollaborationHub:
         return None
 
     def _broadcast_patch(
-        self, project_id: str, building_key: str, patch: dict[str, Any], *, exclude: str,
+        self,
+        project_id: str,
+        building_key: str,
+        patch: dict[str, Any],
+        *,
+        exclude: str,
     ) -> int:
         key = self._room_key(project_id, building_key)
         message = WSMessage(type="crdt_patch", payload={"room": key, "patch": patch})
@@ -276,9 +289,10 @@ class CollaborationHub:
                 project_id=payload["project_id"],
                 building_key=payload["building_key"],
             )
-            return {"members": [m.username for m in room.members.values()], "fields": {
-                name: reg.value for name, reg in room.state.fields.items()
-            }}
+            return {
+                "members": [m.username for m in room.members.values()],
+                "fields": {name: reg.value for name, reg in room.state.fields.items()},
+            }
 
         def _on_edit(connection: WSConnection, payload: dict) -> dict:
             state = self.apply_field_edit(

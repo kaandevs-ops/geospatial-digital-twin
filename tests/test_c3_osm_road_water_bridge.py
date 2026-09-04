@@ -7,6 +7,7 @@ ROADMAP_V7.md Faz C3 (2. dilim) — OSM roads/waterway/water_area köprüsü
 (Polygon) -> düz su yüzeyi prizması, ve uçtan uca
 `generate_infrastructure_for_collection`.
 """
+
 from __future__ import annotations
 
 import unittest
@@ -215,10 +216,15 @@ class TestGenerateInfrastructureForCollection(unittest.TestCase):
         self.assertEqual(
             result.counts(),
             {
-                "roads": 1, "waterway": 1, "water_area": 1,
-                "railway": 0, "coastline": 0, "area": 0,
+                "roads": 1,
+                "waterway": 1,
+                "water_area": 1,
+                "railway": 0,
+                "coastline": 0,
+                "area": 0,
                 "administrative_boundary": 0,
-                "lane_marking": 0, "crosswalk": 0,
+                "lane_marking": 0,
+                "crosswalk": 0,
             },
         )
 
@@ -233,10 +239,15 @@ class TestGenerateInfrastructureForCollection(unittest.TestCase):
         self.assertEqual(
             result.counts(),
             {
-                "roads": 0, "waterway": 0, "water_area": 0,
-                "railway": 0, "coastline": 0, "area": 0,
+                "roads": 0,
+                "waterway": 0,
+                "water_area": 0,
+                "railway": 0,
+                "coastline": 0,
+                "area": 0,
                 "administrative_boundary": 0,
-                "lane_marking": 0, "crosswalk": 0,
+                "lane_marking": 0,
+                "crosswalk": 0,
             },
         )
 

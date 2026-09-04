@@ -24,8 +24,8 @@ from __future__ import annotations
 
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Deque, Dict
 
 
 class RateLimitExceededError(Exception):
@@ -46,7 +46,7 @@ class SlidingWindowRateLimiter:
     max_requests: int
     window_seconds: float
     time_fn: Callable[[], float] = field(default=time.monotonic)
-    _hits: Dict[str, Deque[float]] = field(default_factory=dict, init=False, repr=False)
+    _hits: dict[str, deque[float]] = field(default_factory=dict, init=False, repr=False)
 
     def __post_init__(self) -> None:
         if self.max_requests <= 0:
@@ -54,7 +54,7 @@ class SlidingWindowRateLimiter:
         if self.window_seconds <= 0:
             raise ValueError("window_seconds pozitif olmalı.")
 
-    def _prune(self, key: str, now: float) -> Deque[float]:
+    def _prune(self, key: str, now: float) -> deque[float]:
         q = self._hits.setdefault(key, deque())
         cutoff = now - self.window_seconds
         while q and q[0] <= cutoff:
@@ -105,10 +105,7 @@ class SlidingWindowRateLimiter:
         sayısını döner."""
         threshold = stale_after_seconds if stale_after_seconds is not None else self.window_seconds
         now = self.time_fn()
-        stale_keys = [
-            k for k, q in self._hits.items()
-            if not q or (now - q[-1]) > threshold
-        ]
+        stale_keys = [k for k, q in self._hits.items() if not q or (now - q[-1]) > threshold]
         for k in stale_keys:
             del self._hits[k]
         return len(stale_keys)

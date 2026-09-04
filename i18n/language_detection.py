@@ -13,6 +13,7 @@ Yontem: Turkce'ye ozgu karakterler (ç,ğ,ı,ö,ş,ü) + yuksek frekansli
 Turkce fonksiyon kelimeleri (bir, ve, ile, kat, ekle, ...) vs Ingilizce
 fonksiyon kelimeleri (the, and, add, floor, remove, ...) icin puanlama.
 """
+
 from __future__ import annotations
 
 import re
@@ -20,14 +21,49 @@ import re
 _TR_CHARS = set("çğıöşüÇĞİÖŞÜ")
 
 _TR_WORDS = {
-    "bir", "iki", "ve", "ile", "kat", "ekle", "kaldır", "kaldir", "sil",
-    "çatı", "cati", "cephe", "pencere", "kapı", "kapi", "değiştir",
-    "degistir", "analiz", "yap", "bu", "binaya", "binayı", "daha",
+    "bir",
+    "iki",
+    "ve",
+    "ile",
+    "kat",
+    "ekle",
+    "kaldır",
+    "kaldir",
+    "sil",
+    "çatı",
+    "cati",
+    "cephe",
+    "pencere",
+    "kapı",
+    "kapi",
+    "değiştir",
+    "degistir",
+    "analiz",
+    "yap",
+    "bu",
+    "binaya",
+    "binayı",
+    "daha",
 }
 _EN_WORDS = {
-    "the", "and", "add", "remove", "floor", "floors", "roof", "facade",
-    "window", "door", "change", "make", "analyze", "building", "this",
-    "a", "an", "more",
+    "the",
+    "and",
+    "add",
+    "remove",
+    "floor",
+    "floors",
+    "roof",
+    "facade",
+    "window",
+    "door",
+    "change",
+    "make",
+    "analyze",
+    "building",
+    "this",
+    "a",
+    "an",
+    "more",
 }
 
 _WORD_RE = re.compile(r"[a-zA-ZçğıöşüÇĞİÖŞÜ]+")

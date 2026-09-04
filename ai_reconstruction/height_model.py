@@ -43,18 +43,22 @@ import math
 import random
 from dataclasses import dataclass, field
 
-from .building_analyzer import HeuristicPredictor, _TYPE_STATS
+from .building_analyzer import _TYPE_STATS, HeuristicPredictor
 from .predictor import Predictor
 
 FEATURE_NAMES: tuple[str, ...] = (
-    "bias", "area_m2", "perimeter_m", "aspect_ratio", "compactness",
+    "bias",
+    "area_m2",
+    "perimeter_m",
+    "aspect_ratio",
+    "compactness",
 )
 
 
 def _compactness(area_m2: float, perimeter_m: float) -> float:
     if perimeter_m <= 0:
         return 0.0
-    return (4.0 * math.pi * area_m2) / (perimeter_m ** 2)
+    return (4.0 * math.pi * area_m2) / (perimeter_m**2)
 
 
 def _feature_vector(features: dict) -> list[float]:
@@ -68,6 +72,7 @@ def _feature_vector(features: dict) -> list[float]:
 # ---------------------------------------------------------------------- #
 # Stdlib-only en-küçük-kareler (normal denklemler + Gauss-Jordan)
 # ---------------------------------------------------------------------- #
+
 
 def _solve_linear_system(matrix: list[list[float]], rhs: list[float]) -> list[float]:
     """`matrix @ x = rhs` sistemini Gauss-Jordan eleme ile çözer (kare
@@ -124,7 +129,7 @@ class HeightRegressionModel:
         return bool(self.coefficients) and self.n_training_samples > 0
 
     @classmethod
-    def fit(cls, samples: list[dict], targets: list[float]) -> "HeightRegressionModel":
+    def fit(cls, samples: list[dict], targets: list[float]) -> HeightRegressionModel:
         if len(samples) != len(targets):
             raise ValueError("samples ve targets ayni uzunlukta olmali")
         if len(samples) < len(FEATURE_NAMES):
@@ -135,13 +140,14 @@ class HeightRegressionModel:
         coefficients = _ols_fit(rows, targets)
 
         residuals = [
-            targets[i] - sum(c * v for c, v in zip(coefficients, rows[i]))
-            for i in range(len(rows))
+            targets[i] - sum(c * v for c, v in zip(coefficients, rows[i])) for i in range(len(rows))
         ]
-        mean_sq = sum(r ** 2 for r in residuals) / len(residuals)
+        mean_sq = sum(r**2 for r in residuals) / len(residuals)
         residual_std = math.sqrt(mean_sq)
 
-        return cls(coefficients=coefficients, residual_std=residual_std, n_training_samples=len(samples))
+        return cls(
+            coefficients=coefficients, residual_std=residual_std, n_training_samples=len(samples)
+        )
 
     def predict_raw(self, features: dict) -> tuple[float, float]:
         """`(height_m, uncertainty_m)` döner. Eğitilmemiş modelde
@@ -168,6 +174,7 @@ class ModelNotTrainedError(RuntimeError):
 # Hibrit predictor: eğitilmiş model varsa kullanır, yoksa heuristic'e düşer
 # ---------------------------------------------------------------------- #
 
+
 class MLAssistedHeightPredictor:
     """`Predictor` Protocol'ü — `HeuristicPredictor`'ı sarar; opsiyonel
     `HeightRegressionModel` eğitilmişse yükseklik/kat-sayısı/güven/
@@ -189,7 +196,9 @@ class MLAssistedHeightPredictor:
 
     def predict(self, features: dict) -> dict:
         base = self._heuristic.predict(features)
-        base.setdefault("uncertainty_m", base["height_m"] * (0.35 if base["confidence"] < 0.6 else 0.15))
+        base.setdefault(
+            "uncertainty_m", base["height_m"] * (0.35 if base["confidence"] < 0.6 else 0.15)
+        )
 
         if self._model is None or not self._model.is_trained:
             return base
@@ -219,8 +228,10 @@ class MLAssistedHeightPredictor:
 # başındaki dürüst sınırlama notu)
 # ---------------------------------------------------------------------- #
 
+
 def generate_synthetic_training_set(
-    n_samples: int = 400, seed: int = 42,
+    n_samples: int = 400,
+    seed: int = 42,
 ) -> tuple[list[dict], list[float]]:
     """Footprint geometrisinden + bina tipinden fiziksel olarak motive
     edilmiş bir kural (`gercek_yukseklik = f(alan, cevre, tip) + gurultu`)
@@ -251,24 +262,35 @@ def generate_synthetic_training_set(
         # "Gerçek" kat sayısı: alanla hafifçe artan + tipe bağlı taban +
         # gürültü (log-normal benzeri kaba yaklaşım).
         base_floors = {
-            "apartments": 6, "house": 2, "office": 8, "commercial": 2,
-            "industrial": 1, "warehouse": 1, "hospital": 5, "school": 3,
+            "apartments": 6,
+            "house": 2,
+            "office": 8,
+            "commercial": 2,
+            "industrial": 1,
+            "warehouse": 1,
+            "hospital": 5,
+            "school": 3,
         }.get(bt, 3)
-        floor_count = max(1, round(base_floors + (area ** 0.5) / 25 + rng.gauss(0, 1.2)))
+        floor_count = max(1, round(base_floors + (area**0.5) / 25 + rng.gauss(0, 1.2)))
         true_height = floor_count * floor_h + rng.gauss(0, floor_h * 0.25)
         true_height = max(2.5, true_height)
 
-        samples.append({
-            "area_m2": area, "perimeter_m": perimeter, "aspect_ratio": aspect_ratio,
-            "building_type": bt,
-        })
+        samples.append(
+            {
+                "area_m2": area,
+                "perimeter_m": perimeter,
+                "aspect_ratio": aspect_ratio,
+                "building_type": bt,
+            }
+        )
         targets.append(true_height)
 
     return samples, targets
 
 
 def generate_synthetic_training_set_nonlinear(
-    n_samples: int = 400, seed: int = 42,
+    n_samples: int = 400,
+    seed: int = 42,
 ) -> tuple[list[dict], list[float]]:
     """Roadmap V3 - Faz D12: `generate_synthetic_training_set()`'in daha
     zorlu bir varyantı.
@@ -304,9 +326,14 @@ def generate_synthetic_training_set_nonlinear(
 
     # Bina tipine göre aspect_ratio etkisinin işareti (kategorik etkileşim).
     _aspect_sign = {
-        "office": +1.0, "commercial": +1.0, "warehouse": +1.0,
-        "house": -1.0, "apartments": -0.3, "hospital": -0.2,
-        "school": -0.4, "industrial": +0.6,
+        "office": +1.0,
+        "commercial": +1.0,
+        "warehouse": +1.0,
+        "house": -1.0,
+        "apartments": -0.3,
+        "hospital": -0.2,
+        "school": -0.4,
+        "industrial": +0.6,
     }
 
     samples: list[dict] = []
@@ -321,8 +348,14 @@ def generate_synthetic_training_set_nonlinear(
         aspect_ratio = max(side_a, side_b) / min(side_a, side_b)
 
         base_floors = {
-            "apartments": 6, "house": 2, "office": 8, "commercial": 2,
-            "industrial": 1, "warehouse": 1, "hospital": 5, "school": 3,
+            "apartments": 6,
+            "house": 2,
+            "office": 8,
+            "commercial": 2,
+            "industrial": 1,
+            "warehouse": 1,
+            "hospital": 5,
+            "school": 3,
         }.get(bt, 3)
 
         # Doğrusal olmayan alan etkisi: log-doyma.
@@ -339,17 +372,22 @@ def generate_synthetic_training_set_nonlinear(
         true_height = floor_count * floor_h + rng.gauss(0, floor_h * 0.25)
         true_height = max(2.5, true_height)
 
-        samples.append({
-            "area_m2": area, "perimeter_m": perimeter, "aspect_ratio": aspect_ratio,
-            "building_type": bt,
-        })
+        samples.append(
+            {
+                "area_m2": area,
+                "perimeter_m": perimeter,
+                "aspect_ratio": aspect_ratio,
+                "building_type": bt,
+            }
+        )
         targets.append(true_height)
 
     return samples, targets
 
 
 def train_default_height_model(
-    n_samples: int = 400, seed: int = 42,
+    n_samples: int = 400,
+    seed: int = 42,
 ) -> HeightRegressionModel:
     """Sentetik veri setiyle varsayılan bir `HeightRegressionModel` eğitir."""
     samples, targets = generate_synthetic_training_set(n_samples=n_samples, seed=seed)
@@ -359,6 +397,7 @@ def train_default_height_model(
 # ---------------------------------------------------------------------- #
 # Kabul kriteri raporu: heuristic vs eğitilmiş model MAE karşılaştırması
 # ---------------------------------------------------------------------- #
+
 
 @dataclass(slots=True)
 class HeightBenchmarkReport:
@@ -385,7 +424,9 @@ def _mean_absolute_error(predictor: Predictor, samples: list[dict], targets: lis
 
 
 def benchmark_height_predictors(
-    n_train: int = 400, n_test: int = 150, seed: int = 7,
+    n_train: int = 400,
+    n_test: int = 150,
+    seed: int = 7,
 ) -> HeightBenchmarkReport:
     """Held-out test seti üzerinde saf `HeuristicPredictor` ile eğitilmiş
     `MLAssistedHeightPredictor`'ın MAE'sini karşılaştırır.
@@ -404,14 +445,17 @@ def benchmark_height_predictors(
     trained_mae = _mean_absolute_error(trained_predictor, test_samples, test_targets)
 
     return HeightBenchmarkReport(
-        n_train=n_train, n_test=n_test,
-        heuristic_mae=heuristic_mae, trained_mae=trained_mae,
+        n_train=n_train,
+        n_test=n_test,
+        heuristic_mae=heuristic_mae,
+        trained_mae=trained_mae,
     )
 
 
 # ---------------------------------------------------------------------- #
 # Roadmap V3 - Faz D12: k-fold çapraz doğrulama (stdlib-only)
 # ---------------------------------------------------------------------- #
+
 
 @dataclass(slots=True)
 class KFoldCrossValidationReport:
@@ -433,9 +477,7 @@ class KFoldCrossValidationReport:
     @property
     def folds_where_trained_wins(self) -> int:
         """Eğitilmiş modelin heuristic'ten daha düşük MAE verdiği fold sayısı."""
-        return sum(
-            1 for h, t in zip(self.fold_heuristic_mae, self.fold_trained_mae) if t < h
-        )
+        return sum(1 for h, t in zip(self.fold_heuristic_mae, self.fold_trained_mae) if t < h)
 
     @property
     def trained_wins_majority(self) -> bool:
@@ -457,7 +499,10 @@ class KFoldCrossValidationReport:
 
 
 def k_fold_cross_validate(
-    samples: list[dict], targets: list[float], k: int = 5, seed: int = 0,
+    samples: list[dict],
+    targets: list[float],
+    k: int = 5,
+    seed: int = 0,
 ) -> KFoldCrossValidationReport:
     """`samples`/`targets` üzerinde stdlib-only k-fold çapraz doğrulama:
     veri `k` eşit parçaya (fold) rastgele karıştırılıp bölünür; her
@@ -499,10 +544,10 @@ def k_fold_cross_validate(
         fold_heuristic_mae.append(
             _mean_absolute_error(heuristic_predictor, test_samples, test_targets)
         )
-        fold_trained_mae.append(
-            _mean_absolute_error(trained_predictor, test_samples, test_targets)
-        )
+        fold_trained_mae.append(_mean_absolute_error(trained_predictor, test_samples, test_targets))
 
     return KFoldCrossValidationReport(
-        k=k, fold_heuristic_mae=fold_heuristic_mae, fold_trained_mae=fold_trained_mae,
+        k=k,
+        fold_heuristic_mae=fold_heuristic_mae,
+        fold_trained_mae=fold_trained_mae,
     )

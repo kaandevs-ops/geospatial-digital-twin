@@ -30,8 +30,12 @@ from ...mesh_engine import (
     WallOpeningMeshBuilder,
 )
 from ..building_elements import (
-    BalconyGenerator, BayWindowGenerator, DoorGenerator, EntranceCanopyGenerator,
-    WindowGenerator, WindowPlacement,
+    BalconyGenerator,
+    BayWindowGenerator,
+    DoorGenerator,
+    EntranceCanopyGenerator,
+    WindowGenerator,
+    WindowPlacement,
 )
 from ..regulations import RegulationProfile, default_profile
 
@@ -97,7 +101,6 @@ class Facade:
             self.balconies = []
         if self.bay_windows is None:
             self.bay_windows = []
-
 
 
 # Roadmap V3 - D13: gerçek, alıntılanabilir standart/yönetmelik madde
@@ -175,7 +178,8 @@ class FacadeGenerator:
 
     @staticmethod
     def material_for_building_type_with_profile(
-        building_type: str | None, profile: RegulationProfile | None,
+        building_type: str | None,
+        profile: RegulationProfile | None,
     ) -> FacadeMaterial:
         """Roadmap 1.4: 'Malzeme-yönetmelik ilişkisi'. Varsayılan bina-tipi
         malzemesi, verilen `profile`'da izinli değilse (örn. tarihi doku
@@ -275,13 +279,20 @@ class FacadeGenerator:
         # çağıranlar hiçbir fark görmeden aynı sonucu almaya devam eder).
         if use_shape_grammar:
             from ..facade_grammar import ShapeGrammarFacadeGenerator
+
             windows = ShapeGrammarFacadeGenerator.place_on_footprint(
-                polygon, building_type=building_type, seed=seed,
+                polygon,
+                building_type=building_type,
+                seed=seed,
             )
         else:
             windows = WindowGenerator.place_on_footprint(
-                polygon, window_width=window_width, window_height=window_height,
-                sill_height=floor_height * 0.35, spacing=2.5, seed=seed,
+                polygon,
+                window_width=window_width,
+                window_height=window_height,
+                sill_height=floor_height * 0.35,
+                spacing=2.5,
+                seed=seed,
             )
         entrance = DoorGenerator.exterior_entrance(polygon, width=door_width)
 
@@ -291,7 +302,9 @@ class FacadeGenerator:
             ring = polygon.closed_ring()[:-1]
             if not Polygon(ring).is_ccw():
                 ring = list(reversed(ring))
-            edge_lengths = [ring[i].distance_to(ring[(i + 1) % len(ring)]) for i in range(len(ring))]
+            edge_lengths = [
+                ring[i].distance_to(ring[(i + 1) % len(ring)]) for i in range(len(ring))
+            ]
 
             floor_meshes: list[Mesh3D] = []
             per_floor_meshes: list[Mesh3D] = []  # FAZ 0: kat başına ayrı (merge edilmemiş) mesh
@@ -333,7 +346,8 @@ class FacadeGenerator:
                         door_u0 = door_u - entrance.width / 2.0 - door_clearance
                         door_u1 = door_u + entrance.width / 2.0 + door_clearance
                         edge_windows = [
-                            w for w in edge_windows
+                            w
+                            for w in edge_windows
                             if not (
                                 (a.distance_to(w.position) + w.width / 2.0) > door_u0
                                 and (a.distance_to(w.position) - w.width / 2.0) < door_u1
@@ -342,23 +356,38 @@ class FacadeGenerator:
                     openings: list[WallOpening] = []
                     for w in edge_windows:
                         u = a.distance_to(w.position)
-                        openings.append(WallOpening(
-                            u_start=u - w.width / 2.0, u_end=u + w.width / 2.0,
-                            v_start=sill, v_end=sill + w.height, kind="window",
-                        ))
+                        openings.append(
+                            WallOpening(
+                                u_start=u - w.width / 2.0,
+                                u_end=u + w.width / 2.0,
+                                v_start=sill,
+                                v_end=sill + w.height,
+                                kind="window",
+                            )
+                        )
                     if is_entrance_edge:
                         du = a.distance_to(entrance.position)
-                        openings.append(WallOpening(
-                            u_start=du - entrance.width / 2.0, u_end=du + entrance.width / 2.0,
-                            v_start=0.0, v_end=door_height, kind="door",
-                        ))
+                        openings.append(
+                            WallOpening(
+                                u_start=du - entrance.width / 2.0,
+                                u_end=du + entrance.width / 2.0,
+                                v_start=0.0,
+                                v_end=door_height,
+                                kind="door",
+                            )
+                        )
                         doors.append(entrance)
                         if add_entrance_canopy:
                             canopy = EntranceCanopyGenerator.for_entrance(entrance)
                             canopy_mesh = FacadeElementMeshBuilder.build_entrance_canopy(
-                                a, b, entrance.position, width=canopy.width, depth=canopy.depth,
+                                a,
+                                b,
+                                entrance.position,
+                                width=canopy.width,
+                                depth=canopy.depth,
                                 base_z=floor_base_z + canopy.height_above_door,
-                                thickness=canopy.thickness, name=f"canopy_f{floor_idx}",
+                                thickness=canopy.thickness,
+                                name=f"canopy_f{floor_idx}",
                             )
                             # ROADMAP_V7.md'nin son "Kalan" maddesi: bu üretim
                             # yolu (extrude_polygon tabanlı) UV atamıyordu -
@@ -367,31 +396,50 @@ class FacadeGenerator:
                             floor_meshes.append(UVGenerator.box_mapping(canopy_mesh))
                     if add_balconies and floor_idx > 0 and not is_entrance_edge and edge_windows:
                         balconies_here = BalconyGenerator.place_on_windows(
-                            edge_windows, depth=balcony_depth, every_nth=balcony_every_nth,
-                            floor_level=floor_idx, min_floor_for_balcony=1,
+                            edge_windows,
+                            depth=balcony_depth,
+                            every_nth=balcony_every_nth,
+                            floor_level=floor_idx,
+                            min_floor_for_balcony=1,
                         )
                         for bi, bal in enumerate(balconies_here):
                             balcony_mesh = FacadeElementMeshBuilder.build_balcony(
-                                a, b, bal.position, width=bal.width, depth=bal.depth,
-                                base_z=floor_base_z, name=f"balcony_f{floor_idx}_e{edge_idx}_{bi}",
+                                a,
+                                b,
+                                bal.position,
+                                width=bal.width,
+                                depth=bal.depth,
+                                base_z=floor_base_z,
+                                name=f"balcony_f{floor_idx}_e{edge_idx}_{bi}",
                             )
                             floor_meshes.append(UVGenerator.box_mapping(balcony_mesh))
                             facade_balconies.append(bal)
                     if add_bay_windows and edge_windows:
                         bays_here = BayWindowGenerator.place_on_windows(
-                            edge_windows, every_nth=bay_window_every_nth,
+                            edge_windows,
+                            every_nth=bay_window_every_nth,
                         )
                         for bwi, bw in enumerate(bays_here):
                             bay_mesh = FacadeElementMeshBuilder.build_bay_window(
-                                a, b, bw.window.position, side_width=bw.side_width,
-                                protrusion=bw.protrusion, base_z=floor_base_z,
-                                height=floor_height * 0.6, name=f"bay_f{floor_idx}_e{edge_idx}_{bwi}",
+                                a,
+                                b,
+                                bw.window.position,
+                                side_width=bw.side_width,
+                                protrusion=bw.protrusion,
+                                base_z=floor_base_z,
+                                height=floor_height * 0.6,
+                                name=f"bay_f{floor_idx}_e{edge_idx}_{bwi}",
                             )
                             floor_meshes.append(UVGenerator.box_mapping(bay_mesh))
                             facade_bay_windows.append(bw)
                     wall_mesh = WallOpeningMeshBuilder.build_wall_segment(
-                        a, b, floor_base_z, floor_height, openings,
-                        thickness=wall_thickness, name=f"wall_f{floor_idx}_e{edge_idx}",
+                        a,
+                        b,
+                        floor_base_z,
+                        floor_height,
+                        openings,
+                        thickness=wall_thickness,
+                        name=f"wall_f{floor_idx}_e{edge_idx}",
                     )
                     if wall_mesh.triangle_count() > 0:
                         floor_meshes.append(wall_mesh)
@@ -404,10 +452,16 @@ class FacadeGenerator:
 
                 # Kat döşemesi (zemin katta temel/taban, üst katlarda ara
                 # döşeme) - kat ayrımını mesh'te görsel olarak temsil eder.
-                floor_meshes.append(UVGenerator.box_mapping(FloorPlateBuilder.build(
-                    Polygon(floor_ring), floor_base_z, slab_thickness=min(0.25, floor_height * 0.1),
-                    name=f"floor_plate_{floor_idx}",
-                )))
+                floor_meshes.append(
+                    UVGenerator.box_mapping(
+                        FloorPlateBuilder.build(
+                            Polygon(floor_ring),
+                            floor_base_z,
+                            slab_thickness=min(0.25, floor_height * 0.1),
+                            name=f"floor_plate_{floor_idx}",
+                        )
+                    )
+                )
 
             # Çatı seviyesindeki üst döşeme (en üst kat tavanı / çatı tabanı).
             # `floor_polygons` verildiyse en üst katın çokgenini kullanır
@@ -415,16 +469,28 @@ class FacadeGenerator:
             # profiline oturur - `floor_ring` döngüden sonra son katın
             # değerini taşır).
             roof_z = base_z + floor_count * floor_height
-            floor_meshes.append(UVGenerator.box_mapping(FloorPlateBuilder.build(
-                Polygon(floor_ring), roof_z, slab_thickness=min(0.25, floor_height * 0.1), name="roof_plate",
-            )))
+            floor_meshes.append(
+                UVGenerator.box_mapping(
+                    FloorPlateBuilder.build(
+                        Polygon(floor_ring),
+                        roof_z,
+                        slab_thickness=min(0.25, floor_height * 0.1),
+                        name="roof_plate",
+                    )
+                )
+            )
 
             mesh = MeshMerger.merge(floor_meshes, name="facade_building")
 
         return Facade(
-            material=material, pbr_material=pbr, windows=windows, mesh=mesh,
+            material=material,
+            pbr_material=pbr,
+            windows=windows,
+            mesh=mesh,
             floor_meshes=(per_floor_meshes if build_mesh else None),
-            doors=doors, floor_count=max(1, floor_count), floor_height=floor_height,
+            doors=doors,
+            floor_count=max(1, floor_count),
+            floor_height=floor_height,
             balconies=(facade_balconies if build_mesh else []),
             bay_windows=(facade_bay_windows if build_mesh else []),
         )

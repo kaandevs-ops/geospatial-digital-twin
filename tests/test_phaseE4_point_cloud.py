@@ -29,10 +29,10 @@ from harita.core_engine.gis_core.point_cloud import (
 )
 from harita.terrain_engine import HeightmapGrid
 
-
 # ------------------------------------------------------------------ #
 # Sentetik LAS 1.2 üretici (test yardımcı fonksiyonu - stdlib-only)
 # ------------------------------------------------------------------ #
+
 
 def _build_las_bytes(
     points: list[tuple[float, float, float]],
@@ -77,8 +77,15 @@ def _build_las_bytes(
     struct.pack_into("<ddd", header, 131, x_scale, y_scale, z_scale)
     struct.pack_into("<ddd", header, 155, x_offset, y_offset, z_offset)
     struct.pack_into(
-        "<dddddd", header, 179,
-        max(xs), min(xs), max(ys), min(ys), max(zs), min(zs),
+        "<dddddd",
+        header,
+        179,
+        max(xs),
+        min(xs),
+        max(ys),
+        min(ys),
+        max(zs),
+        min(zs),
     )
 
     body = bytearray()

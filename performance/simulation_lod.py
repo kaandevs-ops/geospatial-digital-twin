@@ -42,9 +42,10 @@ tasarımının O.2'de yaptığı gibi).
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from enum import Enum
-from typing import Iterable, Protocol, Sequence
+from typing import Protocol
 
 from ..data_engine.spatial_index import AABB2D, QuadTree
 
@@ -55,10 +56,11 @@ Vec2 = tuple[float, float]
 # 1) Davranış LOD (agent simülasyon detay seviyesi)
 # ========================================================================== #
 
+
 class SimulationLODMode(str, Enum):
-    FULL = "full"            # bireysel SocialForceModel adımı
+    FULL = "full"  # bireysel SocialForceModel adımı
     AGGREGATE = "aggregate"  # istatistiksel yoğunluk temsili
-    CULLED = "culled"        # hiç güncellenmez
+    CULLED = "culled"  # hiç güncellenmez
 
 
 @dataclass(frozen=True)
@@ -87,7 +89,9 @@ class SimulationLODManager:
     farklıdır: mesh anahtarı değil, `SimulationLODMode`).
     """
 
-    def __init__(self, levels: Sequence[SimulationLODLevel] = DEFAULT_SIMULATION_LOD_LEVELS) -> None:
+    def __init__(
+        self, levels: Sequence[SimulationLODLevel] = DEFAULT_SIMULATION_LOD_LEVELS
+    ) -> None:
         self.levels = sorted(levels, key=lambda lv: lv.max_distance)
         if not self.levels:
             raise ValueError("SimulationLODManager: en az bir LOD seviyesi gerekli")
@@ -98,7 +102,9 @@ class SimulationLODManager:
                 return level.mode
         return self.levels[-1].mode
 
-    def select_for_position(self, camera_position: Vec2, object_position: Vec2) -> SimulationLODMode:
+    def select_for_position(
+        self, camera_position: Vec2, object_position: Vec2
+    ) -> SimulationLODMode:
         dx = object_position[0] - camera_position[0]
         dy = object_position[1] - camera_position[1]
         distance = math.sqrt(dx * dx + dy * dy)
@@ -108,6 +114,7 @@ class SimulationLODManager:
 # ========================================================================== #
 # 2) İstatistiksel yoğunluk temsili (AGGREGATE modunda kullanılan çıktı)
 # ========================================================================== #
+
 
 @dataclass
 class AggregateAgentCluster:
@@ -121,14 +128,14 @@ class AggregateAgentCluster:
     agent_count: int
     centroid: Vec2
     mean_speed: float
-    waiting_fraction: float   # [0, 1] — bekleyen/panikte olan agent oranı
+    waiting_fraction: float  # [0, 1] — bekleyen/panikte olan agent oranı
 
 
 class _PositionedAgent(Protocol):
     agent_id: int
 
     @property
-    def position(self) -> "object": ...  # x, y niteliği olan herhangi bir nesne
+    def position(self) -> object: ...  # x, y niteliği olan herhangi bir nesne
 
 
 def _xy(agent) -> Vec2:
@@ -171,19 +178,22 @@ def build_aggregate_clusters(
             if is_waiting:
                 waiting_count += 1
 
-        clusters.append(AggregateAgentCluster(
-            cell_key=cell,
-            agent_count=n,
-            centroid=(sum_x / n, sum_y / n),
-            mean_speed=sum_speed / n,
-            waiting_fraction=waiting_count / n,
-        ))
+        clusters.append(
+            AggregateAgentCluster(
+                cell_key=cell,
+                agent_count=n,
+                centroid=(sum_x / n, sum_y / n),
+                mean_speed=sum_speed / n,
+                waiting_fraction=waiting_count / n,
+            )
+        )
     return clusters
 
 
 # ========================================================================== #
 # 3) Spatial hashing — SocialForceModel O(n²) komşu taraması için
 # ========================================================================== #
+
 
 class AgentSpatialHash:
     """`data_engine.spatial_index.QuadTree` üzerine ince cephe: agent'ları

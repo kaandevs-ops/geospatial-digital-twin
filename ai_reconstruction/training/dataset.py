@@ -37,9 +37,10 @@ from __future__ import annotations
 import csv
 import json
 import random
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 try:
     from PIL import Image
@@ -130,7 +131,10 @@ def _row_from_dict(obj: dict[str, Any], line_no: int) -> ManifestRow:
 
 
 def split_manifest(
-    rows: list[ManifestRow], val_split: float, test_split: float, seed: int = 42,
+    rows: list[ManifestRow],
+    val_split: float,
+    test_split: float,
+    seed: int = 42,
 ) -> tuple[list[ManifestRow], list[ManifestRow], list[ManifestRow]]:
     """Satırları train/val/test'e rastgele (ama tekrarlanabilir) böler."""
     if not 0.0 <= val_split < 1.0 or not 0.0 <= test_split < 1.0:
@@ -144,8 +148,8 @@ def split_manifest(
     n_val = round(n * val_split)
     n_test = round(n * test_split)
     val = shuffled[:n_val]
-    test = shuffled[n_val:n_val + n_test]
-    train = shuffled[n_val + n_test:]
+    test = shuffled[n_val : n_val + n_test]
+    train = shuffled[n_val + n_test :]
     if not train:
         raise ManifestError(
             f"train seti boş kaldı (n={n}, val={n_val}, test={n_test}) — "
@@ -172,7 +176,7 @@ class ManifestDataset:
     def __len__(self) -> int:
         return len(self.rows)
 
-    def __getitem__(self, idx: int) -> tuple["Image.Image", dict[str, Any]]:
+    def __getitem__(self, idx: int) -> tuple[Image.Image, dict[str, Any]]:
         row = self.rows[idx]
         img_path = self.images_root / row.image_path
         if not img_path.exists():
@@ -185,7 +189,7 @@ class ManifestDataset:
         }
         return image, targets
 
-    def __iter__(self) -> Iterator[tuple["Image.Image", dict[str, Any]]]:
+    def __iter__(self) -> Iterator[tuple[Image.Image, dict[str, Any]]]:
         for i in range(len(self)):
             yield self[i]
 

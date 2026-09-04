@@ -10,13 +10,11 @@ kaydet/kapat/yeniden aç) doğrulanır.
 from __future__ import annotations
 
 import sys
-import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.app_shell import AppSession, AppSessionError, build_app_router
 
 
@@ -61,7 +59,9 @@ def test_add_building_and_describe(session, tmp_path):
     pid = info["project_id"]
     poly = [(0, 0), (20, 0), (20, 15), (0, 15)]
 
-    b = session.add_building(pid, poly, building_type="apartman", floor_count=5, height_m=15.0, seed=7)
+    b = session.add_building(
+        pid, poly, building_type="apartman", floor_count=5, height_m=15.0, seed=7
+    )
     assert b["floor_count"] == 5
     assert b["building_type"] == "apartman"
     assert b["can_undo"] is False
@@ -151,7 +151,8 @@ def test_energy_envelope_monthly_balance(session, tmp_path):
     key = b["key"]
 
     result = session.energy_envelope_monthly_balance(
-        pid, key,
+        pid,
+        key,
         monthly_mean_external_temp_c=[2, 3, 6, 10, 15, 19, 22, 22, 18, 13, 7, 3],
         monthly_solar_gain_kwh=[200, 250, 350, 400, 500, 550, 600, 550, 450, 350, 250, 180],
         monthly_internal_gain_kwh=[150] * 12,
@@ -163,7 +164,8 @@ def test_energy_envelope_monthly_balance(session, tmp_path):
 
     with pytest.raises(AppSessionError):
         session.energy_envelope_monthly_balance(
-            pid, key,
+            pid,
+            key,
             monthly_mean_external_temp_c=[2, 3],  # eksik ay -> ValueError -> AppSessionError
             monthly_solar_gain_kwh=[200] * 12,
             monthly_internal_gain_kwh=[150] * 12,
@@ -176,7 +178,8 @@ def test_router_energy_envelope_monthly_balance(router, session, tmp_path):
     b = session.add_building(pid, [(0, 0), (10, 0), (10, 8), (0, 8)], floor_count=4, height_m=12.0)
 
     resp = router.dispatch(
-        "POST", f"/api/projects/{pid}/energy/monthly-balance",
+        "POST",
+        f"/api/projects/{pid}/energy/monthly-balance",
         body={
             "key": b["key"],
             "monthly_mean_external_temp_c": [2, 3, 6, 10, 15, 19, 22, 22, 18, 13, 7, 3],
@@ -188,7 +191,8 @@ def test_router_energy_envelope_monthly_balance(router, session, tmp_path):
     assert resp.body["annual_heating_demand_kwh"] > 0
 
     missing = router.dispatch(
-        "POST", f"/api/projects/{pid}/energy/monthly-balance",
+        "POST",
+        f"/api/projects/{pid}/energy/monthly-balance",
         body={"key": b["key"]},
     )
     assert missing.status == 422
@@ -201,7 +205,9 @@ def test_persistence_roundtrip_across_sessions(tmp_path):
     with AppSession(registry) as s1:
         info = s1.create_project("Kalıcı Proje", path)
         pid = info["project_id"]
-        s1.add_building(pid, [(0, 0), (12, 0), (12, 9), (0, 9)], floor_count=4, height_m=12.0, seed=3)
+        s1.add_building(
+            pid, [(0, 0), (12, 0), (12, 9), (0, 9)], floor_count=4, height_m=12.0, seed=3
+        )
         s1.save_project(pid)
 
     with AppSession(registry) as s2:
@@ -242,8 +248,14 @@ def test_router_full_workflow(router, tmp_path):
     assert opened.status == 200
 
     added = router.dispatch(
-        "POST", f"/api/projects/{pid}/buildings",
-        body={"polygon": [[0, 0], [20, 0], [20, 15], [0, 15]], "building_type": "ofis", "floor_count": 6, "height_m": 18.0},
+        "POST",
+        f"/api/projects/{pid}/buildings",
+        body={
+            "polygon": [[0, 0], [20, 0], [20, 15], [0, 15]],
+            "building_type": "ofis",
+            "floor_count": 6,
+            "height_m": 18.0,
+        },
     )
     assert added.status == 201
     key = added.body["key"]
@@ -258,7 +270,9 @@ def test_router_full_workflow(router, tmp_path):
     assert undo.body["floor_count"] == 6
 
     chat = router.dispatch(
-        "POST", f"/api/projects/{pid}/buildings/{key}/assistant", body={"text": "1 kat ekle"},
+        "POST",
+        f"/api/projects/{pid}/buildings/{key}/assistant",
+        body={"text": "1 kat ekle"},
     )
     assert chat.status == 200
     assert chat.body["success"] is True
@@ -298,7 +312,8 @@ def test_router_delete_building(router, tmp_path):
     pid = created.body["project_id"]
     router.dispatch("POST", f"/api/projects/{pid}/open")
     added = router.dispatch(
-        "POST", f"/api/projects/{pid}/buildings",
+        "POST",
+        f"/api/projects/{pid}/buildings",
         body={"polygon": [[0, 0], [10, 0], [10, 10], [0, 10]]},
     )
     key = added.body["key"]

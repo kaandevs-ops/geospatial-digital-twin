@@ -14,7 +14,6 @@ from __future__ import annotations
 import math
 
 import pytest
-
 from harita.building_reconstruction.roof_generator import RoofGenerator
 from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.mesh_engine.quality_metrics import MeshQualityAnalyzer
@@ -68,7 +67,8 @@ class TestCrossGableValleyIsGeometricallyCorrect:
         centroid = (size / 2.0, size / 2.0)
         # Merkez nokta mesh'te tam olarak bulunmalı (add_cell merkez fan noktası).
         center_matches = [
-            v for v in mesh.vertices
+            v
+            for v in mesh.vertices
             if abs(v.x - centroid[0]) < 1e-6 and abs(v.y - centroid[1]) < 1e-6
         ]
         assert center_matches, "Merkez (vadi kesişim) noktası mesh'te bulunamadı"
@@ -90,8 +90,7 @@ class TestCrossGableValleyIsGeometricallyCorrect:
         centroid = (size / 2.0, size / 2.0)
         corner = (centroid[0] - half_depth, centroid[1] - half_depth)
         matches = [
-            v for v in mesh.vertices
-            if abs(v.x - corner[0]) < 1e-6 and abs(v.y - corner[1]) < 1e-6
+            v for v in mesh.vertices if abs(v.x - corner[0]) < 1e-6 and abs(v.y - corner[1]) < 1e-6
         ]
         assert matches
         assert matches[0].z == pytest.approx(base_z, abs=1e-6)
@@ -125,7 +124,8 @@ class TestCrossGableValleyIsGeometricallyCorrect:
         ridge_h_b = half_depth_b * slope
         centroid = (w / 2.0, d / 2.0)
         center_matches = [
-            v for v in mesh.vertices
+            v
+            for v in mesh.vertices
             if abs(v.x - centroid[0]) < 1e-6 and abs(v.y - centroid[1]) < 1e-6
         ]
         assert center_matches

@@ -1,6 +1,7 @@
 """yeni_roadmap.md Faz 3.3 - Ölçüm araçları (distance/height/angle/slope/area)
 `AppSession`/REST API köprüsü.
 """
+
 from __future__ import annotations
 
 import sys
@@ -9,7 +10,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.app_shell import AppSession, AppSessionError, build_app_router
 
 
@@ -72,7 +72,8 @@ def test_measure_insufficient_points_raises(session, project):
 
 def test_measure_via_rest_api(router, project):
     resp = router.dispatch(
-        "POST", f"/api/projects/{project}/measure",
+        "POST",
+        f"/api/projects/{project}/measure",
         body={"tool": "distance", "points": [[0, 0, 0], [6, 8, 0]]},
     )
     assert resp.status == 200

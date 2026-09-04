@@ -6,10 +6,7 @@ tutarlılığı, kat hizalama toleransı (mm), çoklu-mesh batch raporu.
 
 from __future__ import annotations
 
-import math
-
 import pytest
-
 from harita.mesh_engine import Mesh3D, MeshBuilder, Vertex3D
 from harita.mesh_engine.quality_metrics import (
     BatchQualityAnalyzer,
@@ -44,7 +41,11 @@ class TestMeshQualityAnalyzer:
 
     def test_degenerate_triangle_is_detected(self):
         mesh = Mesh3D(
-            vertices=[Vertex3D(0, 0, 0), Vertex3D(1, 0, 0), Vertex3D(2, 0, 0)],  # doğrusal -> sıfır alan
+            vertices=[
+                Vertex3D(0, 0, 0),
+                Vertex3D(1, 0, 0),
+                Vertex3D(2, 0, 0),
+            ],  # doğrusal -> sıfır alan
             triangles=[(0, 1, 2)],
             name="degenerate",
         )
@@ -54,8 +55,11 @@ class TestMeshQualityAnalyzer:
     def test_nonmanifold_edge_detected_when_edge_shared_by_three_triangles(self):
         # Kenar (0,1)'i paylaşan 3 üçgen -> non-manifold
         vertices = [
-            Vertex3D(0, 0, 0), Vertex3D(1, 0, 0),
-            Vertex3D(0, 1, 0), Vertex3D(0, -1, 0), Vertex3D(-1, 0, 0),
+            Vertex3D(0, 0, 0),
+            Vertex3D(1, 0, 0),
+            Vertex3D(0, 1, 0),
+            Vertex3D(0, -1, 0),
+            Vertex3D(-1, 0, 0),
         ]
         triangles = [(0, 1, 2), (0, 1, 3), (1, 0, 4)]
         mesh = Mesh3D(vertices=vertices, triangles=triangles, name="fan")

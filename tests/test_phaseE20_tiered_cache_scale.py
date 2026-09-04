@@ -36,7 +36,6 @@ import time
 from pathlib import Path
 
 import pytest
-
 from harita.data_engine.tiered_cache import TieredCache
 from harita.persistence.db_backend import ProjectDatabase
 from harita.persistence.project_format import ProjectManifest
@@ -150,8 +149,7 @@ def test_zipf_access_pattern_hot_hit_ratio_is_high(city_cache):
     # %90 erişim yalnızca 100 popüler anahtara gidiyor ve HOT_CAPACITY
     # (2.000) bunların tamamını rahatça barındırabiliyor.
     assert cache.stats.hot_hit_ratio > 0.75, (
-        f"Zipf paterninde beklenenden düşük sıcak-isabet oranı: "
-        f"{cache.stats.hot_hit_ratio:.3f}"
+        f"Zipf paterninde beklenenden düşük sıcak-isabet oranı: {cache.stats.hot_hit_ratio:.3f}"
     )
 
 

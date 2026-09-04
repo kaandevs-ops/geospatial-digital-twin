@@ -21,6 +21,7 @@ Gösterge disiplini: bu basit bir **logit-benzeri** (ama tam multinomial
 logit değil - roadmap'in kendi kapsamıyla tutarlı bir basitleştirme)
 skor/ eşik modelidir; gerçek bir kalibre edilmiş talep modeli değildir.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -40,15 +41,15 @@ class ModeChoiceParams:
     """Mod seçim eşikleri - basit, açık, ayarlanabilir kurallar (kara
     kutu değil, roadmap ilkesi #5 ile tutarlı)."""
 
-    walk_max_distance_m: float = 1200.0        # bu mesafeye kadar yürüme tercih edilir
-    vehicle_min_distance_m: float = 3000.0      # bu mesafenin üstünde araç ağırlık kazanır
+    walk_max_distance_m: float = 1200.0  # bu mesafeye kadar yürüme tercih edilir
+    vehicle_min_distance_m: float = 3000.0  # bu mesafenin üstünde araç ağırlık kazanır
     #: Katman 2.3 ("hane gelir düzeyi -> araç sahipliği oranı") - basit bir
     #: çarpan olarak modellenir; gerçek bir hane geliri veri kümesi bu
     #: modülün kapsamı dışıdır (çağıran taraf sağlar, sessizce icat edilmez).
     vehicle_ownership_probability: float = 0.55
     #: Katman 3.3 madde 4 ("hava durumu etkisi") - yağışlı/düşük görüşte
     #: yürüme/bisiklet cazibesi azalır, transit/araç ağırlık kazanır.
-    bad_weather_walk_penalty: float = 0.4       # 0-1, 1 = yürüme tamamen elenir
+    bad_weather_walk_penalty: float = 0.4  # 0-1, 1 = yürüme tamamen elenir
 
 
 @dataclass(slots=True, frozen=True)
@@ -72,6 +73,7 @@ class ModeChoiceModel:
 
     def __init__(self, params: ModeChoiceParams | None = None, *, seed: int | None = None) -> None:
         import random
+
         self.params = params or ModeChoiceParams()
         self._rng = random.Random(seed)
 
@@ -88,7 +90,7 @@ class ModeChoiceModel:
 
         walk_score = max(0.0, 1.0 - distance_m / max(p.walk_max_distance_m, 1e-6))
         if bad_weather:
-            walk_score *= (1.0 - p.bad_weather_walk_penalty)
+            walk_score *= 1.0 - p.bad_weather_walk_penalty
 
         transit_score = 0.5  # nötr taban - gerçek transit erişilebilirliği (durak yakınlığı)
         # çağıran tarafın `transit_osm_bridge` ile ayrıca sağlayabileceği bir zenginleştirmedir;
@@ -110,7 +112,9 @@ class ModeChoiceModel:
             TravelMode.VEHICLE.value: vehicle_score,
         }
         chosen = TravelMode(max(scores, key=scores.get))
-        return ModeChoiceResult(demand=demand, distance_m=distance_m, chosen_mode=chosen, scores=scores)
+        return ModeChoiceResult(
+            demand=demand, distance_m=distance_m, chosen_mode=chosen, scores=scores
+        )
 
     def choose_batch(
         self,

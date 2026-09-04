@@ -1,4 +1,5 @@
 """Roadmap V4 - Track E / Faz E18 (vegetation) icin testler."""
+
 import sys
 from pathlib import Path
 
@@ -6,14 +7,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from harita.core_engine.coordinate_systems import GeoPoint
 from harita.terrain_engine import HeightmapGrid
-from harita.vegetation import TreeSpecies, TreeGenerator, VegetationScatterer, VegetationInstance
+from harita.vegetation import TreeGenerator, TreeSpecies, VegetationInstance, VegetationScatterer
 
 
 def _flat_grid(width=10, height=10, resolution_m=2.0, z=0.0):
     elevations = [[z for _ in range(width)] for _ in range(height)]
     return HeightmapGrid(
-        width=width, height=height, resolution_m=resolution_m,
-        elevations=elevations, origin=GeoPoint(39.92, 32.85),
+        width=width,
+        height=height,
+        resolution_m=resolution_m,
+        elevations=elevations,
+        origin=GeoPoint(39.92, 32.85),
     )
 
 
@@ -30,12 +34,16 @@ def _valley_grid(width=12, height=12, resolution_m=2.0):
             row.append(dist * 1.5)  # merkeze yaklastikca alcalir (huni)
         elevations.append(row)
     return HeightmapGrid(
-        width=width, height=height, resolution_m=resolution_m,
-        elevations=elevations, origin=GeoPoint(39.92, 32.85),
+        width=width,
+        height=height,
+        resolution_m=resolution_m,
+        elevations=elevations,
+        origin=GeoPoint(39.92, 32.85),
     ), (cy, cx)
 
 
 # -- TreeGenerator --------------------------------------------------------- #
+
 
 def test_generate_conifer_produces_valid_manifold_ish_mesh():
     mesh = TreeGenerator.generate(TreeSpecies.CONIFER, height=8.0, canopy_radius=2.0, seed=1)
@@ -86,6 +94,7 @@ def test_generate_rejects_invalid_dimensions():
 
 # -- VegetationScatterer ---------------------------------------------------- #
 
+
 def test_scatter_returns_requested_count_on_flat_terrain():
     grid = _flat_grid()
     instances = VegetationScatterer.scatter(grid, target_count=50, seed=7)
@@ -103,7 +112,9 @@ def test_scatter_is_deterministic_for_same_seed():
     grid = _flat_grid()
     r1 = VegetationScatterer.scatter(grid, target_count=30, seed=99)
     r2 = VegetationScatterer.scatter(grid, target_count=30, seed=99)
-    assert [(i.x, i.y, i.height, i.canopy_radius) for i in r1] == [(i.x, i.y, i.height, i.canopy_radius) for i in r2]
+    assert [(i.x, i.y, i.height, i.canopy_radius) for i in r1] == [
+        (i.x, i.y, i.height, i.canopy_radius) for i in r2
+    ]
 
 
 def test_scatter_instances_are_within_grid_bounds():
@@ -157,8 +168,11 @@ def test_scatter_respects_max_slope_cutoff():
     width = height = 5
     elevations = [[c * 100.0 for c in range(width)] for _ in range(height)]  # asiri dik
     grid = HeightmapGrid(
-        width=width, height=height, resolution_m=1.0,
-        elevations=elevations, origin=GeoPoint(39.92, 32.85),
+        width=width,
+        height=height,
+        resolution_m=1.0,
+        elevations=elevations,
+        origin=GeoPoint(39.92, 32.85),
     )
     instances = VegetationScatterer.scatter(grid, target_count=10, seed=1, max_slope=0.01)
     assert instances == []
@@ -166,8 +180,13 @@ def test_scatter_respects_max_slope_cutoff():
 
 if __name__ == "__main__":
     import inspect
+
     mod = sys.modules[__name__]
-    tests = [obj for name, obj in vars(mod).items() if name.startswith("test_") and inspect.isfunction(obj)]
+    tests = [
+        obj
+        for name, obj in vars(mod).items()
+        if name.startswith("test_") and inspect.isfunction(obj)
+    ]
     passed = failed = 0
     for fn in tests:
         try:

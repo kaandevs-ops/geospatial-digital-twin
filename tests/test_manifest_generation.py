@@ -25,7 +25,6 @@ from harita.export.manifest import load_manifest, verify_manifest_checksums  # n
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import generate_manifest  # noqa: E402
 
-
 _PASS = 0
 _FAIL = 0
 
@@ -49,7 +48,10 @@ def _make_project(tmp_dir: Path) -> tuple[Path, str]:
         session.add_building(
             project_id,
             [(0.0, 0.0), (20.0, 0.0), (20.0, 15.0), (0.0, 15.0)],
-            building_type="apartman", floor_count=4, height_m=12.0, seed=7,
+            building_type="apartman",
+            floor_count=4,
+            height_m=12.0,
+            seed=7,
         )
         session.save_project(project_id)
     finally:
@@ -95,9 +97,15 @@ def test_cli_script_end_to_end():
     tmp_dir = Path(tempfile.mkdtemp(prefix="harita_manifest_cli_"))
     try:
         project_path, _ = _make_project(tmp_dir)
-        exit_code = generate_manifest.main([
-            str(project_path), "--format", "obj", "--format", "stl",
-        ])
+        exit_code = generate_manifest.main(
+            [
+                str(project_path),
+                "--format",
+                "obj",
+                "--format",
+                "stl",
+            ]
+        )
         check("cli exits 0", exit_code == 0)
         manifest_path = project_path.parent / "exports" / "manifest.json"
         check("cli produced manifest.json", manifest_path.is_file())

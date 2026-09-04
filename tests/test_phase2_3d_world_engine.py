@@ -7,27 +7,44 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.core_engine.coordinate_systems import GeoPoint
-
+from harita.core_engine.geometry_engine import Point2D, Polygon
+from harita.lighting import (
+    AmbientLight,
+    AmbientOcclusionBaker,
+    HDRSky,
+    MoonLight,
+    ShadowCalculator,
+    SolarPositionCalculator,
+    SunLight,
+)
+from harita.material_engine import MaterialCache, PBRMaterial, ProceduralMaterials
 from harita.mesh_engine import (
-    MeshBuilder, MeshOptimizer, MeshSimplifier, MeshSplitter, MeshMerger,
-    MeshRepair, UVGenerator, NormalGenerator, TangentGenerator, Mesh3D, Vertex3D,
+    Mesh3D,
+    MeshBuilder,
+    MeshMerger,
+    MeshOptimizer,
+    MeshRepair,
+    MeshSimplifier,
+    MeshSplitter,
+    NormalGenerator,
+    TangentGenerator,
+    UVGenerator,
+    Vertex3D,
 )
 from harita.terrain_engine import (
-    HeightmapGrid, DEMImporter, TerrainMeshGenerator, AdaptiveTerrain,
-    TerrainLOD, TerrainChunking, TerrainStreaming,
+    AdaptiveTerrain,
+    DEMImporter,
+    TerrainChunking,
+    TerrainLOD,
+    TerrainMeshGenerator,
+    TerrainStreaming,
 )
-from harita.material_engine import PBRMaterial, MaterialCache, ProceduralMaterials
-from harita.lighting import (
-    SolarPositionCalculator, SunLight, MoonLight, HDRSky, AmbientLight,
-    ShadowCalculator, AmbientOcclusionBaker,
-)
-
 
 # ------------------------------------------------------------------ #
 # Mesh Engine
 # ------------------------------------------------------------------ #
+
 
 def _box_polygon(w: float, d: float) -> Polygon:
     return Polygon([Point2D(0, 0), Point2D(w, 0), Point2D(w, d), Point2D(0, d)])
@@ -39,16 +56,24 @@ def test_extrude_polygon_box_metrics():
     assert mesh.vertex_count() == 8
     # 2 taban + 2 tavan üçgen + 4 kenar * 2 üçgen = 12
     assert mesh.triangle_count() == 12
-    assert math.isclose(mesh.surface_area(), 2 * 10 * 8 + 2 * (10 * 15) + 2 * (8 * 15), rel_tol=1e-6)
+    assert math.isclose(
+        mesh.surface_area(), 2 * 10 * 8 + 2 * (10 * 15) + 2 * (8 * 15), rel_tol=1e-6
+    )
     assert math.isclose(mesh.volume(), 10 * 8 * 15, rel_tol=1e-6)
 
 
 def test_extrude_polygon_concave_l_shape():
     # L şekli (konkav) - ear clipping'in konkav köşeyi doğru işlediğini doğrular
-    poly = Polygon([
-        Point2D(0, 0), Point2D(10, 0), Point2D(10, 5),
-        Point2D(5, 5), Point2D(5, 10), Point2D(0, 10),
-    ])
+    poly = Polygon(
+        [
+            Point2D(0, 0),
+            Point2D(10, 0),
+            Point2D(10, 5),
+            Point2D(5, 5),
+            Point2D(5, 10),
+            Point2D(0, 10),
+        ]
+    )
     mesh = MeshBuilder.extrude_polygon(poly, base_z=0.0, height=3.0)
     assert mesh.vertex_count() == 12
     expected_footprint_area = 10 * 5 + 5 * 5
@@ -126,6 +151,7 @@ def test_tangent_generator_produces_unit_tangents():
 # Terrain Engine
 # ------------------------------------------------------------------ #
 
+
 def test_heightmap_grid_bilinear_sample_matches_grid_points():
     origin = GeoPoint(39.9334, 32.8597)
     grid = DEMImporter.from_matrix([[0, 1], [2, 3]], resolution_m=10.0, origin=origin)
@@ -200,6 +226,7 @@ def test_terrain_streaming_loads_and_unloads():
 # Material Engine
 # ------------------------------------------------------------------ #
 
+
 def test_pbr_material_clamps_ranges():
     mat = PBRMaterial(name="test", roughness=2.0, metallic=-1.0, opacity=5.0)
     assert mat.roughness == 1.0
@@ -240,6 +267,7 @@ def test_procedural_materials_variation_is_deterministic():
 # ------------------------------------------------------------------ #
 # Lighting
 # ------------------------------------------------------------------ #
+
 
 def test_solar_position_noon_near_equator_high_elevation():
     location = GeoPoint(lat=0.0, lon=0.0)
@@ -292,9 +320,12 @@ def test_shadow_calculator_detects_occlusion_below_box():
     # doğrudan yukarıdan gelen bir güneş (tam tepede) ile kutunun altındaki
     # nokta gölgede olmalı
     from harita.lighting import SolarPosition
+
     straight_down_sun = SunLight(position=SolarPosition(azimuth_deg=0.0, elevation_deg=90.0))
     point_under_box = (0.0, 0.0, -1.0)
-    in_shadow = ShadowCalculator.point_in_shadow(point_under_box, straight_down_sun, [box], max_distance=50.0)
+    in_shadow = ShadowCalculator.point_in_shadow(
+        point_under_box, straight_down_sun, [box], max_distance=50.0
+    )
     assert in_shadow
 
 

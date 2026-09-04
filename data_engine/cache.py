@@ -17,7 +17,8 @@ ağır hesaplanmış nesne) uygular.
 
 from __future__ import annotations
 
-from typing import Callable, Generic, TypeVar
+from collections.abc import Callable
+from typing import Generic, TypeVar
 
 T = TypeVar("T")
 

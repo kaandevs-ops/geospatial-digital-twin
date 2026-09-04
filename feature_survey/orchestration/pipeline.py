@@ -32,7 +32,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-from ..codes import FeatureCode
 from ..field_point import FieldSurveySession
 from ..geodetic_engine.gnss_adjustment import ControlPointComparison
 from ..geodetic_engine.traverse import AngularClosure, LinearClosure
@@ -45,7 +44,6 @@ from ..qc.checkpoint_report import CheckpointAccuracyReport, generate_checkpoint
 from ..qc.closure_report import ClosureQcReport, generate_closure_report
 from ..qc.pointcloud_mesh_comparison import SurfaceComparisonReport, compare_pointcloud_to_mesh
 from ..qc.survey_quality_report import SurveyQualityReport, build_survey_quality_report
-from ..qc.technical_report import TechnicalReportMeta, build_report_lines
 from ..vectorization.linework import VectorFeature, build_linework
 
 
@@ -193,7 +191,11 @@ def run_field_survey_pipeline(
     # --- FAZ S5: kontrol noktası + poligon kapatma raporu ---------------
     checkpoint_report: CheckpointAccuracyReport | None = None
     if checkpoint_comparisons is not None:
-        if checkpoint_tolerance_horizontal_m is None or checkpoint_tolerance_vertical_m is None or not checkpoint_standard_reference:
+        if (
+            checkpoint_tolerance_horizontal_m is None
+            or checkpoint_tolerance_vertical_m is None
+            or not checkpoint_standard_reference
+        ):
             raise OrchestrationError(
                 "`checkpoint_comparisons` verildiğinde tolerans değerleri ve "
                 "`checkpoint_standard_reference` de verilmelidir (S5 uydurma tolerans kabul etmez)."
@@ -209,8 +211,7 @@ def run_field_survey_pipeline(
             description="Kontrol noktası doğruluk raporu (S2 GNSS/traverse çıktısından)",
             input_summary=f"{len(checkpoint_comparisons)} kontrol noktası karşılaştırması",
             output_summary=(
-                f"all_passed={checkpoint_report.all_passed}, "
-                f"n_failed={checkpoint_report.n_failed}"
+                f"all_passed={checkpoint_report.all_passed}, n_failed={checkpoint_report.n_failed}"
             ),
         )
 
@@ -220,7 +221,11 @@ def run_field_survey_pipeline(
             raise OrchestrationError(
                 "Poligon kapatma raporu için hem `angular_closure` hem `linear_closure` gerekir."
             )
-        if angular_tolerance_gon is None or max_relative_precision is None or not closure_standard_reference:
+        if (
+            angular_tolerance_gon is None
+            or max_relative_precision is None
+            or not closure_standard_reference
+        ):
             raise OrchestrationError(
                 "`angular_closure`/`linear_closure` verildiğinde tolerans değerleri ve "
                 "`closure_standard_reference` de verilmelidir."

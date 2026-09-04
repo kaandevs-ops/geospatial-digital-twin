@@ -31,10 +31,9 @@ import json
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import List, Optional
 
-from ..coordinate_systems import GeoPoint
 from ...terrain_engine import HeightmapGrid
+from ..coordinate_systems import GeoPoint
 
 DEFAULT_ELEVATION_ENDPOINT = "https://api.open-elevation.com/api/v1/lookup"
 DEFAULT_USER_AGENT = "harita-modelleme-platformu/0.17 (roadmap-2.4-elevation)"
@@ -63,18 +62,18 @@ class ElevationClient:
         self.endpoint = endpoint
         self.timeout = timeout
 
-    def lookup(self, points: List[tuple[float, float]]) -> List[ElevationSample]:
+    def lookup(self, points: list[tuple[float, float]]) -> list[ElevationSample]:
         """`points`: `[(lat, lon), ...]` -> her nokta için `ElevationSample`.
 
         Open-Elevation şeması: `POST {"locations": [{"latitude": ..,
-        "longitude": ..}, ...]}` -> `{"results": [{"latitude": .., 
+        "longitude": ..}, ...]}` -> `{"results": [{"latitude": ..,
         "longitude": .., "elevation": ..}, ...]}`.
         """
         if not points:
             return []
-        payload = json.dumps({
-            "locations": [{"latitude": lat, "longitude": lon} for lat, lon in points]
-        }).encode("utf-8")
+        payload = json.dumps(
+            {"locations": [{"latitude": lat, "longitude": lon} for lat, lon in points]}
+        ).encode("utf-8")
         req = urllib.request.Request(
             self.endpoint,
             data=payload,
@@ -93,16 +92,20 @@ class ElevationClient:
             raise ElevationError(f"Open-Elevation yanıtı parse edilemedi: {exc}") from exc
 
         results = data.get("results", [])
-        samples: List[ElevationSample] = []
+        samples: list[ElevationSample] = []
         for item in results:
             try:
-                samples.append(ElevationSample(
-                    lat=float(item["latitude"]),
-                    lon=float(item["longitude"]),
-                    elevation_m=float(item["elevation"]),
-                ))
+                samples.append(
+                    ElevationSample(
+                        lat=float(item["latitude"]),
+                        lon=float(item["longitude"]),
+                        elevation_m=float(item["elevation"]),
+                    )
+                )
             except (KeyError, TypeError, ValueError) as exc:
-                raise ElevationError(f"Open-Elevation sonuç kaydı beklenmedik biçimde: {item}") from exc
+                raise ElevationError(
+                    f"Open-Elevation sonuç kaydı beklenmedik biçimde: {item}"
+                ) from exc
         return samples
 
 
@@ -162,14 +165,20 @@ def fetch_heightmap_grid(
 
     origin = GeoPoint(lat=south, lon=west, elevation=matrix[0][0])
     return HeightmapGrid(
-        width=grid_size, height=grid_size,
-        resolution_m=cell_size_m, elevations=matrix, origin=origin,
+        width=grid_size,
+        height=grid_size,
+        resolution_m=cell_size_m,
+        elevations=matrix,
+        origin=origin,
     )
 
 
 def fetch_terrain_or_flat(
     client: ElevationClient,
-    south: float, west: float, north: float, east: float,
+    south: float,
+    west: float,
+    north: float,
+    east: float,
     grid_size: int = 16,
     flat_elevation: float = 0.0,
 ) -> tuple[HeightmapGrid, str]:
@@ -184,9 +193,13 @@ def fetch_terrain_or_flat(
         return grid, "open-elevation"
     except ElevationError:
         from ...terrain_engine import DEMImporter
+
         origin = GeoPoint(lat=south, lon=west, elevation=flat_elevation)
         grid = DEMImporter.flat_terrain(
-            width=grid_size, height=grid_size, resolution_m=30.0,
-            elevation=flat_elevation, origin=origin,
+            width=grid_size,
+            height=grid_size,
+            resolution_m=30.0,
+            elevation=flat_elevation,
+            origin=origin,
         )
         return grid, "flat-fallback"

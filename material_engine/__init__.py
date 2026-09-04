@@ -26,17 +26,17 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .texture_baking import (  # noqa: F401 - re-export
+    AOBaker,
+    HemisphereSampler,
+    NormalMapBaker,
     TextureMap,
     TextureMapCodec,
-    HemisphereSampler,
-    AOBaker,
-    NormalMapBaker,
 )
-
 
 # ======================================================================== #
 # PBR Material
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class PBRMaterial:
@@ -61,17 +61,28 @@ class PBRMaterial:
 
     def content_hash(self) -> str:
         """`MaterialCache` için tekilleştirme anahtarı."""
-        payload = "|".join(str(x) for x in (
-            self.albedo, self.albedo_map, self.roughness, self.roughness_map,
-            self.metallic, self.metallic_map, self.normal_map, self.ao_map,
-            self.emissive, self.opacity,
-        ))
+        payload = "|".join(
+            str(x)
+            for x in (
+                self.albedo,
+                self.albedo_map,
+                self.roughness,
+                self.roughness_map,
+                self.metallic,
+                self.metallic_map,
+                self.normal_map,
+                self.ao_map,
+                self.emissive,
+                self.opacity,
+            )
+        )
         return hashlib.sha1(payload.encode("utf-8")).hexdigest()
 
 
 # ======================================================================== #
 # Texture Loader
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class TextureData:
@@ -117,6 +128,7 @@ class TextureLoader:
 # Material Cache
 # ======================================================================== #
 
+
 class MaterialCache:
     """Roadmap: 'Material Cache'. `content_hash()` bazlı tekilleştirme -
     aynı içerikli malzemenin sahne genelinde tek bir örneği paylaşılır
@@ -141,6 +153,7 @@ class MaterialCache:
 # ======================================================================== #
 # Procedural Materials
 # ======================================================================== #
+
 
 class ProceduralMaterials:
     """Roadmap: 'Procedural Materials'. Bina cephesi için parametrik,
@@ -167,35 +180,28 @@ class ProceduralMaterials:
         "tas": dict(albedo=(0.58, 0.56, 0.52), roughness=0.9, metallic=0.0, opacity=1.0),
         "ahsap": dict(albedo=(0.45, 0.3, 0.18), roughness=0.7, metallic=0.0, opacity=1.0),
         "endustriyel": dict(albedo=(0.4, 0.4, 0.42), roughness=0.6, metallic=0.5, opacity=1.0),
-
         # --- ROADMAP_V8 Faz 5.1 eklentisi: tuğla alt-varyantları ---
         "tugla_sari": dict(albedo=(0.78, 0.68, 0.4), roughness=0.72, metallic=0.0, opacity=1.0),
         "tugla_koyu": dict(albedo=(0.35, 0.16, 0.13), roughness=0.8, metallic=0.0, opacity=1.0),
-
         # --- Doğal taş / anıt-dini yapı ---
         "mermer": dict(albedo=(0.88, 0.87, 0.84), roughness=0.25, metallic=0.0, opacity=1.0),
         "granit": dict(albedo=(0.42, 0.4, 0.4), roughness=0.55, metallic=0.0, opacity=1.0),
         "kalker": dict(albedo=(0.72, 0.68, 0.58), roughness=0.8, metallic=0.0, opacity=1.0),
-
         # --- Metal alt-varyantları (anıt bronzu, dini yapı bakır kubbe) ---
         "bronz": dict(albedo=(0.55, 0.38, 0.2), roughness=0.4, metallic=0.85, opacity=1.0),
         "bakir_oksitli": dict(albedo=(0.3, 0.55, 0.48), roughness=0.6, metallic=0.4, opacity=1.0),
-
         # --- Su / doğal zemin (B1 "düz renk placeholder" eleştirisine yanıt) ---
         "su": dict(albedo=(0.1, 0.25, 0.35), roughness=0.05, metallic=0.0, opacity=0.85),
         "cim": dict(albedo=(0.25, 0.45, 0.18), roughness=0.95, metallic=0.0, opacity=1.0),
         "suni_cim": dict(albedo=(0.2, 0.55, 0.22), roughness=0.7, metallic=0.0, opacity=1.0),
         "kum": dict(albedo=(0.76, 0.68, 0.5), roughness=0.9, metallic=0.0, opacity=1.0),
         "toprak": dict(albedo=(0.4, 0.28, 0.18), roughness=0.95, metallic=0.0, opacity=1.0),
-
         # --- Yol / kaldırım (B1 peyzaj mobilyası ile eşleşir) ---
         "asfalt": dict(albedo=(0.12, 0.12, 0.13), roughness=0.8, metallic=0.0, opacity=1.0),
         "beton_parke": dict(albedo=(0.68, 0.67, 0.63), roughness=0.7, metallic=0.0, opacity=1.0),
-
         # --- Çatı malzemeleri (roof_generator ile eşleşir) ---
         "cati_kiremit": dict(albedo=(0.6, 0.28, 0.18), roughness=0.65, metallic=0.0, opacity=1.0),
         "cati_metal": dict(albedo=(0.55, 0.56, 0.58), roughness=0.35, metallic=0.7, opacity=1.0),
-
         # --- Renkli/vitray cam (dini yapı pencereleri) ---
         "vitray": dict(albedo=(0.5, 0.2, 0.4), roughness=0.1, metallic=0.0, opacity=0.55),
     }
@@ -209,8 +215,7 @@ class ProceduralMaterials:
         material_type = material_type.lower()
         if material_type not in cls._PRESETS:
             raise ValueError(
-                f"Bilinmeyen malzeme tipi: '{material_type}'. "
-                f"Seçenekler: {cls.available_types()}"
+                f"Bilinmeyen malzeme tipi: '{material_type}'. Seçenekler: {cls.available_types()}"
             )
         params = dict(cls._PRESETS[material_type])
         if variation_seed is not None:
@@ -222,6 +227,7 @@ class ProceduralMaterials:
         """Deterministik, hafif renk/pürüzlülük varyasyonu - her binada aynı
         malzeme tipinin tekdüze görünmemesi için (seed tabanlı, tekrarlanabilir)."""
         rng_state = seed
+
         def _next() -> float:
             nonlocal rng_state
             rng_state = (rng_state * 1103515245 + 12345) & 0x7FFFFFFF
@@ -242,8 +248,9 @@ class ProceduralMaterials:
         return params
 
     @staticmethod
-    def procedural_brick_pattern(width_px: int, height_px: int, brick_w: int = 32, brick_h: int = 16
-                                  ) -> list[list[bool]]:
+    def procedural_brick_pattern(
+        width_px: int, height_px: int, brick_w: int = 32, brick_h: int = 16
+    ) -> list[list[bool]]:
         """Basit prosedürel tuğla deseni (offset-row) - gerçek doku pikseli
         yerine boolean mask üretir; `TextureLoader`'a ihtiyaç duymadan
         `FacadeGenerator`'ın (Phase 3) desen kararları için kullanılabilir."""
@@ -264,6 +271,7 @@ class ProceduralMaterials:
 # ======================================================================== #
 # Malzeme Yaşlandırma / Kirlenme (Weathering) - yeni_roadmap.md Faz 1.4
 # ======================================================================== #
+
 
 class MaterialWeathering:
     """Roadmap 1.4: 'Yaşlandırma/kirlenme (weathering) efekti - opsiyonel
@@ -314,11 +322,16 @@ class MaterialWeathering:
 
         return PBRMaterial(
             name=f"{material.name}_weathered_{int(age_years)}y",
-            albedo=new_albedo, albedo_map=material.albedo_map,
-            roughness=new_roughness, roughness_map=material.roughness_map,
-            metallic=material.metallic, metallic_map=material.metallic_map,
-            normal_map=material.normal_map, ao_map=material.ao_map,
-            emissive=material.emissive, opacity=material.opacity,
+            albedo=new_albedo,
+            albedo_map=material.albedo_map,
+            roughness=new_roughness,
+            roughness_map=material.roughness_map,
+            metallic=material.metallic,
+            metallic_map=material.metallic_map,
+            normal_map=material.normal_map,
+            ao_map=material.ao_map,
+            emissive=material.emissive,
+            opacity=material.opacity,
         )
 
 

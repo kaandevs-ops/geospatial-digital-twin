@@ -21,12 +21,12 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
-from ..core_engine.geometry_engine import Point2D, Polygon, GeometryEngine
-
+from ..core_engine.geometry_engine import GeometryEngine, Point2D, Polygon
 
 # ======================================================================== #
 # Temel tipler
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class Vertex3D:
@@ -45,7 +45,7 @@ class Vertex3D:
     def as_tuple(self) -> tuple[float, float, float]:
         return (self.x, self.y, self.z)
 
-    def distance_to(self, other: "Vertex3D") -> float:
+    def distance_to(self, other: Vertex3D) -> float:
         return math.sqrt(
             (self.x - other.x) ** 2 + (self.y - other.y) ** 2 + (self.z - other.z) ** 2
         )
@@ -82,7 +82,7 @@ class Mesh3D:
         zs = [v.z for v in self.vertices]
         return (min(xs), min(ys), min(zs)), (max(xs), max(ys), max(zs))
 
-    def clone(self) -> "Mesh3D":
+    def clone(self) -> Mesh3D:
         return Mesh3D(
             vertices=[Vertex3D(v.x, v.y, v.z, v.normal, v.tangent, v.uv) for v in self.vertices],
             triangles=list(self.triangles),
@@ -100,7 +100,7 @@ class Mesh3D:
     def volume(self) -> float:
         """İşaretli tetrahedron toplamı ile hacim (mesh kapalı/manifold olmalı)."""
         total = 0.0
-        for (i, j, k) in self.triangles:
+        for i, j, k in self.triangles:
             a, b, c = self.vertices[i], self.vertices[j], self.vertices[k]
             total += (
                 a.x * (b.y * c.z - c.y * b.z)
@@ -110,7 +110,9 @@ class Mesh3D:
         return abs(total) / 6.0
 
 
-def _cross(a: tuple[float, float, float], b: tuple[float, float, float]) -> tuple[float, float, float]:
+def _cross(
+    a: tuple[float, float, float], b: tuple[float, float, float]
+) -> tuple[float, float, float]:
     return (
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -146,11 +148,14 @@ def _triangle_normal(a: Vertex3D, b: Vertex3D, c: Vertex3D) -> tuple[float, floa
 # Mesh Builder - polygon -> prizma extrusion
 # ======================================================================== #
 
+
 class MeshBuilder:
     """Roadmap: 'Mesh Builder'. Polygon + yükseklik -> Mesh3D (prizma extrusion)."""
 
     @staticmethod
-    def extrude_polygon(polygon: Polygon, base_z: float, height: float, name: str = "extrusion") -> Mesh3D:
+    def extrude_polygon(
+        polygon: Polygon, base_z: float, height: float, name: str = "extrusion"
+    ) -> Mesh3D:
         """Bir 2D polygon'u dikey olarak yükselterek (taban + tavan + yan
         duvarlar) kapalı bir prizma mesh'ine çevirir. Polygon konveks olmak
         zorunda değildir - taban/tavan fan triangulation yerine ear-clipping
@@ -176,18 +181,18 @@ class MeshBuilder:
         # Yan duvarlar: her kenar için 2 üçgen (quad)
         for i in range(n):
             i2 = (i + 1) % n
-            bl, br = i, i2               # taban-sol, taban-sağ
-            tl, tr = i + n, i2 + n        # tavan-sol, tavan-sağ
+            bl, br = i, i2  # taban-sol, taban-sağ
+            tl, tr = i + n, i2 + n  # tavan-sol, tavan-sağ
             triangles.append((bl, br, tr))
             triangles.append((bl, tr, tl))
 
         # Taban ve tavan: ear-clipping triangulation
         base_indices = list(range(n))
         cap_tris = _ear_clip_triangulate(ring, base_indices)
-        for (a, b, c) in cap_tris:
+        for a, b, c in cap_tris:
             # taban: normal -Z olacak şekilde ters çevir
             triangles.append((a, c, b))
-        for (a, b, c) in cap_tris:
+        for a, b, c in cap_tris:
             triangles.append((a + n, b + n, c + n))
 
         mesh = Mesh3D(vertices=vertices, triangles=triangles, name=name)
@@ -204,8 +209,12 @@ class MeshBuilder:
 
     @staticmethod
     def build_box(
-        width: float, depth: float, height: float,
-        center_x: float = 0.0, center_y: float = 0.0, base_z: float = 0.0,
+        width: float,
+        depth: float,
+        height: float,
+        center_x: float = 0.0,
+        center_y: float = 0.0,
+        base_z: float = 0.0,
         name: str = "box",
     ) -> Mesh3D:
         """Eksen hizalı kutu (mobilya/donatı/basamak için temel primitif)."""
@@ -220,9 +229,13 @@ class MeshBuilder:
 
     @staticmethod
     def build_cylinder(
-        radius: float, height: float,
-        center_x: float = 0.0, center_y: float = 0.0, base_z: float = 0.0,
-        segments: int = 12, name: str = "cylinder",
+        radius: float,
+        height: float,
+        center_x: float = 0.0,
+        center_y: float = 0.0,
+        base_z: float = 0.0,
+        segments: int = 12,
+        name: str = "cylinder",
     ) -> Mesh3D:
         """Basit silindir (yangın söndürücü tüpü, sütun, vb. donatılar için)."""
         segments = max(6, segments)
@@ -252,9 +265,13 @@ class MeshBuilder:
 
     @staticmethod
     def build_cone(
-        radius: float, height: float,
-        center_x: float = 0.0, center_y: float = 0.0, base_z: float = 0.0,
-        segments: int = 12, name: str = "cone",
+        radius: float,
+        height: float,
+        center_x: float = 0.0,
+        center_y: float = 0.0,
+        base_z: float = 0.0,
+        segments: int = 12,
+        name: str = "cone",
     ) -> Mesh3D:
         """Koni (minare külahı, çatı sivrisi vb. için düşük-poly primitif).
         Taban dairesi + tek bir tepe (apex) noktası; `MeshBuilder.
@@ -286,9 +303,14 @@ class MeshBuilder:
 
     @staticmethod
     def build_dome(
-        radius: float, height: float | None = None,
-        center_x: float = 0.0, center_y: float = 0.0, base_z: float = 0.0,
-        segments: int = 12, rings: int = 6, name: str = "dome",
+        radius: float,
+        height: float | None = None,
+        center_x: float = 0.0,
+        center_y: float = 0.0,
+        base_z: float = 0.0,
+        segments: int = 12,
+        rings: int = 6,
+        name: str = "dome",
     ) -> Mesh3D:
         """Kubbe (dini yapı siluet elemanı) — enlem bantlı yarım küre
         yaklaşıklaması. `height` verilmezse `radius`'a eşit alınır (tam
@@ -311,7 +333,9 @@ class MeshBuilder:
             idxs = []
             for i in range(segments):
                 phi = 2 * math.pi * i / segments
-                vertices.append(Vertex3D(center_x + r * math.cos(phi), center_y + r * math.sin(phi), z))
+                vertices.append(
+                    Vertex3D(center_x + r * math.cos(phi), center_y + r * math.sin(phi), z)
+                )
                 idxs.append(len(vertices) - 1)
             ring_indices.append(idxs)
         apex_idx = len(vertices)
@@ -394,8 +418,10 @@ class WallOpeningMeshBuilder:
             v1 = max(0.0, min(height, op.v_end))
             if u1 - u0 < 1e-6 or v1 - v0 < 1e-6:
                 continue
-            us.add(u0); us.add(u1)
-            vs.add(v0); vs.add(v1)
+            us.add(u0)
+            us.add(u1)
+            vs.add(v0)
+            vs.add(v1)
 
         # ROADMAP_V8 doğrulama turu — dejenere (sıfır alanlı) üçgen düzeltmesi:
         # birden çok açıklığın kenar koordinatları (kayan nokta yuvarlaması
@@ -437,7 +463,11 @@ class WallOpeningMeshBuilder:
                 y = a.y + dy * u
                 z = base_z + v
                 vi = len(verts)
-                verts.append(Vertex3D(x, y, z, uv=(u / length if length else 0.0, v / height if height else 0.0)))
+                verts.append(
+                    Vertex3D(
+                        x, y, z, uv=(u / length if length else 0.0, v / height if height else 0.0)
+                    )
+                )
                 index_of[key] = vi
                 return vi
 
@@ -466,7 +496,13 @@ class WallOpeningMeshBuilder:
         inner_a = Point2D(a.x + inward[0], a.y + inward[1])
         inner_b = Point2D(b.x + inward[0], b.y + inward[1])
         inner_panel = WallOpeningMeshBuilder.build_wall_segment(
-            inner_a, inner_b, base_z, height, openings, thickness=0.0, name=name + "_inner",
+            inner_a,
+            inner_b,
+            base_z,
+            height,
+            openings,
+            thickness=0.0,
+            name=name + "_inner",
         )
         inner_panel.triangles = [(c, b_, a_) for (a_, b_, c) in inner_panel.triangles]
         merged = MeshMerger.merge([panel, inner_panel], name=name)
@@ -479,7 +515,9 @@ class FloorPlateBuilder:
     ayrımının mesh'te görsel/fiziksel olarak temsil edilmesi için."""
 
     @staticmethod
-    def build(polygon: Polygon, z: float, slab_thickness: float = 0.25, name: str = "floor_plate") -> Mesh3D:
+    def build(
+        polygon: Polygon, z: float, slab_thickness: float = 0.25, name: str = "floor_plate"
+    ) -> Mesh3D:
         return MeshBuilder.extrude_polygon(polygon, z - slab_thickness, slab_thickness, name=name)
 
 
@@ -506,10 +544,16 @@ class FacadeElementMeshBuilder:
 
     @staticmethod
     def build_balcony(
-        wall_a: Point2D, wall_b: Point2D, position: Point2D,
-        width: float, depth: float, base_z: float,
-        slab_thickness: float = 0.15, railing_height: float = 1.0,
-        railing_bar_count: int = 8, name: str = "balcony",
+        wall_a: Point2D,
+        wall_b: Point2D,
+        position: Point2D,
+        width: float,
+        depth: float,
+        base_z: float,
+        slab_thickness: float = 0.15,
+        railing_height: float = 1.0,
+        railing_bar_count: int = 8,
+        name: str = "balcony",
     ) -> Mesh3D:
         """Balkon plakası + basit dikey çubuklu korkuluk. `position`,
         balkonun duvara bitiştiği orta noktasıdır (bkz.
@@ -519,14 +563,20 @@ class FacadeElementMeshBuilder:
         # Duvara paralel eksende genişlik, normal eksende derinlik olacak
         # şekilde döndürülmüş bir kutu -> local ring ile inşa edilir.
         length = wall_a.distance_to(wall_b)
-        tx, ty = ((wall_b.x - wall_a.x) / length, (wall_b.y - wall_a.y) / length) if length > 1e-9 else (1.0, 0.0)
+        tx, ty = (
+            ((wall_b.x - wall_a.x) / length, (wall_b.y - wall_a.y) / length)
+            if length > 1e-9
+            else (1.0, 0.0)
+        )
         hw, hd = width / 2.0, depth / 2.0
         corners = [(-hw, 0.0), (hw, 0.0), (hw, hd), (-hw, hd)]
         ring = [
             Point2D(position.x + tx * ux + nx * vy, position.y + ty * ux + ny * vy)
             for (ux, vy) in corners
         ]
-        slab = MeshBuilder.extrude_polygon(Polygon(ring), base_z, slab_thickness, name=f"{name}_slab")
+        slab = MeshBuilder.extrude_polygon(
+            Polygon(ring), base_z, slab_thickness, name=f"{name}_slab"
+        )
 
         parts = [slab]
         if railing_height > 0 and railing_bar_count > 0:
@@ -540,20 +590,34 @@ class FacadeElementMeshBuilder:
                 n_bars = max(1, int(seg_len / max(0.3, seg_len / railing_bar_count)))
                 for k in range(n_bars + 1):
                     t = k / n_bars if n_bars else 0.0
-                    perimeter_pts.append(Point2D(p0.x + (p1.x - p0.x) * t, p0.y + (p1.y - p0.y) * t))
+                    perimeter_pts.append(
+                        Point2D(p0.x + (p1.x - p0.x) * t, p0.y + (p1.y - p0.y) * t)
+                    )
             for pt in perimeter_pts:
-                parts.append(MeshBuilder.build_cylinder(
-                    bar_radius, railing_height, center_x=pt.x, center_y=pt.y,
-                    base_z=base_z + slab_thickness, segments=6, name=f"{name}_bar",
-                ))
+                parts.append(
+                    MeshBuilder.build_cylinder(
+                        bar_radius,
+                        railing_height,
+                        center_x=pt.x,
+                        center_y=pt.y,
+                        base_z=base_z + slab_thickness,
+                        segments=6,
+                        name=f"{name}_bar",
+                    )
+                )
         merged = MeshMerger.merge(parts, name=name)
         NormalGenerator.compute_face_averaged_normals(merged)
         return merged
 
     @staticmethod
     def build_bay_window(
-        wall_a: Point2D, wall_b: Point2D, position: Point2D,
-        side_width: float, protrusion: float, base_z: float, height: float,
+        wall_a: Point2D,
+        wall_b: Point2D,
+        position: Point2D,
+        side_width: float,
+        protrusion: float,
+        base_z: float,
+        height: float,
         name: str = "bay_window",
     ) -> Mesh3D:
         """Cepheden dışa taşan trapez-kesitli (basitleştirilmiş: dikdörtgen
@@ -562,7 +626,11 @@ class FacadeElementMeshBuilder:
         taşan ek hacmi üretir."""
         nx, ny = FacadeElementMeshBuilder._outward_normal(wall_a, wall_b)
         length = wall_a.distance_to(wall_b)
-        tx, ty = ((wall_b.x - wall_a.x) / length, (wall_b.y - wall_a.y) / length) if length > 1e-9 else (1.0, 0.0)
+        tx, ty = (
+            ((wall_b.x - wall_a.x) / length, (wall_b.y - wall_a.y) / length)
+            if length > 1e-9
+            else (1.0, 0.0)
+        )
         hw = side_width / 2.0
         corners = [(-hw, 0.0), (hw, 0.0), (hw, protrusion), (-hw, protrusion)]
         ring = [
@@ -573,15 +641,25 @@ class FacadeElementMeshBuilder:
 
     @staticmethod
     def build_entrance_canopy(
-        wall_a: Point2D, wall_b: Point2D, position: Point2D,
-        width: float, depth: float, base_z: float,
-        thickness: float = 0.15, bracket_count: int = 2, name: str = "canopy",
+        wall_a: Point2D,
+        wall_b: Point2D,
+        position: Point2D,
+        width: float,
+        depth: float,
+        base_z: float,
+        thickness: float = 0.15,
+        bracket_count: int = 2,
+        name: str = "canopy",
     ) -> Mesh3D:
         """Giriş kapısının üzerine, duvardan dışarı taşan yatay bir
         sundurma plakası + basit destek konsolları (bracket)."""
         nx, ny = FacadeElementMeshBuilder._outward_normal(wall_a, wall_b)
         length = wall_a.distance_to(wall_b)
-        tx, ty = ((wall_b.x - wall_a.x) / length, (wall_b.y - wall_a.y) / length) if length > 1e-9 else (1.0, 0.0)
+        tx, ty = (
+            ((wall_b.x - wall_a.x) / length, (wall_b.y - wall_a.y) / length)
+            if length > 1e-9
+            else (1.0, 0.0)
+        )
         hw = width / 2.0
         corners = [(-hw, 0.0), (hw, 0.0), (hw, depth), (-hw, depth)]
         ring = [
@@ -597,10 +675,17 @@ class FacadeElementMeshBuilder:
             offset = (t - 0.5) * (width - 0.3)
             bx = position.x + tx * offset + nx * depth / 2.0
             by = position.y + ty * offset + ny * depth / 2.0
-            parts.append(MeshBuilder.build_box(
-                0.08, depth * 0.8, bracket_drop, center_x=bx, center_y=by,
-                base_z=base_z - bracket_drop, name=f"{name}_bracket",
-            ))
+            parts.append(
+                MeshBuilder.build_box(
+                    0.08,
+                    depth * 0.8,
+                    bracket_drop,
+                    center_x=bx,
+                    center_y=by,
+                    base_z=base_z - bracket_drop,
+                    name=f"{name}_bracket",
+                )
+            )
         merged = MeshMerger.merge(parts, name=name)
         NormalGenerator.compute_face_averaged_normals(merged)
         return merged
@@ -648,8 +733,14 @@ def _is_convex(a: Point2D, b: Point2D, c: Point2D) -> bool:
 
 
 def _any_point_inside_triangle(
-    ring: list[Point2D], idx: list[int], i_prev: int, i_curr: int, i_next: int,
-    a: Point2D, b: Point2D, c: Point2D,
+    ring: list[Point2D],
+    idx: list[int],
+    i_prev: int,
+    i_curr: int,
+    i_next: int,
+    a: Point2D,
+    b: Point2D,
+    c: Point2D,
 ) -> bool:
     for other in idx:
         if other in (i_prev, i_curr, i_next):
@@ -675,6 +766,7 @@ def _point_in_triangle(p: Point2D, a: Point2D, b: Point2D, c: Point2D) -> bool:
 # ======================================================================== #
 # Mesh Optimizer - vertex welding
 # ======================================================================== #
+
 
 class MeshOptimizer:
     """Roadmap: 'Mesh Optimizer' / 'Vertex Optimizer'. Çakışan (aynı konumdaki)
@@ -705,7 +797,7 @@ class MeshOptimizer:
                 remap.append(new_index)
 
         new_triangles = []
-        for (a, b, c) in mesh.triangles:
+        for a, b, c in mesh.triangles:
             na, nb, nc = remap[a], remap[b], remap[c]
             if na == nb or nb == nc or na == nc:
                 continue  # dejenere üçgeni at
@@ -732,9 +824,15 @@ class MeshOptimizer:
 # Simetrik 4x4 quadric matrisinin üst-üçgensel 10 bağımsız bileşeni için
 # (satır, sütun) indeks çiftleri - (a,b,c,d) düzlem katsayıları üzerinden.
 _QUADRIC_INDEX_PAIRS: tuple[tuple[int, int], ...] = (
-    (0, 0), (0, 1), (0, 2), (0, 3),
-    (1, 1), (1, 2), (1, 3),
-    (2, 2), (2, 3),
+    (0, 0),
+    (0, 1),
+    (0, 2),
+    (0, 3),
+    (1, 1),
+    (1, 2),
+    (1, 3),
+    (2, 2),
+    (2, 3),
     (3, 3),
 )
 
@@ -746,7 +844,9 @@ def _add_quadrics(q1: Quadric, q2: Quadric) -> Quadric:
     return tuple(a + b for a, b in zip(q1, q2))  # type: ignore[return-value]
 
 
-def _triangle_plane(v0: Vertex3D, v1: Vertex3D, v2: Vertex3D) -> tuple[float, float, float, float, float] | None:
+def _triangle_plane(
+    v0: Vertex3D, v1: Vertex3D, v2: Vertex3D
+) -> tuple[float, float, float, float, float] | None:
     """Üçgenin birim-normalli düzlem denklemini (a,b,c,d) ve alanını döner.
     Dejenere (sıfır alanlı) üçgenler için None."""
     ux, uy, uz = v1.x - v0.x, v1.y - v0.y, v1.z - v0.z
@@ -772,7 +872,7 @@ def _build_vertex_quadrics(mesh: Mesh3D) -> list[Quadric]:
     """Her vertex için komşu üçgen düzlemlerinden (alan ağırlıklı) biriken
     quadric hata matrisi - Garland-Heckbert Kp toplamı."""
     quadrics: list[Quadric] = [_ZERO_QUADRIC] * len(mesh.vertices)
-    for (ia, ib, ic) in mesh.triangles:
+    for ia, ib, ic in mesh.triangles:
         plane = _triangle_plane(mesh.vertices[ia], mesh.vertices[ib], mesh.vertices[ic])
         if plane is None:
             continue
@@ -786,15 +886,23 @@ def _build_vertex_quadrics(mesh: Mesh3D) -> list[Quadric]:
 def _quadric_error(q: Quadric, x: float, y: float, z: float) -> float:
     q_aa, q_ab, q_ac, q_ad, q_bb, q_bc, q_bd, q_cc, q_cd, q_dd = q
     return (
-        q_aa * x * x + 2 * q_ab * x * y + 2 * q_ac * x * z + 2 * q_ad * x
-        + q_bb * y * y + 2 * q_bc * y * z + 2 * q_bd * y
-        + q_cc * z * z + 2 * q_cd * z
+        q_aa * x * x
+        + 2 * q_ab * x * y
+        + 2 * q_ac * x * z
+        + 2 * q_ad * x
+        + q_bb * y * y
+        + 2 * q_bc * y * z
+        + 2 * q_bd * y
+        + q_cc * z * z
+        + 2 * q_cd * z
         + q_dd
     )
 
 
 def _optimal_collapse_position(
-    q: Quadric, v1: Vertex3D, v2: Vertex3D,
+    q: Quadric,
+    v1: Vertex3D,
+    v2: Vertex3D,
 ) -> tuple[float, float, float]:
     """Birleşik quadric matrisini minimize eden noktayı bulur (üst-sol 3x3
     alt matrisin lineer sistemini Cramer kuralıyla çözerek). Matris tekil
@@ -813,19 +921,13 @@ def _optimal_collapse_position(
     )
     if abs(det) > 1e-9:
         det_x = (
-            b1 * (a22 * a33 - a23 * a32)
-            - a12 * (b2 * a33 - a23 * b3)
-            + a13 * (b2 * a32 - a22 * b3)
+            b1 * (a22 * a33 - a23 * a32) - a12 * (b2 * a33 - a23 * b3) + a13 * (b2 * a32 - a22 * b3)
         )
         det_y = (
-            a11 * (b2 * a33 - a23 * b3)
-            - b1 * (a21 * a33 - a23 * a31)
-            + a13 * (a21 * b3 - b2 * a31)
+            a11 * (b2 * a33 - a23 * b3) - b1 * (a21 * a33 - a23 * a31) + a13 * (a21 * b3 - b2 * a31)
         )
         det_z = (
-            a11 * (a22 * b3 - b2 * a32)
-            - a12 * (a21 * b3 - b2 * a31)
-            + b1 * (a21 * a32 - a22 * a31)
+            a11 * (a22 * b3 - b2 * a32) - a12 * (a21 * b3 - b2 * a31) + b1 * (a21 * a32 - a22 * a31)
         )
         return (det_x / det, det_y / det, det_z / det)
 
@@ -849,8 +951,8 @@ def _best_qem_collapse(
     best_key: tuple[int, int] | None = None
     best_pos = (0.0, 0.0, 0.0)
     best_cost = math.inf
-    for (a, b, c) in mesh.triangles:
-        for (i, j) in ((a, b), (b, c), (c, a)):
+    for a, b, c in mesh.triangles:
+        for i, j in ((a, b), (b, c), (c, a)):
             key = (min(i, j), max(i, j))
             if key in seen:
                 continue
@@ -874,7 +976,7 @@ def _collapse_edge_to(mesh: Mesh3D, i: int, j: int, position: tuple[float, float
     new_vertices[i] = merged
 
     new_triangles: list[Triangle] = []
-    for (a, b, c) in mesh.triangles:
+    for a, b, c in mesh.triangles:
         tri = tuple(i if v == j else v for v in (a, b, c))
         if len(set(tri)) < 3:
             continue  # dejenere (bu kenarı içeren üçgen çöktü)
@@ -940,8 +1042,8 @@ class MeshSimplifier:
 def _shortest_edge(mesh: Mesh3D) -> tuple[int, int] | None:
     best, best_len = None, math.inf
     seen: set[tuple[int, int]] = set()
-    for (a, b, c) in mesh.triangles:
-        for (i, j) in ((a, b), (b, c), (c, a)):
+    for a, b, c in mesh.triangles:
+        for i, j in ((a, b), (b, c), (c, a)):
             key = (min(i, j), max(i, j))
             if key in seen:
                 continue
@@ -956,13 +1058,15 @@ def _collapse_edge(mesh: Mesh3D, edge: tuple[int, int]) -> Mesh3D:
     i, j = edge
     vi, vj = mesh.vertices[i], mesh.vertices[j]
     merged = Vertex3D(
-        (vi.x + vj.x) / 2.0, (vi.y + vj.y) / 2.0, (vi.z + vj.z) / 2.0,
+        (vi.x + vj.x) / 2.0,
+        (vi.y + vj.y) / 2.0,
+        (vi.z + vj.z) / 2.0,
     )
     new_vertices = mesh.vertices[:]
     new_vertices[i] = merged
 
     new_triangles: list[Triangle] = []
-    for (a, b, c) in mesh.triangles:
+    for a, b, c in mesh.triangles:
         tri = tuple(i if v == j else v for v in (a, b, c))
         if len(set(tri)) < 3:
             continue  # dejenere (bu kenarı içeren üçgen çöktü)
@@ -978,6 +1082,7 @@ def _collapse_edge(mesh: Mesh3D, edge: tuple[int, int]) -> Mesh3D:
 # Mesh Splitter / Merger
 # ======================================================================== #
 
+
 class MeshSplitter:
     """Roadmap: 'Mesh Splitter'. Bir mesh'i bağlı bileşenlerine (connected
     components) ayırır - ör. tek bir sahne mesh'inden ayrı binaları çıkarmak."""
@@ -985,7 +1090,7 @@ class MeshSplitter:
     @staticmethod
     def split_by_connectivity(mesh: Mesh3D) -> list[Mesh3D]:
         adjacency: dict[int, set[int]] = {i: set() for i in range(len(mesh.vertices))}
-        for (a, b, c) in mesh.triangles:
+        for a, b, c in mesh.triangles:
             adjacency[a].update((b, c))
             adjacency[b].update((a, c))
             adjacency[c].update((a, b))
@@ -1067,13 +1172,16 @@ class MeshMerger:
         for m in meshes:
             offset = len(merged.vertices)
             merged.vertices.extend(m.vertices)
-            merged.triangles.extend((a + offset, b + offset, c + offset) for (a, b, c) in m.triangles)
+            merged.triangles.extend(
+                (a + offset, b + offset, c + offset) for (a, b, c) in m.triangles
+            )
         return merged
 
 
 # ======================================================================== #
 # Mesh Repair
 # ======================================================================== #
+
 
 class MeshRepair:
     """Roadmap: 'Mesh Repair'. Non-manifold kenarları ve dejenere üçgenleri
@@ -1092,8 +1200,8 @@ class MeshRepair:
     def find_boundary_edges(mesh: Mesh3D) -> list[tuple[int, int]]:
         """Yalnızca bir üçgene ait olan (yani 'delik' sınırındaki) kenarları bulur."""
         edge_count: dict[tuple[int, int], int] = {}
-        for (a, b, c) in mesh.triangles:
-            for (i, j) in ((a, b), (b, c), (c, a)):
+        for a, b, c in mesh.triangles:
+            for i, j in ((a, b), (b, c), (c, a)):
                 key = (min(i, j), max(i, j))
                 edge_count[key] = edge_count.get(key, 0) + 1
         return [edge for edge, count in edge_count.items() if count == 1]
@@ -1101,8 +1209,8 @@ class MeshRepair:
     @staticmethod
     def is_manifold(mesh: Mesh3D) -> bool:
         edge_count: dict[tuple[int, int], int] = {}
-        for (a, b, c) in mesh.triangles:
-            for (i, j) in ((a, b), (b, c), (c, a)):
+        for a, b, c in mesh.triangles:
+            for i, j in ((a, b), (b, c), (c, a)):
                 key = (min(i, j), max(i, j))
                 edge_count[key] = edge_count.get(key, 0) + 1
         return all(count <= 2 for count in edge_count.values())
@@ -1115,7 +1223,7 @@ class MeshRepair:
             return mesh.clone()
 
         adjacency: dict[int, list[int]] = {}
-        for (a, b) in boundary:
+        for a, b in boundary:
             adjacency.setdefault(a, []).append(b)
             adjacency.setdefault(b, []).append(a)
 
@@ -1143,8 +1251,8 @@ class MeshRepair:
         parçalar `fill_holes` ile ayrı ayrı kapatılabilir sınır kenarlarına
         kavuşur."""
         edge_count: dict[tuple[int, int], int] = {}
-        for (a, b, c) in mesh.triangles:
-            for (i, j) in ((a, b), (b, c), (c, a)):
+        for a, b, c in mesh.triangles:
+            for i, j in ((a, b), (b, c), (c, a)):
                 key = (min(i, j), max(i, j))
                 edge_count[key] = edge_count.get(key, 0) + 1
         bad_edges = {e for e, cnt in edge_count.items() if cnt > 2}
@@ -1157,7 +1265,7 @@ class MeshRepair:
         for tri in mesh.triangles:
             a, b, c = tri
             needs_split = False
-            for (i, j) in ((a, b), (b, c), (c, a)):
+            for i, j in ((a, b), (b, c), (c, a)):
                 key = (min(i, j), max(i, j))
                 if key in bad_edges:
                     seen_extra[key] = seen_extra.get(key, 0) + 1
@@ -1189,13 +1297,13 @@ class MeshRepair:
 
         edge_to_tris: dict[tuple[int, int], list[int]] = {}
         for ti, (a, b, c) in enumerate(tri_list):
-            for (i, j) in ((a, b), (b, c), (c, a)):
+            for i, j in ((a, b), (b, c), (c, a)):
                 edge_to_tris.setdefault((min(i, j), max(i, j)), []).append(ti)
 
         def neighbors(ti: int) -> list[tuple[int, bool]]:
             a, b, c = tri_list[ti]
             result = []
-            for (i, j) in ((a, b), (b, c), (c, a)):
+            for i, j in ((a, b), (b, c), (c, a)):
                 key = (min(i, j), max(i, j))
                 for other in edge_to_tris.get(key, []):
                     if other == ti:
@@ -1252,7 +1360,9 @@ class MeshRepair:
         return repaired
 
 
-def _trace_loop(start: int, adjacency: dict[int, list[int]], visited_edges: set[tuple[int, int]]) -> list[int]:
+def _trace_loop(
+    start: int, adjacency: dict[int, list[int]], visited_edges: set[tuple[int, int]]
+) -> list[int]:
     loop = [start]
     current = start
     prev = None
@@ -1277,6 +1387,7 @@ def _trace_loop(start: int, adjacency: dict[int, list[int]], visited_edges: set[
 # ======================================================================== #
 # UV Generator
 # ======================================================================== #
+
 
 class UVGenerator:
     """Roadmap: 'UV Generator'. Planar ve box (cube) mapping - texture
@@ -1312,11 +1423,20 @@ class UVGenerator:
             ax, ay, az = abs(nx), abs(ny), abs(nz)
             for v in (a, b, c):
                 if az >= ax and az >= ay:
-                    v.uv = ((v.x - minx) / (maxx - minx + 1e-9), (v.y - miny) / (maxy - miny + 1e-9))
+                    v.uv = (
+                        (v.x - minx) / (maxx - minx + 1e-9),
+                        (v.y - miny) / (maxy - miny + 1e-9),
+                    )
                 elif ay >= ax and ay >= az:
-                    v.uv = ((v.x - minx) / (maxx - minx + 1e-9), (v.z - minz) / (maxz - minz + 1e-9))
+                    v.uv = (
+                        (v.x - minx) / (maxx - minx + 1e-9),
+                        (v.z - minz) / (maxz - minz + 1e-9),
+                    )
                 else:
-                    v.uv = ((v.y - miny) / (maxy - miny + 1e-9), (v.z - minz) / (maxz - minz + 1e-9))
+                    v.uv = (
+                        (v.y - miny) / (maxy - miny + 1e-9),
+                        (v.z - minz) / (maxz - minz + 1e-9),
+                    )
         return result
 
 
@@ -1324,15 +1444,13 @@ class UVGenerator:
 # Normal / Tangent Generator
 # ======================================================================== #
 
+
 class NormalGenerator:
     """Roadmap: 'Normal Generator'. Face-normal ortalaması (smooth shading)."""
 
     @staticmethod
     def compute_face_normals(mesh: Mesh3D) -> list[tuple[float, float, float]]:
-        return [
-            _triangle_normal(*mesh.triangle_positions(tri))
-            for tri in mesh.triangles
-        ]
+        return [_triangle_normal(*mesh.triangle_positions(tri)) for tri in mesh.triangles]
 
     @staticmethod
     def compute_face_averaged_normals(mesh: Mesh3D) -> Mesh3D:
@@ -1359,7 +1477,7 @@ class TangentGenerator:
             mesh = UVGenerator.planar_mapping(mesh)
 
         accum_t = [(0.0, 0.0, 0.0) for _ in mesh.vertices]
-        for (i, j, k) in mesh.triangles:
+        for i, j, k in mesh.triangles:
             v0, v1, v2 = mesh.vertices[i], mesh.vertices[j], mesh.vertices[k]
             if v0.uv is None or v1.uv is None or v2.uv is None:
                 continue
@@ -1367,7 +1485,7 @@ class TangentGenerator:
             edge2 = _sub(v2, v0)
             du1, dv1 = v1.uv[0] - v0.uv[0], v1.uv[1] - v0.uv[1]
             du2, dv2 = v2.uv[0] - v0.uv[0], v2.uv[1] - v0.uv[1]
-            denom = (du1 * dv2 - du2 * dv1)
+            denom = du1 * dv2 - du2 * dv1
             f = 1.0 / denom if abs(denom) > 1e-12 else 0.0
             tangent = (
                 f * (dv2 * edge1[0] - dv1 * edge2[0]),
@@ -1386,6 +1504,11 @@ class TangentGenerator:
                 n = v.normal
                 dot = tn[0] * n[0] + tn[1] * n[1] + tn[2] * n[2]
                 tn = _normalize((tn[0] - n[0] * dot, tn[1] - n[1] * dot, tn[2] - n[2] * dot))
-                handedness = 1.0 if (_cross(n, tn)[0] * t[0] + _cross(n, tn)[1] * t[1] + _cross(n, tn)[2] * t[2]) >= 0 else -1.0
+                handedness = (
+                    1.0
+                    if (_cross(n, tn)[0] * t[0] + _cross(n, tn)[1] * t[1] + _cross(n, tn)[2] * t[2])
+                    >= 0
+                    else -1.0
+                )
             v.tangent = (tn[0], tn[1], tn[2], handedness)
         return mesh

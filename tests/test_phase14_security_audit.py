@@ -16,10 +16,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
+from harita.extensibility.sandbox_guard import SandboxViolation, assert_safe, check_source
 from harita.extensibility.script_api import PythonScriptEngine, ScriptContext
-from harita.extensibility.sandbox_guard import check_source, assert_safe, SandboxViolation
-
 
 ENGINE = PythonScriptEngine(timeout_seconds=1.0)
 
@@ -38,6 +36,7 @@ def _blocked(source: str) -> None:
 # 1-4: __class__ / __bases__ / __subclasses__ zinciri (nesne
 #      hiyerarşisi üzerinden rastgele sınıfa erişim ailesi)
 # ============================================================ #
+
 
 def test_subclasses_traversal_blocks_popen_escape():
     """Gerçek PoC: bu oturumda sertleştirme öncesi gerçekten `subprocess.
@@ -65,11 +64,9 @@ def test_mro_attribute_access_blocked():
 #      üzerinden dış kapsam veya bytecode erişimi)
 # ============================================================ #
 
+
 def test_function_globals_escape_blocked():
-    _blocked(
-        "def f():\n    pass\n"
-        "_result = f.__globals__"
-    )
+    _blocked("def f():\n    pass\n_result = f.__globals__")
 
 
 def test_code_object_access_blocked():
@@ -91,6 +88,7 @@ def test_closure_access_blocked():
 # 8-11: dolaylı erişim — getattr/setattr/vars/globals/locals ile
 #       dunder-attribute yasağını bypass etme denemeleri
 # ============================================================ #
+
 
 def test_getattr_indirect_dunder_access_blocked():
     _blocked("_result = getattr((1), '__class__')")
@@ -117,6 +115,7 @@ def test_vars_builtin_blocked():
 #        yok, ama statik seviyede de kapatılmalı — savunma derinliği)
 # ============================================================ #
 
+
 def test_eval_call_blocked():
     _blocked("_result = eval('1+1')")
 
@@ -138,6 +137,7 @@ def test_open_call_blocked():
 #        __builtins__'ten __import__ zaten kaldırılmış)
 # ============================================================ #
 
+
 def test_import_statement_blocked():
     _blocked("import os\n_result = os.getcwd()")
 
@@ -154,6 +154,7 @@ def test_dunder_import_name_reference_blocked():
 # 19-21: dolaylı isim yeniden bağlama / builtins yeniden ele
 #        geçirme denemeleri
 # ============================================================ #
+
 
 def test_reassigning_eval_name_still_blocked():
     """`f = eval` gibi bir takma isim ataması bile isim düzeyinde
@@ -174,6 +175,7 @@ def test_dunder_init_subclass_hook_blocked():
 #     çalışma zamanı zaman aşımı testi
 # ============================================================ #
 
+
 def test_infinite_loop_times_out_instead_of_hanging():
     result = ENGINE.run("while True:\n    pass")
     assert not result.ok
@@ -183,6 +185,7 @@ def test_infinite_loop_times_out_instead_of_hanging():
 # ============================================================ #
 # Regresyon: meşru script'ler sertleştirmeden sonra da çalışmalı
 # ============================================================ #
+
 
 def test_legit_arithmetic_script_still_works():
     result = ENGINE.run("x = 1 + 2\n_result = x * 10")

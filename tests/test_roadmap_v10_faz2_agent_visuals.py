@@ -50,19 +50,25 @@ class TestFaz2_1_2_2_3_4VisualLevelLOD:
     def test_skeletal_rank_ceiling_downgrades_to_capsule(self):
         # Roadmap 2.3.4: "en yakın 200-500 ajan" - tavanı aşan, mesafe
         # eşiği içinde olsa bile SKELETAL almamalı.
-        near_but_over_cap = select_visual_level(
-            5.0, skeletal_rank=501, max_skeletal_agents=500)
+        near_but_over_cap = select_visual_level(5.0, skeletal_rank=501, max_skeletal_agents=500)
         assert near_but_over_cap == AgentVisualLevel.CAPSULE
 
     def test_skeletal_rank_within_cap_stays_skeletal(self):
-        assert select_visual_level(
-            5.0, skeletal_rank=10, max_skeletal_agents=500) == AgentVisualLevel.SKELETAL
+        assert (
+            select_visual_level(5.0, skeletal_rank=10, max_skeletal_agents=500)
+            == AgentVisualLevel.SKELETAL
+        )
 
 
 class TestFaz2_3_3AnimationStateMachine:
     def _agent(self, behavior: AgentBehavior, waiting: bool = False) -> Agent:
-        return Agent(agent_id=1, position=Point2D(0, 0), goal=Point2D(10, 0),
-                     behavior=behavior, waiting=waiting)
+        return Agent(
+            agent_id=1,
+            position=Point2D(0, 0),
+            goal=Point2D(10, 0),
+            behavior=behavior,
+            waiting=waiting,
+        )
 
     def test_normal_maps_to_walk(self):
         assert select_animation_clip(self._agent(AgentBehavior.NORMAL)) == AnimationClip.WALK
@@ -86,8 +92,9 @@ class TestFaz2_3_3AnimationStateMachine:
 
     def test_panic_without_fear_expression_is_always_panic_run(self):
         agent = self._agent(AgentBehavior.PANIC)
-        assert select_animation_clip(
-            agent, include_fear_expression=False) == AnimationClip.PANIC_RUN
+        assert (
+            select_animation_clip(agent, include_fear_expression=False) == AnimationClip.PANIC_RUN
+        )
 
     def test_clip_is_deterministic_for_same_agent(self):
         agent = self._agent(AgentBehavior.PANIC)
@@ -114,8 +121,7 @@ class TestFaz2_4VisualVariantDiversity:
         # Aynı olabilir (kısıtlı palet) ama en azından fonksiyon seed'i
         # gerçekten kullanıyor mu diye birden çok id üzerinden kontrol et.
         differs = any(
-            agent_visual_variant(i, seed=1) != agent_visual_variant(i, seed=2)
-            for i in range(10)
+            agent_visual_variant(i, seed=1) != agent_visual_variant(i, seed=2) for i in range(10)
         )
         assert differs
 
@@ -143,12 +149,16 @@ class TestFaz2_6FearExpressionAcceptance:
     def test_panic_agent_can_produce_a_fear_clip(self):
         # Kabul kriteri: PANIC ajanlarının en az bir kısmı düz koşu yerine
         # görünür bir korku ifadesi clip'i almalı.
-        fear_clips = {AnimationClip.LOOK_AROUND_PANICKED, AnimationClip.COVER_HEAD,
-                      AnimationClip.COWER}
+        fear_clips = {
+            AnimationClip.LOOK_AROUND_PANICKED,
+            AnimationClip.COVER_HEAD,
+            AnimationClip.COWER,
+        }
         found = False
         for i in range(20):
-            agent = Agent(agent_id=i, position=Point2D(0, 0), goal=Point2D(1, 0),
-                          behavior=AgentBehavior.PANIC)
+            agent = Agent(
+                agent_id=i, position=Point2D(0, 0), goal=Point2D(1, 0), behavior=AgentBehavior.PANIC
+            )
             if select_animation_clip(agent) in fear_clips:
                 found = True
                 break
@@ -157,10 +167,8 @@ class TestFaz2_6FearExpressionAcceptance:
 
 class TestFaz2_7GroupCohesion:
     def test_group_members_pulled_together_over_time(self):
-        a = Agent(agent_id=1, position=Point2D(0.0, 0.0), goal=Point2D(0.0, 0.0),
-                  group_id="hh1")
-        b = Agent(agent_id=2, position=Point2D(10.0, 0.0), goal=Point2D(10.0, 0.0),
-                  group_id="hh1")
+        a = Agent(agent_id=1, position=Point2D(0.0, 0.0), goal=Point2D(0.0, 0.0), group_id="hh1")
+        b = Agent(agent_id=2, position=Point2D(10.0, 0.0), goal=Point2D(10.0, 0.0), group_id="hh1")
         model = SocialForceModel()
         initial_dist = a.position.distance_to(b.position)
         for _ in range(50):
@@ -193,8 +201,11 @@ class TestFaz2_7GroupCohesion:
 class TestFaz2ComposedVisualState:
     def test_compute_agent_visual_state_end_to_end(self):
         agents = spawn_random_agents(
-            count=5, area_min=Point2D(0, 0), area_max=Point2D(5, 5),
-            goal=Point2D(20, 0), seed=7,
+            count=5,
+            area_min=Point2D(0, 0),
+            area_max=Point2D(5, 5),
+            goal=Point2D(20, 0),
+            seed=7,
         )
         state = compute_agent_visual_state(agents[0], distance_to_camera_m=8.0, seed=7)
         assert state.agent_id == agents[0].agent_id

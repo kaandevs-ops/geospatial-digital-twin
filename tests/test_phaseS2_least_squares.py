@@ -6,9 +6,10 @@ from __future__ import annotations
 import math
 
 import pytest
-
 from harita.feature_survey.geodetic_engine.gnss_adjustment import (
     InsufficientDataError as GnssInsufficientDataError,
+)
+from harita.feature_survey.geodetic_engine.gnss_adjustment import (
     t_critical_95,
 )
 from harita.feature_survey.geodetic_engine.least_squares import (

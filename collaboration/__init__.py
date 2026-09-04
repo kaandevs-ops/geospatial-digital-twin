@@ -41,9 +41,9 @@ from .collab_session import (
     RoomNotFoundError,
 )
 from .crdt import CRDTBuildingState, LWWRegister, ORSet
-from .ws_server import CollaborationWebSocketServer, WebSocketProtocolError
 from .scenario_permissions import ScenarioAction, can_perform, require_scenario_permission
 from .scenario_watch import PlaybackState, ScenarioWatchHub, scenario_topic
+from .ws_server import CollaborationWebSocketServer, WebSocketProtocolError
 
 __all__ = [
     "AuthError",

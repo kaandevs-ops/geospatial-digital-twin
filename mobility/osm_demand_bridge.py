@@ -20,6 +20,7 @@ bunları `population.activity_model.ODDemandEntry`'lerle eşleştirip somut
 Bu, Katman 2.2'nin ürettiği soyut talebi Katman 3'ün (traffic/transit/
 crowd) tüketebileceği somut koordinatlara çeviren tek adımdır.
 """
+
 from __future__ import annotations
 
 import random

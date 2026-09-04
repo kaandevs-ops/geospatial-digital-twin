@@ -25,6 +25,7 @@ ile sabit tohumlu (seed) sentetik `VegetationInstance`/`StreetFurnitureItem`/
 C2 (`fetch_category_features`) + C3'ün yedi köprüsü tarafından
 karşılanıyor; burada amaç yalnızca **ölçek/performans** ölçümüdür.
 """
+
 from __future__ import annotations
 
 import math
@@ -115,9 +116,7 @@ def generate_synthetic_mixed_scene(
     """B3'ün "1000+ karışık feature" senaryosunu sentetik olarak üretir.
     Deterministik (sabit `seed`) - CI'da tekrarlanabilir benchmark için."""
     rng = random.Random(seed)
-    counts = {
-        key: round(feature_count * weight) for key, weight in _CATEGORY_WEIGHTS.items()
-    }
+    counts = {key: round(feature_count * weight) for key, weight in _CATEGORY_WEIGHTS.items()}
 
     vegetation: list[VegetationInstance] = []
     species_cycle = list(TreeSpecies)

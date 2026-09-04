@@ -25,14 +25,14 @@ from __future__ import annotations
 import time
 import tracemalloc
 from collections import defaultdict, deque
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Iterator
-
 
 # ============================================================================ #
 # CPU / Memory Profiler
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class ProfileSample:
@@ -122,6 +122,7 @@ class MemoryProfiler:
 # GPU Profiler (sayac tabanli - bkz. modul docstring'i)
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class FrameStats:
     draw_calls: int = 0
@@ -200,7 +201,9 @@ class GPUProfiler:
         simulasyonuna sessizce dusulur - caller `duration_s` kullanmaya
         devam eder)."""
         frames = self._history[-last_n:] if last_n else self._history
-        timings = [f.gpu_time_ms for f in frames if f.gpu_timing_supported and f.gpu_time_ms is not None]
+        timings = [
+            f.gpu_time_ms for f in frames if f.gpu_timing_supported and f.gpu_time_ms is not None
+        ]
         if not timings:
             return None
         return sum(timings) / len(timings)
@@ -209,6 +212,7 @@ class GPUProfiler:
 # ============================================================================ #
 # Asset Dependency Manager
 # ============================================================================ #
+
 
 class CyclicDependencyError(Exception):
     """Asset bagimlilik grafinde dongu tespit edildiginde firlatilir."""
@@ -256,5 +260,7 @@ class AssetDependencyManager:
 
         if len(order) != len(self._all_nodes):
             remaining = self._all_nodes - set(order)
-            raise CyclicDependencyError(f"Dongusel asset bagimliligi tespit edildi: {sorted(remaining)}")
+            raise CyclicDependencyError(
+                f"Dongusel asset bagimliligi tespit edildi: {sorted(remaining)}"
+            )
         return order

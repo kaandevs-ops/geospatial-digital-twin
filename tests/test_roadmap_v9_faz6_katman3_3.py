@@ -5,43 +5,43 @@ Kapsam: Katman 3.1 madde 3 (açık-alan NavGraph), Katman 3.1 madde 4 +
 3.2 madde 3 (heatmap overlay), Katman 3.3 (çok-modlu talep / adaptif
 sinyalizasyon / ROAD_CLOSED / hava durumu->IDM).
 """
+
 from __future__ import annotations
 
 import unittest
 
+from harita.climate_data.open_meteo_client import HourlyClimateSample
 from harita.core_engine.geometry_engine import Point2D
 from harita.core_engine.gis_core import GeoFeature, GeoFeatureCollection
-from harita.climate_data.open_meteo_client import HourlyClimateSample
-from harita.extensibility.event_system import EventSystem
 from harita.extensibility.city_events import CityEventType, emit_city_event
-from harita.mobility.crowd_simulation import Agent, AgentBehavior
-from harita.mobility.open_area_navgraph import (
-    OpenAreaNavGraphBuilder,
-    edge_cost_multiplier_from_properties,
-    find_nearest_node,
-)
-from harita.mobility.pathfinding import NavGraph
-from harita.mobility.traffic_simulation import (
-    IDMParams,
-    TrafficAgent,
-    TrafficSignalPhase,
-    TrafficSimulator,
-    VehicleType,
-    VEHICLE_IDM_DEFAULTS,
-)
+from harita.extensibility.event_system import EventSystem
 from harita.mobility.adaptive_signal import (
     AdaptiveSignalController,
     AdaptiveSignalParams,
     adapt_signal,
     queued_vehicle_count,
 )
+from harita.mobility.crowd_simulation import Agent
+from harita.mobility.mode_choice import ModeChoiceModel, TravelMode
+from harita.mobility.open_area_navgraph import (
+    OpenAreaNavGraphBuilder,
+    edge_cost_multiplier_from_properties,
+    find_nearest_node,
+)
+from harita.mobility.osm_demand_bridge import ResolvedDemand
+from harita.mobility.pathfinding import NavGraph
 from harita.mobility.road_closure import (
     RoadClosureSubscriber,
     emit_road_closed,
     emit_road_reopened,
 )
-from harita.mobility.mode_choice import ModeChoiceModel, ModeChoiceParams, TravelMode
-from harita.mobility.osm_demand_bridge import ResolvedDemand
+from harita.mobility.traffic_simulation import (
+    VEHICLE_IDM_DEFAULTS,
+    TrafficAgent,
+    TrafficSignalPhase,
+    TrafficSimulator,
+    VehicleType,
+)
 from harita.mobility.weather_traffic_effect import apply_weather_effect, weather_severity
 from harita.population.activity_model import ActivityType
 from harita.visualization.heatmap_overlay import (
@@ -53,13 +53,21 @@ from harita.visualization.heatmap_overlay import (
 
 class TestOpenAreaNavGraph(unittest.TestCase):
     def _collection(self):
-        return GeoFeatureCollection(features=[
-            GeoFeature("LineString", [(0.0, 0.0), (10.0, 0.0), (20.0, 0.0)],
-                       {"category": "roads"}),
-            GeoFeature("Polygon", [[(20.0, 0.0), (20.0, 10.0), (30.0, 10.0), (30.0, 0.0)]],
-                       {"category": "park"}),
-            GeoFeature("LineString", [(0.0, 100.0), (5.0, 100.0)], {"category": "waterway"}),  # ilgisiz
-        ])
+        return GeoFeatureCollection(
+            features=[
+                GeoFeature(
+                    "LineString", [(0.0, 0.0), (10.0, 0.0), (20.0, 0.0)], {"category": "roads"}
+                ),
+                GeoFeature(
+                    "Polygon",
+                    [[(20.0, 0.0), (20.0, 10.0), (30.0, 10.0), (30.0, 0.0)]],
+                    {"category": "park"},
+                ),
+                GeoFeature(
+                    "LineString", [(0.0, 100.0), (5.0, 100.0)], {"category": "waterway"}
+                ),  # ilgisiz
+            ]
+        )
 
     def test_build_creates_connected_graph(self):
         graph = OpenAreaNavGraphBuilder(snap_precision=0.5).build(self._collection())
@@ -73,10 +81,12 @@ class TestOpenAreaNavGraph(unittest.TestCase):
         self.assertFalse(any(p.y > 50 for p in graph.positions.values()))
 
     def test_snap_merges_close_endpoints(self):
-        coll = GeoFeatureCollection(features=[
-            GeoFeature("LineString", [(0.0, 0.0), (10.0, 0.0)], {"category": "roads"}),
-            GeoFeature("LineString", [(10.001, 0.0), (20.0, 0.0)], {"category": "roads"}),
-        ])
+        coll = GeoFeatureCollection(
+            features=[
+                GeoFeature("LineString", [(0.0, 0.0), (10.0, 0.0)], {"category": "roads"}),
+                GeoFeature("LineString", [(10.001, 0.0), (20.0, 0.0)], {"category": "roads"}),
+            ]
+        )
         graph = OpenAreaNavGraphBuilder(snap_precision=0.5).build(coll)
         # iki segment aynı (yaklaşık) noktada birleşmeli -> 3 düğüm (0,10,20), 4 değil
         self.assertEqual(len(graph.positions), 3)
@@ -123,8 +133,10 @@ class TestHeatmapOverlay(unittest.TestCase):
         self.assertGreater(len(cells), 0)
 
     def test_station_heatmap_overlay(self):
-        report = {8: {"avg_occupancy_ratio": 0.9, "is_dense": True},
-                  14: {"avg_occupancy_ratio": 0.1, "is_dense": False}}
+        report = {
+            8: {"avg_occupancy_ratio": 0.9, "is_dense": True},
+            14: {"avg_occupancy_ratio": 0.1, "is_dense": False},
+        }
         cells = station_heatmap_overlay(Point2D(0, 0), report)
         self.assertEqual(len(cells), 2)
         self.assertTrue(cells[0].hour < cells[1].hour)
@@ -134,29 +146,41 @@ class TestHeatmapOverlay(unittest.TestCase):
 class TestModeChoice(unittest.TestCase):
     def _demand(self, dest=Point2D(500, 0)):
         return ResolvedDemand(
-            individual_id="i1", departure_hour=8.0,
-            origin_activity=ActivityType.HOME, destination_activity=ActivityType.WORK,
+            individual_id="i1",
+            departure_hour=8.0,
+            origin_activity=ActivityType.HOME,
+            destination_activity=ActivityType.WORK,
             destination_position=dest,
         )
 
     def test_short_distance_prefers_walk(self):
         model = ModeChoiceModel(seed=1)
-        result = model.choose(self._demand(Point2D(200, 0)), origin_position=Point2D(0, 0),
-                               has_vehicle_access=False)
+        result = model.choose(
+            self._demand(Point2D(200, 0)), origin_position=Point2D(0, 0), has_vehicle_access=False
+        )
         self.assertEqual(result.chosen_mode, TravelMode.WALK)
 
     def test_long_distance_with_vehicle_prefers_vehicle(self):
         model = ModeChoiceModel(seed=1)
-        result = model.choose(self._demand(Point2D(10000, 0)), origin_position=Point2D(0, 0),
-                               has_vehicle_access=True)
+        result = model.choose(
+            self._demand(Point2D(10000, 0)), origin_position=Point2D(0, 0), has_vehicle_access=True
+        )
         self.assertEqual(result.chosen_mode, TravelMode.VEHICLE)
 
     def test_bad_weather_reduces_walk_score(self):
         model = ModeChoiceModel(seed=1)
-        good = model.choose(self._demand(Point2D(300, 0)), origin_position=Point2D(0, 0),
-                             has_vehicle_access=False, bad_weather=False)
-        bad = model.choose(self._demand(Point2D(300, 0)), origin_position=Point2D(0, 0),
-                            has_vehicle_access=False, bad_weather=True)
+        good = model.choose(
+            self._demand(Point2D(300, 0)),
+            origin_position=Point2D(0, 0),
+            has_vehicle_access=False,
+            bad_weather=False,
+        )
+        bad = model.choose(
+            self._demand(Point2D(300, 0)),
+            origin_position=Point2D(0, 0),
+            has_vehicle_access=False,
+            bad_weather=True,
+        )
         self.assertLess(bad.scores[TravelMode.WALK.value], good.scores[TravelMode.WALK.value])
 
     def test_choose_batch_and_mode_share(self):
@@ -169,13 +193,20 @@ class TestModeChoice(unittest.TestCase):
 
 
 class TestAdaptiveSignal(unittest.TestCase):
-    def _make_simulator_with_queue(self, queued_count: int) -> tuple[TrafficSimulator, TrafficSignalPhase]:
+    def _make_simulator_with_queue(
+        self, queued_count: int
+    ) -> tuple[TrafficSimulator, TrafficSignalPhase]:
         sim = TrafficSimulator()
-        signal = TrafficSignalPhase(stop_line_distance=100.0, green_duration_s=20.0, red_duration_s=20.0)
+        signal = TrafficSignalPhase(
+            stop_line_distance=100.0, green_duration_s=20.0, red_duration_s=20.0
+        )
         for i in range(queued_count):
             agent = TrafficAgent(
-                agent_id=i, vehicle_type=VehicleType.ARAC,
-                route_nodes=[], distance_along_route=50.0 + i, speed=0.0,
+                agent_id=i,
+                vehicle_type=VehicleType.ARAC,
+                route_nodes=[],
+                distance_along_route=50.0 + i,
+                speed=0.0,
             )
             sim.add_agent(agent, "route1")
         sim.add_signal("route1", signal)
@@ -202,7 +233,9 @@ class TestAdaptiveSignal(unittest.TestCase):
     def test_controller_installs_and_refreshes(self):
         sim, signal = self._make_simulator_with_queue(7)
         controller = AdaptiveSignalController(
-            sim, "route1", signal,
+            sim,
+            "route1",
+            signal,
             params=AdaptiveSignalParams(queue_length_threshold=5, green_extension_s=10.0),
             refresh_interval_s=5.0,
         )
@@ -270,9 +303,14 @@ class TestRoadClosure(unittest.TestCase):
 class TestWeatherTrafficEffect(unittest.TestCase):
     def _sample(self, precip=None, visibility=None):
         return HourlyClimateSample(
-            time_iso="2026-01-01T08:00", temperature_c=10.0, cloud_cover_pct=80.0,
-            shortwave_radiation_wm2=100.0, direct_radiation_wm2=50.0, diffuse_radiation_wm2=50.0,
-            precipitation_mm=precip, visibility_m=visibility,
+            time_iso="2026-01-01T08:00",
+            temperature_c=10.0,
+            cloud_cover_pct=80.0,
+            shortwave_radiation_wm2=100.0,
+            direct_radiation_wm2=50.0,
+            diffuse_radiation_wm2=50.0,
+            precipitation_mm=precip,
+            visibility_m=visibility,
         )
 
     def test_no_data_returns_unchanged_params(self):

@@ -22,8 +22,9 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any
 
 from ..digital_twin import DigitalTwin
 
@@ -33,7 +34,7 @@ SCHEMA_VERSION = "1.1.0"
 
 # ``{eski_sürüm: (yeni_sürüm, migrate_fn)}``
 # migrate_fn: ham dict -> ham dict (bir sonraki sürümün şeklinde).
-MIGRATIONS: Dict[str, Tuple[str, Callable[[dict], dict]]] = {}
+MIGRATIONS: dict[str, tuple[str, Callable[[dict], dict]]] = {}
 
 
 def register_migration(from_version: str, to_version: str) -> Callable:
@@ -79,13 +80,13 @@ class ProjectFile:
     schema_version: str = SCHEMA_VERSION
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
-    tags: List[str] = field(default_factory=list)
-    twins: Dict[str, DigitalTwin] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    tags: list[str] = field(default_factory=list)
+    twins: dict[str, DigitalTwin] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     # -- oluşturma ---------------------------------------------------------
     @staticmethod
-    def create(name: str) -> "ProjectFile":
+    def create(name: str) -> ProjectFile:
         return ProjectFile(name=name)
 
     # -- serileştirme --------------------------------------------------------
@@ -101,7 +102,7 @@ class ProjectFile:
         }
 
     @staticmethod
-    def from_dict(data: dict) -> "ProjectFile":
+    def from_dict(data: dict) -> ProjectFile:
         version = data.get("schema_version", "1.0.0")
         if version != SCHEMA_VERSION:
             raise UnknownSchemaVersionError(
@@ -123,7 +124,7 @@ class ProjectFile:
         return json.dumps(self.to_dict(), indent=2, ensure_ascii=False)
 
     @staticmethod
-    def from_json(raw: str) -> "ProjectFile":
+    def from_json(raw: str) -> ProjectFile:
         return ProjectFile.from_dict(json.loads(raw))
 
     # -- dosya G/Ç -----------------------------------------------------------
@@ -133,8 +134,8 @@ class ProjectFile:
             fh.write(self.to_json())
 
     @staticmethod
-    def load(path: str) -> "ProjectFile":
-        with open(path, "r", encoding="utf-8") as fh:
+    def load(path: str) -> ProjectFile:
+        with open(path, encoding="utf-8") as fh:
             raw = fh.read()
         data = json.loads(raw)
         version = data.get("schema_version", "1.0.0")
@@ -173,7 +174,7 @@ def _migrate_raw(data: dict) -> dict:
     return data
 
 
-def migrate_project_file(project_file: ProjectFile) -> Tuple[ProjectFile, str, str]:
+def migrate_project_file(project_file: ProjectFile) -> tuple[ProjectFile, str, str]:
     """
     Bir `ProjectFile`'ı güncel şemaya taşır.
 

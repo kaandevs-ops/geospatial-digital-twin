@@ -65,8 +65,11 @@ def test_kfold_direction_matches_single_split_on_nonlinear_dataset():
     test_s, test_t = samples[split:], targets[split:]
     model = HeightRegressionModel.fit(train_s, train_t)
     from harita.ai_reconstruction.height_model import (
-        MLAssistedHeightPredictor, HeuristicPredictor, _mean_absolute_error,
+        HeuristicPredictor,
+        MLAssistedHeightPredictor,
+        _mean_absolute_error,
     )
+
     trained_mae = _mean_absolute_error(MLAssistedHeightPredictor(model=model), test_s, test_t)
     heuristic_mae = _mean_absolute_error(HeuristicPredictor(), test_s, test_t)
 

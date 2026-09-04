@@ -30,6 +30,7 @@ Playwright/gerçek tarayıcı görüntü karşılaştırması istenirse, o farkl
 bir araç seti gerektirir (bkz. `scripts/visual_regression.py` başlığındaki
 not) ve bu modülün kapsamı dışındadır.
 """
+
 from __future__ import annotations
 
 import math
@@ -40,14 +41,21 @@ from dataclasses import dataclass
 from ..mesh_engine import Mesh3D
 
 __all__ = [
-    "Camera", "Image", "rasterize_mesh", "write_ppm", "read_ppm",
-    "write_png", "pixel_diff", "PixelDiffResult",
+    "Camera",
+    "Image",
+    "rasterize_mesh",
+    "write_ppm",
+    "read_ppm",
+    "write_png",
+    "pixel_diff",
+    "PixelDiffResult",
 ]
 
 
 # ======================================================================== #
 # Kamera / projeksiyon
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class Camera:
@@ -96,16 +104,18 @@ class Camera:
         ]
 
 
-def _mat_vec_mul(m: list[list[float]], v: tuple[float, float, float, float]) -> tuple[float, float, float, float]:
+def _mat_vec_mul(
+    m: list[list[float]], v: tuple[float, float, float, float]
+) -> tuple[float, float, float, float]:
     return tuple(
-        m[r][0] * v[0] + m[r][1] * v[1] + m[r][2] * v[2] + m[r][3] * v[3]
-        for r in range(4)
+        m[r][0] * v[0] + m[r][1] * v[1] + m[r][2] * v[2] + m[r][3] * v[3] for r in range(4)
     )
 
 
 # ======================================================================== #
 # Görüntü tamponu
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class Image:
@@ -114,7 +124,7 @@ class Image:
     pixels: bytearray  # RGB, satır-major, 3 byte/piksel
 
     @classmethod
-    def new(cls, width: int, height: int, fill: tuple[int, int, int] = (24, 26, 32)) -> "Image":
+    def new(cls, width: int, height: int, fill: tuple[int, int, int] = (24, 26, 32)) -> Image:
         buf = bytearray(width * height * 3)
         for i in range(0, len(buf), 3):
             buf[i], buf[i + 1], buf[i + 2] = fill
@@ -130,8 +140,12 @@ class Image:
 # Rasterizasyon (tarama dönüşümü + z-buffer + düz gölgelendirme)
 # ======================================================================== #
 
+
 def rasterize_mesh(
-    mesh: Mesh3D, *, width: int = 320, height: int = 240,
+    mesh: Mesh3D,
+    *,
+    width: int = 320,
+    height: int = 240,
     camera: Camera | None = None,
     light_dir: tuple[float, float, float] = (-0.4, -0.6, -0.7),
     base_color: tuple[int, int, int] = (150, 160, 180),
@@ -183,7 +197,7 @@ def rasterize_mesh(
         sy = (1.0 - (ndc_y * 0.5 + 0.5)) * height
         return (sx, sy, ndc_z)
 
-    for (i, j, k) in mesh.triangles:
+    for i, j, k in mesh.triangles:
         va, vb, vc = mesh.vertices[i], mesh.vertices[j], mesh.vertices[k]
 
         # Düz yüzey normali (world space) - flat shading için.
@@ -251,6 +265,7 @@ def rasterize_mesh(
 # + PNG (stdlib zlib ile, görüntüleyici uyumluluğu için)
 # ======================================================================== #
 
+
 def write_ppm(image: Image, path: str) -> None:
     header = f"P6\n{image.width} {image.height}\n255\n".encode("ascii")
     with open(path, "wb") as fh:
@@ -275,7 +290,9 @@ def read_ppm(path: str) -> Image:
 
 def _png_chunk(tag: bytes, data: bytes) -> bytes:
     return (
-        struct.pack(">I", len(data)) + tag + data
+        struct.pack(">I", len(data))
+        + tag
+        + data
         + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
     )
 
@@ -290,7 +307,7 @@ def write_png(image: Image, path: str) -> None:
     stride = image.width * 3
     for row in range(image.height):
         raw.append(0)  # filter type: None
-        raw += image.pixels[row * stride:(row + 1) * stride]
+        raw += image.pixels[row * stride : (row + 1) * stride]
     idat = zlib.compress(bytes(raw), level=6)
     with open(path, "wb") as fh:
         fh.write(sig)
@@ -302,6 +319,7 @@ def write_png(image: Image, path: str) -> None:
 # ======================================================================== #
 # Piksel karşılaştırma
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class PixelDiffResult:
@@ -342,8 +360,10 @@ def pixel_diff(a: Image, b: Image) -> PixelDiffResult:
         total_diff += d0 + d1 + d2
     mean_diff = total_diff / (n_pixels * 3) if n_pixels else 0.0
     return PixelDiffResult(
-        width=a.width, height=a.height,
-        max_channel_diff=max_diff, mean_channel_diff=mean_diff,
+        width=a.width,
+        height=a.height,
+        max_channel_diff=max_diff,
+        mean_channel_diff=mean_diff,
         changed_pixel_count=changed,
         changed_pixel_ratio=(changed / n_pixels) if n_pixels else 0.0,
     )

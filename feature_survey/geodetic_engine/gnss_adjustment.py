@@ -35,12 +35,36 @@ class InsufficientDataError(ValueError):
 # ν > 30 için normal dağılımın z-kritik değerine (1.95996) yakınsar ve o
 # kullanılır. Tabloda olmayan bir ν için enterpolasyon yapılmaz.
 _T_TABLE_95: dict[int, float] = {
-    1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571,
-    6: 2.447, 7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228,
-    11: 2.201, 12: 2.179, 13: 2.160, 14: 2.145, 15: 2.131,
-    16: 2.120, 17: 2.110, 18: 2.101, 19: 2.093, 20: 2.086,
-    21: 2.080, 22: 2.074, 23: 2.069, 24: 2.064, 25: 2.060,
-    26: 2.056, 27: 2.052, 28: 2.048, 29: 2.045, 30: 2.042,
+    1: 12.706,
+    2: 4.303,
+    3: 3.182,
+    4: 2.776,
+    5: 2.571,
+    6: 2.447,
+    7: 2.365,
+    8: 2.306,
+    9: 2.262,
+    10: 2.228,
+    11: 2.201,
+    12: 2.179,
+    13: 2.160,
+    14: 2.145,
+    15: 2.131,
+    16: 2.120,
+    17: 2.110,
+    18: 2.101,
+    19: 2.093,
+    20: 2.086,
+    21: 2.080,
+    22: 2.074,
+    23: 2.069,
+    24: 2.064,
+    25: 2.060,
+    26: 2.056,
+    27: 2.052,
+    28: 2.048,
+    29: 2.045,
+    30: 2.042,
 }
 _Z_CRITICAL_95 = 1.95996  # ν > 30 için normal dağılım yaklaşımı
 
@@ -75,7 +99,9 @@ class WeightedMeanResult:
     n_fixed_epochs: int
 
 
-def weighted_mean_position(epochs: list[GnssEpoch], require_fixed_only: bool = True) -> WeightedMeanResult:
+def weighted_mean_position(
+    epochs: list[GnssEpoch], require_fixed_only: bool = True
+) -> WeightedMeanResult:
     """RTK epoch'larının gerçek σ (GST) değerlerine göre ağırlıklı
     ortalamasını hesaplar. `require_fixed_only=True` (varsayılan, roadmap
     ilkesi): sadece RTK Fixed epoch'lar kullanılır — Float/Autonomous
@@ -91,7 +117,9 @@ def weighted_mean_position(epochs: list[GnssEpoch], require_fixed_only: bool = T
             "düşüşünü dokümante etmeyi kullanıcının sorumluluğuna bırakır)."
         )
 
-    missing_sigma = [e for e in candidates if e.std_lat_m is None or e.std_lon_m is None or e.std_alt_m is None]
+    missing_sigma = [
+        e for e in candidates if e.std_lat_m is None or e.std_lon_m is None or e.std_alt_m is None
+    ]
     if missing_sigma:
         raise InsufficientDataError(
             f"{len(missing_sigma)} epoch'ta GST kaynaklı standart sapma yok — ağırlıklı "
@@ -101,7 +129,7 @@ def weighted_mean_position(epochs: list[GnssEpoch], require_fixed_only: bool = T
         )
 
     def _weighted(values: list[float], sigmas: list[float]) -> float:
-        weights = [1.0 / (s ** 2) for s in sigmas]
+        weights = [1.0 / (s**2) for s in sigmas]
         total_w = math.fsum(weights)
         return math.fsum(v * w for v, w in zip(values, weights)) / total_w
 
@@ -124,6 +152,7 @@ def weighted_mean_position(epochs: list[GnssEpoch], require_fixed_only: bool = T
 @dataclass(slots=True)
 class ControlPointComparison:
     """Bilinen (kontrol) nokta ile ölçülen nokta arasındaki gerçek fark."""
+
     delta_easting_m: float
     delta_northing_m: float
     delta_elevation_m: float
@@ -147,10 +176,13 @@ def compare_to_control_point(
     dn = measured_northing_m - known_northing_m
     dz = measured_elevation_m - known_elevation_m
     rmse_2d = math.hypot(de, dn)
-    rmse_3d = math.sqrt(de ** 2 + dn ** 2 + dz ** 2)
+    rmse_3d = math.sqrt(de**2 + dn**2 + dz**2)
     return ControlPointComparison(
-        delta_easting_m=de, delta_northing_m=dn, delta_elevation_m=dz,
-        rmse_2d_m=rmse_2d, rmse_3d_m=rmse_3d,
+        delta_easting_m=de,
+        delta_northing_m=dn,
+        delta_elevation_m=dz,
+        rmse_2d_m=rmse_2d,
+        rmse_3d_m=rmse_3d,
     )
 
 
@@ -173,14 +205,16 @@ def rmse_from_differences(comparisons: list[ControlPointComparison]) -> RmseRepo
     yaklaşık ilişkisi, kaynak: NSSDA/FGDC doğruluk standardı)."""
 
     if not comparisons:
-        raise InsufficientDataError("RMSE hesaplamak için en az bir kontrol noktası karşılaştırması gerekir.")
+        raise InsufficientDataError(
+            "RMSE hesaplamak için en az bir kontrol noktası karşılaştırması gerekir."
+        )
 
     n = len(comparisons)
-    rmse_e = math.sqrt(statistics.fmean(c.delta_easting_m ** 2 for c in comparisons))
-    rmse_n = math.sqrt(statistics.fmean(c.delta_northing_m ** 2 for c in comparisons))
-    rmse_z = math.sqrt(statistics.fmean(c.delta_elevation_m ** 2 for c in comparisons))
+    rmse_e = math.sqrt(statistics.fmean(c.delta_easting_m**2 for c in comparisons))
+    rmse_n = math.sqrt(statistics.fmean(c.delta_northing_m**2 for c in comparisons))
+    rmse_z = math.sqrt(statistics.fmean(c.delta_elevation_m**2 for c in comparisons))
     rmse_2d = math.hypot(rmse_e, rmse_n)
-    rmse_3d = math.sqrt(rmse_e ** 2 + rmse_n ** 2 + rmse_z ** 2)
+    rmse_3d = math.sqrt(rmse_e**2 + rmse_n**2 + rmse_z**2)
 
     # NSSDA (FGDC-STD-001-1998) yaklaşımı: yatay doğruluk (%95) = 1.7308 × RMSE_r
     # (RMSE_e = RMSE_n varsayımı altında Rayleigh dağılımı 95. yüzdelik değeri).

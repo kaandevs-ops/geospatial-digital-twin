@@ -16,7 +16,6 @@ from __future__ import annotations
 import random
 
 import pytest
-
 from harita.feature_survey.codes import FeatureCode
 from harita.feature_survey.field_point import FieldPoint, FieldSurveySession
 from harita.feature_survey.geodetic_engine.gnss_adjustment import ControlPointComparison
@@ -82,9 +81,7 @@ def test_end_to_end_full_pipeline_all_phases():
 
     # S3 - LiDAR/nokta bulutu (düzlem + küçük gürültü)
     pointcloud = [
-        (float(i), float(j), random.gauss(0.0, 0.01))
-        for i in range(11)
-        for j in range(11)
+        (float(i), float(j), random.gauss(0.0, 0.01)) for i in range(11) for j in range(11)
     ]
     reference_mesh = _flat_plane_mesh(10.0)
 
@@ -125,7 +122,15 @@ def test_end_to_end_full_pipeline_all_phases():
 
     # Audit trail: her faz denetlenebilir şekilde kaydedildi.
     phases = [entry.phase for entry in result.audit_trail]
-    for expected in ["S4", "S5-checkpoint", "S5-closure", "S5-combined", "S3-ground", "S3-quality", "S5-surface-comparison"]:
+    for expected in [
+        "S4",
+        "S5-checkpoint",
+        "S5-closure",
+        "S5-combined",
+        "S3-ground",
+        "S3-quality",
+        "S5-surface-comparison",
+    ]:
         assert expected in phases
 
     # Proje manifestosu payload'ı JSON-serileştirilebilir ve tutarlı.
@@ -152,9 +157,7 @@ def test_checkpoint_without_tolerance_rejected():
     with pytest.raises(OrchestrationError):
         run_field_survey_pipeline(
             project_name="Toleranssız Proje",
-            checkpoint_comparisons=[
-                ControlPointComparison(0.01, -0.02, 0.015, 0.022, 0.027)
-            ],
+            checkpoint_comparisons=[ControlPointComparison(0.01, -0.02, 0.015, 0.022, 0.027)],
         )
 
 

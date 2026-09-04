@@ -64,8 +64,11 @@ def _arcsec_to_rad(arcsec: float) -> float:
 
 
 def geodetic_to_geocentric(
-    latitude_deg: float, longitude_deg: float, ellipsoidal_height_m: float,
-    semi_major_axis_m: float, flattening: float,
+    latitude_deg: float,
+    longitude_deg: float,
+    ellipsoidal_height_m: float,
+    semi_major_axis_m: float,
+    flattening: float,
 ) -> GeocentricCoordinate:
     """Jeodezik (φ, λ, h) → Kartezyen jeosentrik (X, Y, Z). Standart
     formül (herhangi bir jeodezi ders kitabı); elipsoid parametreleri
@@ -75,9 +78,9 @@ def geodetic_to_geocentric(
 
     lat_rad = math.radians(latitude_deg)
     lon_rad = math.radians(longitude_deg)
-    e2 = 2 * flattening - flattening ** 2  # birinci dış merkezlik karesi
+    e2 = 2 * flattening - flattening**2  # birinci dış merkezlik karesi
     sin_lat = math.sin(lat_rad)
-    n_radius = semi_major_axis_m / math.sqrt(1 - e2 * sin_lat ** 2)
+    n_radius = semi_major_axis_m / math.sqrt(1 - e2 * sin_lat**2)
 
     x = (n_radius + ellipsoidal_height_m) * math.cos(lat_rad) * math.cos(lon_rad)
     y = (n_radius + ellipsoidal_height_m) * math.cos(lat_rad) * math.sin(lon_rad)
@@ -106,8 +109,11 @@ def apply_helmert_transform(
 
 
 def geocentric_to_geodetic(
-    coord: GeocentricCoordinate, semi_major_axis_m: float, flattening: float,
-    tolerance_m: float = 1e-9, max_iterations: int = 20,
+    coord: GeocentricCoordinate,
+    semi_major_axis_m: float,
+    flattening: float,
+    tolerance_m: float = 1e-9,
+    max_iterations: int = 20,
 ) -> tuple[float, float, float]:
     """Kartezyen jeosentrik (X, Y, Z) → jeodezik (φ, λ, h). Bowring'in
     yinelemeli (iterative) yöntemi — kapalı formül yerine yakınsama
@@ -117,13 +123,13 @@ def geocentric_to_geodetic(
 
     x, y, z = coord.x_m, coord.y_m, coord.z_m
     lon_rad = math.atan2(y, x)
-    e2 = 2 * flattening - flattening ** 2
+    e2 = 2 * flattening - flattening**2
     p = math.hypot(x, y)
 
     lat_rad = math.atan2(z, p * (1 - e2))  # ilk tahmin
     for _ in range(max_iterations):
         sin_lat = math.sin(lat_rad)
-        n_radius = semi_major_axis_m / math.sqrt(1 - e2 * sin_lat ** 2)
+        n_radius = semi_major_axis_m / math.sqrt(1 - e2 * sin_lat**2)
         h = p / math.cos(lat_rad) - n_radius
         new_lat = math.atan2(z, p * (1 - e2 * n_radius / (n_radius + h)))
         if abs(new_lat - lat_rad) < tolerance_m / semi_major_axis_m:
@@ -137,7 +143,7 @@ def geocentric_to_geodetic(
         )
 
     sin_lat = math.sin(lat_rad)
-    n_radius = semi_major_axis_m / math.sqrt(1 - e2 * sin_lat ** 2)
+    n_radius = semi_major_axis_m / math.sqrt(1 - e2 * sin_lat**2)
     h = p / math.cos(lat_rad) - n_radius
 
     return math.degrees(lat_rad), math.degrees(lon_rad), h

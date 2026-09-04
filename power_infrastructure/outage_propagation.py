@@ -29,10 +29,11 @@ kesicinin açacağı, N-1 güvenilirlik analizi vb.) modellenmemiştir - bu,
 "trafo X çalışmıyorsa, kalan trafolardan grafiksel olarak ulaşılamayan
 binalar etkilenmiştir" düzeyinde basit bir bağlanabilirlik analizidir.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Iterable, Optional
+from collections.abc import Iterable
+from dataclasses import dataclass
 
 from ..core_engine.geometry_engine import Point2D
 from ..extensibility.city_events import CityEventType, emit_city_event
@@ -54,7 +55,7 @@ def build_power_network_graph(
     substation_ids: Iterable[str],
     building_ids: Iterable[str],
     lines: Iterable[tuple[str, str]],
-    positions: Optional[dict[str, Point2D]] = None,
+    positions: dict[str, Point2D] | None = None,
 ) -> NavGraph:
     """`lines`: (kaynak_id, hedef_id) çiftleri - trafo-trafo veya
     trafo-bina bağlantısı, `power_infrastructure.osm_bridge`'in ürettiği
@@ -128,19 +129,27 @@ class OutagePropagationEngine:
     olayı yayınlar (Cascade Engine'in ham `POWER_OUTAGE` olayının
     üzerine, hangi binaların etkilendiği bilgisini ekler)."""
 
-    def __init__(self, graph: NavGraph, all_substation_ids: Iterable[str],
-                 all_building_ids: Iterable[str], bus: Optional[EventSystem] = None):
+    def __init__(
+        self,
+        graph: NavGraph,
+        all_substation_ids: Iterable[str],
+        all_building_ids: Iterable[str],
+        bus: EventSystem | None = None,
+    ):
         self.graph = graph
         self.all_substation_ids = list(all_substation_ids)
         self.all_building_ids = set(all_building_ids)
         self.bus = bus
 
-    def propagate(self, failed_substation_ids: Iterable[str], *,
-                   source: Optional[str] = None) -> OutageImpactReport:
+    def propagate(
+        self, failed_substation_ids: Iterable[str], *, source: str | None = None
+    ) -> OutageImpactReport:
         failed = list(failed_substation_ids)
         surviving = [s for s in self.all_substation_ids if s not in failed]
 
-        reachable_before = _reachable_from(self.graph, self.all_substation_ids) & self.all_building_ids
+        reachable_before = (
+            _reachable_from(self.graph, self.all_substation_ids) & self.all_building_ids
+        )
         reachable_after = _reachable_from(self.graph, surviving) & self.all_building_ids
 
         affected = sorted(reachable_before - reachable_after)
@@ -156,20 +165,23 @@ class OutagePropagationEngine:
 
         if self.bus is not None:
             emit_city_event(
-                self.bus, CityEventType.POWER_OUTAGE, source=source,
+                self.bus,
+                CityEventType.POWER_OUTAGE,
+                source=source,
                 failed_substation_ids=list(failed),
                 affected_building_ids=affected,
             )
         return report
 
-    def restore(self, restored_substation_ids: Iterable[str], *,
-                source: Optional[str] = None) -> None:
+    def restore(self, restored_substation_ids: Iterable[str], *, source: str | None = None) -> None:
         """Kesinti sonrası toparlanma - Faz VII `resilience_timeline`'ın
         `POWER_RESTORED` eşleşmesiyle tutarlı, yeni bir olay tipi icat
         edilmedi."""
         if self.bus is not None:
             emit_city_event(
-                self.bus, CityEventType.POWER_RESTORED, source=source,
+                self.bus,
+                CityEventType.POWER_RESTORED,
+                source=source,
                 restored_substation_ids=list(restored_substation_ids),
             )
 

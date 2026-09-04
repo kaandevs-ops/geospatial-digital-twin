@@ -35,7 +35,13 @@ from pathlib import Path
 from .datum_transform import DatumTransformParameters, InsufficientDataError
 
 _REQUIRED_NUMERIC_FIELDS = (
-    "tx_m", "ty_m", "tz_m", "rx_arcsec", "ry_arcsec", "rz_arcsec", "scale_ppm",
+    "tx_m",
+    "ty_m",
+    "tz_m",
+    "rx_arcsec",
+    "ry_arcsec",
+    "rz_arcsec",
+    "scale_ppm",
 )
 
 #: Şablon dosyalarında kullanılan, "gerçek değil" işaretleyici. Bu değer

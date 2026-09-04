@@ -31,14 +31,16 @@ from __future__ import annotations
 import json
 import threading
 import time
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from typing import Any, Iterable, Iterator, Optional
+from typing import Any
 
-from .project_format import FORMAT_VERSION, ProjectManifest, ProjectFormatError
 from .db_backend import ObjectRecord
+from .project_format import FORMAT_VERSION, ProjectFormatError, ProjectManifest
 
 try:  # pragma: no cover - opsiyonel bağımlılık, ortama göre değişir
     import psycopg  # type: ignore
+
     _PSYCOPG_AVAILABLE = True
 except ImportError:  # pragma: no cover
     psycopg = None  # type: ignore
@@ -81,12 +83,11 @@ CREATE TABLE IF NOT EXISTS harita_history (
 def _require_psycopg() -> None:
     if not _PSYCOPG_AVAILABLE:
         raise PostgresUnavailable(
-            "psycopg (v3) kurulu değil. Kurmak için: "
-            "pip install harita-modelleme[postgres]"
+            "psycopg (v3) kurulu değil. Kurmak için: pip install harita-modelleme[postgres]"
         )
 
 
-def footprint_to_wkt(footprint: Optional[Iterable[tuple[float, float]]]) -> Optional[str]:
+def footprint_to_wkt(footprint: Iterable[tuple[float, float]] | None) -> str | None:
     """Bir (lon, lat) halka listesini PostGIS `POLYGON(...)` WKT'sine çevirir.
 
     `None` verilirse `None` döner (footprint opsiyoneldir — her nesnenin
@@ -125,7 +126,7 @@ class PostgresProjectDatabase:
     # -- yaşam döngüsü -----------------------------------------------
 
     @classmethod
-    def create(cls, dsn: str, manifest: ProjectManifest) -> "PostgresProjectDatabase":
+    def create(cls, dsn: str, manifest: ProjectManifest) -> PostgresProjectDatabase:
         _require_psycopg()
         conn = psycopg.connect(dsn, autocommit=False)
         db = cls(dsn=dsn, _conn=conn, _lock=threading.RLock())
@@ -138,7 +139,7 @@ class PostgresProjectDatabase:
         return db
 
     @classmethod
-    def open(cls, dsn: str, *, auto_migrate: bool = True) -> "PostgresProjectDatabase":
+    def open(cls, dsn: str, *, auto_migrate: bool = True) -> PostgresProjectDatabase:
         _require_psycopg()
         conn = psycopg.connect(dsn, autocommit=False)
         db = cls(dsn=dsn, _conn=conn, _lock=threading.RLock())
@@ -166,7 +167,7 @@ class PostgresProjectDatabase:
             self._conn.commit()
             self._conn.close()
 
-    def __enter__(self) -> "PostgresProjectDatabase":
+    def __enter__(self) -> PostgresProjectDatabase:
         return self
 
     def __exit__(self, *exc_info: object) -> None:
@@ -211,8 +212,12 @@ class PostgresProjectDatabase:
     # -- nesne CRUD ------------------------------------------------------
 
     def save_object(
-        self, key: str, kind: str, data: Any,
-        *, footprint: Optional[Iterable[tuple[float, float]]] = None,
+        self,
+        key: str,
+        kind: str,
+        data: Any,
+        *,
+        footprint: Iterable[tuple[float, float]] | None = None,
     ) -> None:
         now = time.time()
         payload = json.dumps(data, ensure_ascii=False)
@@ -221,10 +226,11 @@ class PostgresProjectDatabase:
             cur.execute(
                 "INSERT INTO harita_objects(key, kind, data, footprint, updated_at) "
                 "VALUES (%s, %s, %s::jsonb, "
-                + ("ST_GeomFromText(%s, 4326)" if wkt is not None else "NULL") + ", %s) "
+                + ("ST_GeomFromText(%s, 4326)" if wkt is not None else "NULL")
+                + ", %s) "
                 "ON CONFLICT(key) DO UPDATE SET kind=EXCLUDED.kind, data=EXCLUDED.data, "
                 "footprint=EXCLUDED.footprint, updated_at=EXCLUDED.updated_at",
-                (key, kind, payload, *( (wkt,) if wkt is not None else () ), now),
+                (key, kind, payload, *((wkt,) if wkt is not None else ()), now),
             )
             cur.execute(
                 "INSERT INTO harita_history(ts, op, key, kind) VALUES (%s, 'save', %s, %s)",
@@ -240,7 +246,7 @@ class PostgresProjectDatabase:
             self.save_object(key, kind, data)
         return len(rows)
 
-    def load_object(self, key: str) -> Optional[ObjectRecord]:
+    def load_object(self, key: str) -> ObjectRecord | None:
         with self._lock, self._conn.cursor() as cur:
             cur.execute(
                 "SELECT key, kind, data, updated_at FROM harita_objects WHERE key = %s",
@@ -267,17 +273,15 @@ class PostgresProjectDatabase:
             self._conn.commit()
             return True
 
-    def list_objects(self, kind: Optional[str] = None) -> list[str]:
+    def list_objects(self, kind: str | None = None) -> list[str]:
         with self._lock, self._conn.cursor() as cur:
             if kind is None:
                 cur.execute("SELECT key FROM harita_objects ORDER BY key")
             else:
-                cur.execute(
-                    "SELECT key FROM harita_objects WHERE kind = %s ORDER BY key", (kind,)
-                )
+                cur.execute("SELECT key FROM harita_objects WHERE kind = %s ORDER BY key", (kind,))
             return [r[0] for r in cur.fetchall()]
 
-    def count_objects(self, kind: Optional[str] = None) -> int:
+    def count_objects(self, kind: str | None = None) -> int:
         with self._lock, self._conn.cursor() as cur:
             if kind is None:
                 cur.execute("SELECT COUNT(*) FROM harita_objects")
@@ -306,8 +310,13 @@ class PostgresProjectDatabase:
     # -- PostGIS'e özgü: gerçek coğrafi sorgu (roadmap Faz 5.2'nin özü) ---
 
     def query_bbox(
-        self, *, min_lon: float, min_lat: float, max_lon: float, max_lat: float,
-        kind: Optional[str] = None,
+        self,
+        *,
+        min_lon: float,
+        min_lat: float,
+        max_lon: float,
+        max_lat: float,
+        kind: str | None = None,
     ) -> list[ObjectRecord]:
         """Bir WGS84 bbox'ıyla kesişen tüm nesneleri PostGIS `&&` (bbox
         overlap) operatörüyle döndürür — SQLite backend'de bu sorgu türü

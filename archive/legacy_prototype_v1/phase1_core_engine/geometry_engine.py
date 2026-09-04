@@ -15,13 +15,12 @@ Harici bağımlılık yok. Sadece stdlib + numpy.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
-from typing import Iterable, List, Optional, Sequence, Tuple
+from collections.abc import Iterable, Sequence
 
 import numpy as np
 
-Point2D = Tuple[float, float]
-Ring = List[Point2D]
+Point2D = tuple[float, float]
+Ring = list[Point2D]
 
 
 class GeometryError(ValueError):
@@ -39,6 +38,7 @@ def _dist(a: Point2D, b: Point2D) -> float:
 # ============================================================================
 # POLYGON OPS
 # ============================================================================
+
 
 class PolygonOps:
     """Polygon (halka listesi = [(x,y), ...], kapalı olması gerekmez) işlemleri."""
@@ -120,7 +120,7 @@ class PolygonOps:
             return pts
         k = max(3, min(k, len(pts) - 1))
 
-        def _knn(p: Point2D, candidates: List[Point2D], n: int) -> List[Point2D]:
+        def _knn(p: Point2D, candidates: list[Point2D], n: int) -> list[Point2D]:
             return sorted(candidates, key=lambda q: _dist(p, q))[:n]
 
         start = min(pts, key=lambda p: p[1])
@@ -231,7 +231,7 @@ class PolygonOps:
     @staticmethod
     def merge(polygons: Iterable[Ring]) -> Ring:
         """Birden çok polygonu tek bir dışbükey zarfta birleştirir."""
-        pts: List[Point2D] = []
+        pts: list[Point2D] = []
         for poly in polygons:
             pts.extend(poly)
         if not pts:
@@ -239,7 +239,7 @@ class PolygonOps:
         return PolygonOps.convex_hull(pts)
 
     @staticmethod
-    def split(ring: Ring, line_a: Point2D, line_b: Point2D) -> Tuple[Ring, Ring]:
+    def split(ring: Ring, line_a: Point2D, line_b: Point2D) -> tuple[Ring, Ring]:
         """Bir polygon'u bir doğru ile ikiye böler (dışbükey polygon varsayımı)."""
         core = ring[:-1] if ring[0] == ring[-1] else list(ring)
         left, right = [], []
@@ -356,17 +356,20 @@ def _segments_intersect(a: Point2D, b: Point2D, c: Point2D, d: Point2D) -> bool:
 # LINE OPS
 # ============================================================================
 
+
 class LineOps:
     """Polyline (nokta listesi) işlemleri."""
 
     @staticmethod
-    def smoothing(line: Sequence[Point2D], iterations: int = 1, factor: float = 0.5) -> List[Point2D]:
+    def smoothing(
+        line: Sequence[Point2D], iterations: int = 1, factor: float = 0.5
+    ) -> list[Point2D]:
         """Chaikin's corner-cutting algoritması ile çizgi yumuşatma."""
         pts = list(line)
         if len(pts) < 3 or iterations <= 0:
             return pts
         for _ in range(iterations):
-            new_pts: List[Point2D] = [pts[0]]
+            new_pts: list[Point2D] = [pts[0]]
             for i in range(len(pts) - 1):
                 p0, p1 = pts[i], pts[i + 1]
                 q = (
@@ -384,7 +387,9 @@ class LineOps:
         return pts
 
     @staticmethod
-    def snapping(line: Sequence[Point2D], reference_points: Sequence[Point2D], tolerance: float) -> List[Point2D]:
+    def snapping(
+        line: Sequence[Point2D], reference_points: Sequence[Point2D], tolerance: float
+    ) -> list[Point2D]:
         """Line üzerindeki her noktayı, tolerans içindeyse en yakın referans noktasına yapıştırır (snap)."""
         result = []
         for p in line:
@@ -396,12 +401,12 @@ class LineOps:
         return result
 
     @staticmethod
-    def offset(line: Sequence[Point2D], distance: float) -> List[Point2D]:
+    def offset(line: Sequence[Point2D], distance: float) -> list[Point2D]:
         """Polyline'ı normal yönünde `distance` kadar öteler (basit segment-normal ofseti)."""
         pts = list(line)
         if len(pts) < 2:
             return pts
-        offset_pts: List[Point2D] = []
+        offset_pts: list[Point2D] = []
         for i in range(len(pts)):
             if i == 0:
                 dx, dy = pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]
@@ -416,7 +421,9 @@ class LineOps:
         return offset_pts
 
     @staticmethod
-    def intersection(line_a: Tuple[Point2D, Point2D], line_b: Tuple[Point2D, Point2D]) -> Optional[Point2D]:
+    def intersection(
+        line_a: tuple[Point2D, Point2D], line_b: tuple[Point2D, Point2D]
+    ) -> Point2D | None:
         """İki doğru segmentinin kesişim noktası (varsa)."""
         a, b = line_a
         c, d = line_b
@@ -434,11 +441,12 @@ class LineOps:
 # POINT OPS
 # ============================================================================
 
+
 class PointOps:
     """Point cloud işlemleri: clustering, indexing, nearest search."""
 
     @staticmethod
-    def clustering(points: Sequence[Point2D], eps: float, min_points: int = 2) -> List[List[int]]:
+    def clustering(points: Sequence[Point2D], eps: float, min_points: int = 2) -> list[list[int]]:
         """
         DBSCAN (yoğunluk tabanlı kümeleme). Döndürülen değer, `points`
         listesindeki indekslerden oluşan küme listesidir; -1 kümesi yoktur,
@@ -450,9 +458,9 @@ class PointOps:
         visited = [False] * n
         cluster_id = 0
 
-        def region_query(idx: int) -> List[int]:
+        def region_query(idx: int) -> list[int]:
             diffs = pts - pts[idx]
-            dists = np.sqrt((diffs ** 2).sum(axis=1))
+            dists = np.sqrt((diffs**2).sum(axis=1))
             return list(np.where(dists <= eps)[0])
 
         for i in range(n):
@@ -485,12 +493,14 @@ class PointOps:
         return list(clusters.values())
 
     @staticmethod
-    def indexing(points: Sequence[Point2D], cell_size: float) -> "SpatialGridIndex":
+    def indexing(points: Sequence[Point2D], cell_size: float) -> SpatialGridIndex:
         """Uniform-grid spatial index oluşturur (Faz 10'daki QuadTree/RTree'nin ön aşaması)."""
         return SpatialGridIndex(points, cell_size)
 
     @staticmethod
-    def nearest_search(points: Sequence[Point2D], query: Point2D, k: int = 1) -> List[Tuple[int, float]]:
+    def nearest_search(
+        points: Sequence[Point2D], query: Point2D, k: int = 1
+    ) -> list[tuple[int, float]]:
         """Brute-force k-nearest-neighbour arama (index'siz, küçük veri setleri için)."""
         pts = np.asarray(points, dtype=float)
         q = np.asarray(query, dtype=float)
@@ -515,10 +525,10 @@ class SpatialGridIndex:
             cell = self._cell_of(x, y)
             self._grid.setdefault(cell, []).append(i)
 
-    def _cell_of(self, x: float, y: float) -> Tuple[int, int]:
+    def _cell_of(self, x: float, y: float) -> tuple[int, int]:
         return (int(math.floor(x / self.cell_size)), int(math.floor(y / self.cell_size)))
 
-    def query_radius(self, center: Point2D, radius: float) -> List[int]:
+    def query_radius(self, center: Point2D, radius: float) -> list[int]:
         cx, cy = self._cell_of(*center)
         cell_span = int(math.ceil(radius / self.cell_size)) + 1
         result = []
@@ -529,7 +539,7 @@ class SpatialGridIndex:
                         result.append(idx)
         return result
 
-    def nearest(self, query: Point2D) -> Optional[int]:
+    def nearest(self, query: Point2D) -> int | None:
         radius = self.cell_size
         while radius < self.cell_size * 1000:
             candidates = self.query_radius(query, radius)

@@ -94,9 +94,7 @@ class TooManyLoginAttemptsError(AuthError):
 
 
 def _hash_password(password: str, salt: bytes) -> bytes:
-    return hashlib.pbkdf2_hmac(
-        "sha256", password.encode("utf-8"), salt, _PBKDF2_ITERATIONS
-    )
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, _PBKDF2_ITERATIONS)
 
 
 @dataclass(slots=True)
@@ -157,7 +155,8 @@ class AuthService:
         self._token_ttl = token_ttl_seconds
         # Faz 5.4: brute-force koruması - kullanıcı adı başına kayan pencere.
         self._login_limiter = SlidingWindowRateLimiter(
-            max_requests=_MAX_LOGIN_ATTEMPTS, window_seconds=_LOGIN_LOCKOUT_WINDOW_SECONDS,
+            max_requests=_MAX_LOGIN_ATTEMPTS,
+            window_seconds=_LOGIN_LOCKOUT_WINDOW_SECONDS,
         )
 
     # ------------------------------------------------------------------ #
@@ -226,9 +225,7 @@ class AuthService:
         membership = self._memberships.get((project_id, user_id))
         return membership.role if membership else None
 
-    def require_role(
-        self, project_id: str, user_id: str, *, at_least: Role
-    ) -> Role:
+    def require_role(self, project_id: str, user_id: str, *, at_least: Role) -> Role:
         """Kullanıcının `project_id`'de en az `at_least` yetkisine sahip
         olduğunu doğrular; değilse `PermissionDeniedError`."""
         role = self.role_of(project_id, user_id)

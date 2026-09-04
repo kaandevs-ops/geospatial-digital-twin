@@ -11,17 +11,19 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from harita.core_engine.geometry_engine import Point2D, Polygon
+from harita.ai_assistant import BuildingRegistry, DialogueSession
 from harita.building_reconstruction.footprint_parser import Footprint
 from harita.building_reconstruction.procedural_generator import Building, BuildingType, Floor
-
-from harita.ai_assistant import BuildingRegistry, DialogueSession, IntentAction
+from harita.core_engine.geometry_engine import Point2D, Polygon
 
 
 def _make_building(floor_count: int = 2) -> Building:
     polygon = Polygon(points=[Point2D(0, 0), Point2D(10, 0), Point2D(10, 10), Point2D(0, 10)])
     footprint = Footprint(
-        polygon=polygon, building_type="apartments", floor_count=floor_count, height_m=3.0 * floor_count
+        polygon=polygon,
+        building_type="apartments",
+        floor_count=floor_count,
+        height_m=3.0 * floor_count,
     )
     building = Building(footprint=footprint, building_type=BuildingType.APARTMAN)
     building.floors = [Floor(level=i, height_m=3.0) for i in range(floor_count)]

@@ -26,13 +26,15 @@ from __future__ import annotations
 import gc
 import resource
 
-from harita.building_reconstruction.procedural_generator import ProceduralBuildingGenerator
 from harita.building_reconstruction.footprint_parser import Footprint
-from harita.data_engine.spatial_index import RTree, AABB2D
-from harita.core_engine.geometry_engine import Polygon, Point2D
+from harita.building_reconstruction.procedural_generator import ProceduralBuildingGenerator
+from harita.core_engine.geometry_engine import Point2D, Polygon
+from harita.data_engine.spatial_index import AABB2D, RTree
 
 
-def _make_grid_footprint(index: int, spacing: float = 20.0, width: float = 10.0) -> list[tuple[float, float]]:
+def _make_grid_footprint(
+    index: int, spacing: float = 20.0, width: float = 10.0
+) -> list[tuple[float, float]]:
     """`test_phase21_scale_security.py` ile aynı ızgara düzeni üreticisi
     (bağımsız kopya — test dosyaları arasında import bağımlılığı kurmamak
     için kasıtlı olarak tekrarlandı)."""
@@ -159,4 +161,6 @@ def test_city_scale_100k_index_query_still_fast(city_100k):
     # 200 sorgu, 100.000 kayıtlık bir ağaçta bile saniyenin çok altında
     # kalmalı (lineer O(n) tarama olsaydı bu, 100.000 * 200 = 20M
     # karşılaştırma demek olurdu ve gözle görülür şekilde yavaş olurdu).
-    assert elapsed < 2.0, f"100.000 kayıtlı spatial index sorgusu çok yavaş: {elapsed:.2f}s / 200 sorgu"
+    assert elapsed < 2.0, (
+        f"100.000 kayıtlı spatial index sorgusu çok yavaş: {elapsed:.2f}s / 200 sorgu"
+    )

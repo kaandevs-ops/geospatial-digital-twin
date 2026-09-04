@@ -26,10 +26,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from ..data_engine.spatial_index import AABB3D
+from ..material_engine import PBRMaterial
 from ..mesh_engine import Mesh3D, MeshSimplifier
 from ..mesh_engine.progressive_mesh import ProgressiveMesh
-from ..material_engine import PBRMaterial
-from ..data_engine.spatial_index import AABB3D
 from ..performance.culling import FrustumCulling
 
 SCENE_SCHEMA_VERSION = "1.5"  # Roadmap V10 Faz 5: "overlay_layers"/"audio_events" alanları eklendi
@@ -77,6 +77,7 @@ DEFAULT_LOD_DISTANCES: tuple[float, ...] = (50.0, 150.0, math.inf)
 # Sahne veri modeli
 # ======================================================================== #
 
+
 @dataclass(slots=True)
 class SceneNode:
     """Tek bir çizilebilir nesne: bir Mesh3D + materyal referansı + transform."""
@@ -122,7 +123,7 @@ class SceneSky:
     hdri_path: str | None = None
 
 
-def _world_space_mesh(node: "SceneNode") -> Mesh3D:
+def _world_space_mesh(node: SceneNode) -> Mesh3D:
     """ROADMAP_V8 Faz 6.4: `node.mesh`'in `translation`/`scale`/
     `rotation_deg`'ini uygulayıp dünya-uzayı vertex pozisyonlarına sahip
     yeni bir `Mesh3D` klonu döndürür (girdi değişmez). Yalnızca
@@ -158,7 +159,7 @@ class Scene:
     name: str = "scene"
     # Faz E1: opsiyonel gökyüzü (HDRSky köprüsü) - None ise viewer düz renk
     # arka plana (mevcut davranış) düşer, geriye uyumlu.
-    sky: "SceneSky | None" = None
+    sky: SceneSky | None = None
     # Faz E1: node adı -> vertex başına AO (0..1) listesi. `attach_vertex_ao()`
     # ile doldurulur; boşsa viewer AO=1.0 (etkisiz) varsayar - geriye uyumlu.
     vertex_ao: dict[str, list[float]] = field(default_factory=dict)
@@ -244,7 +245,9 @@ class Scene:
         from ..lighting import AmbientOcclusionBaker
 
         ao_values = AmbientOcclusionBaker.bake_vertex_ao(
-            node.mesh, sample_count=sample_count, max_distance=max_distance,
+            node.mesh,
+            sample_count=sample_count,
+            max_distance=max_distance,
         )
         self.vertex_ao[node.name] = ao_values
         return ao_values
@@ -291,7 +294,9 @@ class Scene:
 
         world_meshes = [_world_space_mesh(node) for node in target_nodes]
         ao_lists = SceneAOBaker.bake_scene_ao(
-            world_meshes, sample_count=sample_count, max_distance=max_distance,
+            world_meshes,
+            sample_count=sample_count,
+            max_distance=max_distance,
             cell_size=cell_size,
         )
         result: dict[str, list[float]] = {}
@@ -303,7 +308,7 @@ class Scene:
     def attach_flow_network(
         self,
         node: SceneNode,
-        grid: "HeightmapGrid",
+        grid: HeightmapGrid,
         *,
         accumulation_threshold: float = 4.0,
     ) -> list[dict[str, Any]]:
@@ -359,11 +364,13 @@ class Scene:
                 y1 = nr * grid.resolution_m
                 z1 = grid.elevations[nr][nc]
 
-                segments.append({
-                    "start": [x0, y0, z0],
-                    "end": [x1, y1, z1],
-                    "intensity": min(1.0, accum[r][c] / max_accum),
-                })
+                segments.append(
+                    {
+                        "start": [x0, y0, z0],
+                        "end": [x1, y1, z1],
+                        "intensity": min(1.0, accum[r][c] / max_accum),
+                    }
+                )
 
         self.flow_lines[node.name] = segments
         return segments
@@ -494,8 +501,11 @@ class Scene:
             raise ValueError("En az bir LOD seviyesi gerekli.")
 
         node = self.add_mesh(
-            mesh, material=material, translation=translation,
-            rotation_deg=rotation_deg, scale=scale,
+            mesh,
+            material=material,
+            translation=translation,
+            rotation_deg=rotation_deg,
+            scale=scale,
         )
         levels: list[tuple[float, Mesh3D]] = []
         for ratio, max_dist in zip(lod_ratios, lod_distances):
@@ -523,8 +533,14 @@ class Scene:
         for node in self.nodes:
             (lx, ly, lz), (hx, hy, hz) = node.mesh.bounding_box()
             corners = [
-                (lx, ly, lz), (lx, ly, hz), (lx, hy, lz), (lx, hy, hz),
-                (hx, ly, lz), (hx, ly, hz), (hx, hy, lz), (hx, hy, hz),
+                (lx, ly, lz),
+                (lx, ly, hz),
+                (lx, hy, lz),
+                (lx, hy, hz),
+                (hx, ly, lz),
+                (hx, ly, hz),
+                (hx, hy, lz),
+                (hx, hy, hz),
             ]
             for cx, cy, cz in corners:
                 wx, wy, wz = _apply_trs(
@@ -581,8 +597,13 @@ class Scene:
             positions: list[float] = []
             normals: list[float] = []
             uvs: list[float] = []
-            has_normals = all(v.normal is not None for v in node.mesh.vertices) and len(node.mesh.vertices) > 0
-            has_uvs = all(v.uv is not None for v in node.mesh.vertices) and len(node.mesh.vertices) > 0
+            has_normals = (
+                all(v.normal is not None for v in node.mesh.vertices)
+                and len(node.mesh.vertices) > 0
+            )
+            has_uvs = (
+                all(v.uv is not None for v in node.mesh.vertices) and len(node.mesh.vertices) > 0
+            )
 
             for v in node.mesh.vertices:
                 positions.extend((v.x, v.y, v.z))
@@ -598,8 +619,7 @@ class Scene:
             lod_groups_json = None
             if node.lod_levels:
                 lod_groups_json = [
-                    _mesh_to_lod_group(max_dist, lod_mesh)
-                    for max_dist, lod_mesh in node.lod_levels
+                    _mesh_to_lod_group(max_dist, lod_mesh) for max_dist, lod_mesh in node.lod_levels
                 ]
 
             ao = self.vertex_ao.get(node.name)
@@ -610,26 +630,28 @@ class Scene:
                     "mesh, AO bake edildikten sonra değişmiş olabilir."
                 )
 
-            nodes_json.append({
-                "name": node.name,
-                "material": node.material_name,
-                "translation": list(node.translation),
-                "rotation_deg": list(node.rotation_deg),
-                "scale": list(node.scale),
-                "positions": positions,
-                "normals": normals if has_normals else None,
-                "uvs": uvs if has_uvs else None,
-                # Faz E1: D9 `AmbientOcclusionBaker` çıktısı - viewer bunu
-                # vertex attribute location=2 olarak yükler (yoksa AO=1.0
-                # sabitine düşülür, geriye uyumlu).
-                "ao": ao,
-                "indices": indices,
-                "vertex_count": node.mesh.vertex_count(),
-                "triangle_count": node.mesh.triangle_count(),
-                # Faz D2: kamera-mesafesi tabanlı LOD seçimi için (bkz.
-                # viewer/index.html `pickLodLevel`). None ise node LOD'suz.
-                "lod_groups": lod_groups_json,
-            })
+            nodes_json.append(
+                {
+                    "name": node.name,
+                    "material": node.material_name,
+                    "translation": list(node.translation),
+                    "rotation_deg": list(node.rotation_deg),
+                    "scale": list(node.scale),
+                    "positions": positions,
+                    "normals": normals if has_normals else None,
+                    "uvs": uvs if has_uvs else None,
+                    # Faz E1: D9 `AmbientOcclusionBaker` çıktısı - viewer bunu
+                    # vertex attribute location=2 olarak yükler (yoksa AO=1.0
+                    # sabitine düşülür, geriye uyumlu).
+                    "ao": ao,
+                    "indices": indices,
+                    "vertex_count": node.mesh.vertex_count(),
+                    "triangle_count": node.mesh.triangle_count(),
+                    # Faz D2: kamera-mesafesi tabanlı LOD seçimi için (bkz.
+                    # viewer/index.html `pickLodLevel`). None ise node LOD'suz.
+                    "lod_groups": lod_groups_json,
+                }
+            )
 
         lights_json = [
             {
@@ -691,6 +713,7 @@ class Scene:
 # ======================================================================== #
 # Yardımcılar
 # ======================================================================== #
+
 
 def _apply_trs(
     point: tuple[float, float, float],
@@ -794,7 +817,8 @@ def node_world_center(node: SceneNode) -> tuple[float, float, float]:
 
 
 def total_triangle_count_for_camera(
-    scene: Scene, camera_position: tuple[float, float, float],
+    scene: Scene,
+    camera_position: tuple[float, float, float],
 ) -> int:
     """Faz D2 kabul kriteri yardımcı fonksiyonu: verilen kamera konumundan,
     her node için LOD seçimi yapıldıktan SONRA sahnenin toplam üçgen
@@ -823,13 +847,21 @@ def total_triangle_count_full_detail(scene: Scene) -> int:
 def _node_world_aabb(node: SceneNode) -> AABB3D:
     (lx, ly, lz), (hx, hy, hz) = node.mesh.bounding_box()
     corners = [
-        (lx, ly, lz), (lx, ly, hz), (lx, hy, lz), (lx, hy, hz),
-        (hx, ly, lz), (hx, ly, hz), (hx, hy, lz), (hx, hy, hz),
+        (lx, ly, lz),
+        (lx, ly, hz),
+        (lx, hy, lz),
+        (lx, hy, hz),
+        (hx, ly, lz),
+        (hx, ly, hz),
+        (hx, hy, lz),
+        (hx, hy, hz),
     ]
     xs, ys, zs = [], [], []
     for c in corners:
         wx, wy, wz = _apply_trs(c, node.translation, node.rotation_deg, node.scale)
-        xs.append(wx); ys.append(wy); zs.append(wz)
+        xs.append(wx)
+        ys.append(wy)
+        zs.append(wz)
     return AABB3D(min(xs), min(ys), min(zs), max(xs), max(ys), max(zs))
 
 
@@ -947,7 +979,8 @@ def compute_light_space_matrix(
 
 
 def apply_light_space_matrix(
-    matrix: list[list[float]], point: tuple[float, float, float],
+    matrix: list[list[float]],
+    point: tuple[float, float, float],
 ) -> tuple[float, float, float]:
     """`compute_light_space_matrix()`'in döndürdüğü matrisi bir dünya
     noktasına uygular, ışık-uzayı NDC koordinatını (x, y, z) döndürür.
@@ -977,8 +1010,12 @@ def scene_from_meshes(
         scene.add_mesh(mesh, material=mat)
     if not scene.lights:
         scene.add_light(SceneLight(kind="ambient", color=(1.0, 1.0, 1.0), intensity=0.35))
-        scene.add_light(SceneLight(
-            kind="directional", color=(1.0, 0.98, 0.92), intensity=1.0,
-            direction=(-0.4, -1.0, -0.3),
-        ))
+        scene.add_light(
+            SceneLight(
+                kind="directional",
+                color=(1.0, 0.98, 0.92),
+                intensity=1.0,
+                direction=(-0.4, -1.0, -0.3),
+            )
+        )
     return scene

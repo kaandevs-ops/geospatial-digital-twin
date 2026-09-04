@@ -55,7 +55,7 @@ def _apply_collapse(mesh: Mesh3D, i: int, j: int, position: Point3) -> Mesh3D:
     new_vertices[i] = Vertex3D(*position)
 
     new_triangles = []
-    for (a, b, c) in mesh.triangles:
+    for a, b, c in mesh.triangles:
         tri = tuple(i if v == j else v for v in (a, b, c))
         if len(set(tri)) < 3:
             continue
@@ -94,7 +94,7 @@ class ProgressiveMesh:
     steps: list[CollapseStep] = field(default_factory=list)
 
     @staticmethod
-    def build(mesh: Mesh3D, min_triangle_ratio: float = 0.1) -> "ProgressiveMesh":
+    def build(mesh: Mesh3D, min_triangle_ratio: float = 0.1) -> ProgressiveMesh:
         """D1'in QEM sırasını (`_best_qem_collapse`) tekrar tekrar çağırıp
         `min_triangle_ratio`'ya karşılık gelen üçgen sayısına ulaşana kadar
         her adımı `CollapseStep` olarak kaydeder."""
@@ -120,8 +120,13 @@ class ProgressiveMesh:
             after = len(working.triangles)
             steps.append(
                 CollapseStep(
-                    i=i, j=j, old_i=old_i, old_j=old_j, merged=position,
-                    triangles_before=before, triangles_after=after,
+                    i=i,
+                    j=j,
+                    old_i=old_i,
+                    old_j=old_j,
+                    merged=position,
+                    triangles_before=before,
+                    triangles_after=after,
                 )
             )
         return ProgressiveMesh(base=base, steps=steps)
@@ -189,7 +194,10 @@ class ProgressiveMesh:
         return Mesh3D(vertices=vertices, triangles=base_mesh.triangles, name=base_mesh.name)
 
     def interpolate_between_counts(
-        self, triangle_count_a: int, triangle_count_b: int, t: float,
+        self,
+        triangle_count_a: int,
+        triangle_count_b: int,
+        t: float,
     ) -> Mesh3D:
         """İki üçgen-sayısı hedefi (`triangle_count_a` > `triangle_count_b`,
         yani ince→kaba) arasında `t` (0..1) oranında ara-mesh üretir.

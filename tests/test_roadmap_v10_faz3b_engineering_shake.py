@@ -5,12 +5,12 @@ Veri ön koşulu doğrulaması -> tahmini kütle/rijitlik türetimi -> Newmark-
 beta MDOF kesme-çerçevesi zaman-integrasyonu -> öteleme-oranı tabanlı
 hasar ipucu kapsar.
 """
+
 from __future__ import annotations
 
 import math
 
 import pytest
-
 from harita.hazard_data.risk_scoring import BasicBuildingType
 from harita.physics import GroundShakeForceModel
 from harita.physics.building_damage import DamageLevel
@@ -39,19 +39,27 @@ class TestEngineeringModePrecondition:
 class TestFloorPropertyEstimation:
     def test_mass_scales_with_area(self):
         small = estimate_floor_properties(
-            structure_type=BasicBuildingType.BETONARME_CERCEVE, floor_area_m2=100.0, num_floors=5,
+            structure_type=BasicBuildingType.BETONARME_CERCEVE,
+            floor_area_m2=100.0,
+            num_floors=5,
         )
         large = estimate_floor_properties(
-            structure_type=BasicBuildingType.BETONARME_CERCEVE, floor_area_m2=200.0, num_floors=5,
+            structure_type=BasicBuildingType.BETONARME_CERCEVE,
+            floor_area_m2=200.0,
+            num_floors=5,
         )
         assert large.mass_kg == pytest.approx(2 * small.mass_kg)
 
     def test_different_structure_types_give_different_mass_per_area(self):
         steel = estimate_floor_properties(
-            structure_type=BasicBuildingType.CELIK_CERCEVE, floor_area_m2=100.0, num_floors=5,
+            structure_type=BasicBuildingType.CELIK_CERCEVE,
+            floor_area_m2=100.0,
+            num_floors=5,
         )
         masonry = estimate_floor_properties(
-            structure_type=BasicBuildingType.YIGMA, floor_area_m2=100.0, num_floors=5,
+            structure_type=BasicBuildingType.YIGMA,
+            floor_area_m2=100.0,
+            num_floors=5,
         )
         assert steel.mass_kg < masonry.mass_kg  # çelik daha hafif (tipik)
 
@@ -76,7 +84,9 @@ class TestFloorPropertyEstimation:
 
         target_profile = STRUCTURE_SHAKE_PROFILES[BasicBuildingType.CELIK_CERCEVE]
         props = estimate_floor_properties(
-            structure_type=BasicBuildingType.CELIK_CERCEVE, floor_area_m2=150.0, num_floors=1,
+            structure_type=BasicBuildingType.CELIK_CERCEVE,
+            floor_area_m2=150.0,
+            num_floors=1,
         )
         omega_from_k = math.sqrt(props.story_stiffness_n_per_m / props.mass_kg)
         omega_target = 2.0 * math.pi * target_profile.natural_frequency_hz
@@ -112,20 +122,26 @@ class TestMDOFShearFrameModel:
 
     def test_rejects_non_positive_dt(self):
         shake = GroundShakeForceModel(peak_acceleration_g=0.2, frequency_hz=1.0)
-        model = MDOFShearFrameModel(building_id="b1", shake_model=shake, floor_properties=_uniform_floor_props())
+        model = MDOFShearFrameModel(
+            building_id="b1", shake_model=shake, floor_properties=_uniform_floor_props()
+        )
         with pytest.raises(ValueError):
             model.step(dt=0.0)
 
     def test_zero_excitation_stays_at_rest(self):
         shake = GroundShakeForceModel(peak_acceleration_g=0.0, frequency_hz=1.0)
-        model = MDOFShearFrameModel(building_id="b1", shake_model=shake, floor_properties=_uniform_floor_props())
+        model = MDOFShearFrameModel(
+            building_id="b1", shake_model=shake, floor_properties=_uniform_floor_props()
+        )
         for _ in range(50):
             states = model.step(dt=0.02)
         assert all(abs(s.displacement_m) < 1e-9 for s in states)
 
     def test_response_stays_bounded_and_does_not_diverge(self):
         shake = GroundShakeForceModel(peak_acceleration_g=0.35, frequency_hz=2.0)
-        model = MDOFShearFrameModel(building_id="b1", shake_model=shake, floor_properties=_uniform_floor_props(n=8))
+        model = MDOFShearFrameModel(
+            building_id="b1", shake_model=shake, floor_properties=_uniform_floor_props(n=8)
+        )
         for _ in range(400):
             model.step(dt=0.02)
         assert not model.diverged
@@ -141,20 +157,28 @@ class TestMDOFShearFrameModel:
             last_states = model.step(dt=0.02)
         top = abs(last_states[-1].displacement_m)
         bottom = abs(last_states[0].displacement_m)
-        assert top >= bottom * 0.5  # kesin monotonluk garanti edilmez (dinamik salınım) ama üst kat baskın olmalı
+        assert (
+            top >= bottom * 0.5
+        )  # kesin monotonluk garanti edilmez (dinamik salınım) ama üst kat baskın olmalı
 
     def test_interstory_drift_is_relative_not_absolute(self):
         shake = GroundShakeForceModel(peak_acceleration_g=0.25, frequency_hz=1.5)
         props = _uniform_floor_props(n=3)
-        model = MDOFShearFrameModel(building_id="b1", shake_model=shake, floor_properties=props, floor_height_m=3.0)
+        model = MDOFShearFrameModel(
+            building_id="b1", shake_model=shake, floor_properties=props, floor_height_m=3.0
+        )
         for _ in range(100):
             states = model.step(dt=0.02)
         # kat 1'in drift'i doğrudan kendi yerdeğiştirmesinden (taban=0)
-        assert states[0].interstory_drift_ratio == pytest.approx(states[0].displacement_m / 3.0, rel=1e-6)
+        assert states[0].interstory_drift_ratio == pytest.approx(
+            states[0].displacement_m / 3.0, rel=1e-6
+        )
 
     def test_every_state_carries_honesty_note(self):
         shake = GroundShakeForceModel(peak_acceleration_g=0.2, frequency_hz=1.0)
-        model = MDOFShearFrameModel(building_id="b1", shake_model=shake, floor_properties=_uniform_floor_props(n=3))
+        model = MDOFShearFrameModel(
+            building_id="b1", shake_model=shake, floor_properties=_uniform_floor_props(n=3)
+        )
         states = model.step(dt=0.02)
         assert all(s.honesty_note == ENGINEERING_MODE_HONESTY_NOTE for s in states)
 
@@ -168,7 +192,9 @@ class TestMDOFShearFrameModel:
         for _ in range(60):
             s1 = m1.step(dt=0.02)
             s2 = m2.step(dt=0.02)
-        assert [round(s.displacement_m, 10) for s in s1] == [round(s.displacement_m, 10) for s in s2]
+        assert [round(s.displacement_m, 10) for s in s1] == [
+            round(s.displacement_m, 10) for s in s2
+        ]
 
 
 class TestDriftBasedDamageHint:
@@ -196,7 +222,13 @@ class TestDriftBasedDamageHint:
         assert drift_based_damage_hint(-0.003).damage_level is DamageLevel.NONE
 
     def test_thresholds_are_monotonically_non_decreasing_in_severity(self):
-        order = [DamageLevel.NONE, DamageLevel.LIGHT, DamageLevel.MODERATE, DamageLevel.SEVERE, DamageLevel.COLLAPSED]
+        order = [
+            DamageLevel.NONE,
+            DamageLevel.LIGHT,
+            DamageLevel.MODERATE,
+            DamageLevel.SEVERE,
+            DamageLevel.COLLAPSED,
+        ]
         drifts = [0.001, 0.015, 0.04, 0.06, 0.09]
         levels = [drift_based_damage_hint(d).damage_level for d in drifts]
         assert [order.index(l) for l in levels] == sorted(order.index(l) for l in levels)

@@ -34,6 +34,7 @@ Script hâli için bkz. `scripts/overpass_load_report.py` (bu testin
 ölçtüklerini insan-okunur bir rapor olarak basar, CI'da opsiyonel olarak
 çalıştırılabilir).
 """
+
 from __future__ import annotations
 
 import io
@@ -74,7 +75,7 @@ class _FakeHTTPResponse:
     def read(self) -> bytes:
         return self._buf.read()
 
-    def __enter__(self) -> "_FakeHTTPResponse":
+    def __enter__(self) -> _FakeHTTPResponse:
         return self
 
     def __exit__(self, *exc: object) -> None:
@@ -105,7 +106,10 @@ def _synthetic_dense_overpass_response(element_count: int = 6000) -> dict:
     way_id = 100000
 
     south, west, north, east = (
-        DENSE_BBOX.min_lat, DENSE_BBOX.min_lon, DENSE_BBOX.max_lat, DENSE_BBOX.max_lon,
+        DENSE_BBOX.min_lat,
+        DENSE_BBOX.min_lon,
+        DENSE_BBOX.max_lat,
+        DENSE_BBOX.max_lon,
     )
 
     def _rand_point() -> tuple[float, float]:
@@ -138,6 +142,7 @@ def _synthetic_dense_overpass_response(element_count: int = 6000) -> dict:
 def _patched_urlopen_factory(payload: dict):
     def _patched(*_args, **_kwargs) -> _FakeHTTPResponse:
         return _FakeHTTPResponse(payload)
+
     return _patched
 
 
@@ -182,8 +187,11 @@ class TestSingleQuerySizeRisk(unittest.TestCase):
         ratio_40_20 = size_40 / size_20
         # Doğrusal büyümede iki oran birbirine yakın olmalı (kabaca 2x/2x).
         # Payı büyük bir sapma (ör. biri 2x diğeri 8x) üstel büyüme işareti.
-        self.assertLess(abs(ratio_20_10 - ratio_40_20), 1.0,
-                         f"Sorgu boyutu doğrusal büyümüyor olabilir: {ratio_20_10:.2f}x vs {ratio_40_20:.2f}x")
+        self.assertLess(
+            abs(ratio_20_10 - ratio_40_20),
+            1.0,
+            f"Sorgu boyutu doğrusal büyümüyor olabilir: {ratio_20_10:.2f}x vs {ratio_40_20:.2f}x",
+        )
 
 
 class TestDenseResponseParsePerformance(unittest.TestCase):
@@ -208,8 +216,10 @@ class TestDenseResponseParsePerformance(unittest.TestCase):
                 t0 = time.perf_counter()
                 result = session.osm_category_summary(
                     project_id,
-                    south=DENSE_BBOX.min_lat, west=DENSE_BBOX.min_lon,
-                    north=DENSE_BBOX.max_lat, east=DENSE_BBOX.max_lon,
+                    south=DENSE_BBOX.min_lat,
+                    west=DENSE_BBOX.min_lon,
+                    north=DENSE_BBOX.max_lat,
+                    east=DENSE_BBOX.max_lon,
                 )
                 elapsed_s = time.perf_counter() - t0
 
@@ -218,7 +228,9 @@ class TestDenseResponseParsePerformance(unittest.TestCase):
             # 2 saniyeyi geçmemesi gerekir — geçerse gerçek kullanıcı için
             # UI donması riski var demektir (B6'nın "yük" endişesinin asıl
             # kullanıcıya görünen yüzü).
-            self.assertLess(elapsed_s, 2.0, f"Yoğun yanıt ayrıştırma beklenenden yavaş: {elapsed_s:.3f}s")
+            self.assertLess(
+                elapsed_s, 2.0, f"Yoğun yanıt ayrıştırma beklenenden yavaş: {elapsed_s:.3f}s"
+            )
         finally:
             session.close()
 
@@ -241,8 +253,10 @@ class TestRateLimiterCapacityUnderRealisticBurst(unittest.TestCase):
         try:
             payload = _synthetic_dense_overpass_response(50)
             body = {
-                "south": DENSE_BBOX.min_lat, "west": DENSE_BBOX.min_lon,
-                "north": DENSE_BBOX.max_lat, "east": DENSE_BBOX.max_lon,
+                "south": DENSE_BBOX.min_lat,
+                "west": DENSE_BBOX.min_lon,
+                "north": DENSE_BBOX.max_lat,
+                "east": DENSE_BBOX.max_lon,
             }
             statuses: list[int] = []
             with mock.patch(
@@ -253,12 +267,16 @@ class TestRateLimiterCapacityUnderRealisticBurst(unittest.TestCase):
                 # sürükler/yakınlaştırır, her seferinde yeni bir bbox
                 # özeti istenir (max_requests=20, window=60s).
                 for _ in range(25):
-                    resp = router.dispatch("POST", f"/api/projects/{project_id}/osm/category-summary", body=body)
+                    resp = router.dispatch(
+                        "POST", f"/api/projects/{project_id}/osm/category-summary", body=body
+                    )
                     statuses.append(resp.status)
 
             self.assertEqual(statuses[:20], [200] * 20, "İlk 20 istek limite takılmadan geçmeli")
             self.assertEqual(statuses[20], 429, "21. istek rate-limit tarafından reddedilmeli")
-            self.assertTrue(all(s == 429 for s in statuses[20:]), "Limit sonrası tüm istekler 429 dönmeli")
+            self.assertTrue(
+                all(s == 429 for s in statuses[20:]), "Limit sonrası tüm istekler 429 dönmeli"
+            )
         finally:
             session.close()
 
@@ -267,16 +285,22 @@ class TestRateLimiterCapacityUnderRealisticBurst(unittest.TestCase):
         try:
             payload = _synthetic_dense_overpass_response(10)
             body = {
-                "south": DENSE_BBOX.min_lat, "west": DENSE_BBOX.min_lon,
-                "north": DENSE_BBOX.max_lat, "east": DENSE_BBOX.max_lon,
+                "south": DENSE_BBOX.min_lat,
+                "west": DENSE_BBOX.min_lon,
+                "north": DENSE_BBOX.max_lat,
+                "east": DENSE_BBOX.max_lon,
             }
             with mock.patch(
                 "harita.core_engine.gis_core.osm_client.urllib.request.urlopen",
                 _patched_urlopen_factory(payload),
             ):
                 for _ in range(20):
-                    router.dispatch("POST", f"/api/projects/{project_id}/osm/category-summary", body=body)
-                blocked = router.dispatch("POST", f"/api/projects/{project_id}/osm/category-summary", body=body)
+                    router.dispatch(
+                        "POST", f"/api/projects/{project_id}/osm/category-summary", body=body
+                    )
+                blocked = router.dispatch(
+                    "POST", f"/api/projects/{project_id}/osm/category-summary", body=body
+                )
 
             self.assertEqual(blocked.status, 429)
             retry_after = int(blocked.headers["Retry-After"])
@@ -301,20 +325,30 @@ class TestRateLimiterCapacityUnderRealisticBurst(unittest.TestCase):
         try:
             payload = _synthetic_dense_overpass_response(10)
             body = {
-                "south": DENSE_BBOX.min_lat, "west": DENSE_BBOX.min_lon,
-                "north": DENSE_BBOX.max_lat, "east": DENSE_BBOX.max_lon,
+                "south": DENSE_BBOX.min_lat,
+                "west": DENSE_BBOX.min_lon,
+                "north": DENSE_BBOX.max_lat,
+                "east": DENSE_BBOX.max_lon,
             }
             with mock.patch(
                 "harita.core_engine.gis_core.osm_client.urllib.request.urlopen",
                 _patched_urlopen_factory(payload),
             ):
                 for _ in range(20):
-                    router.dispatch("POST", f"/api/projects/{info_a['project_id']}/osm/category-summary", body=body)
+                    router.dispatch(
+                        "POST",
+                        f"/api/projects/{info_a['project_id']}/osm/category-summary",
+                        body=body,
+                    )
                 a_blocked = router.dispatch(
-                    "POST", f"/api/projects/{info_a['project_id']}/osm/category-summary", body=body,
+                    "POST",
+                    f"/api/projects/{info_a['project_id']}/osm/category-summary",
+                    body=body,
                 )
                 b_ok = router.dispatch(
-                    "POST", f"/api/projects/{info_b['project_id']}/osm/category-summary", body=body,
+                    "POST",
+                    f"/api/projects/{info_b['project_id']}/osm/category-summary",
+                    body=body,
                 )
 
             self.assertEqual(a_blocked.status, 429)

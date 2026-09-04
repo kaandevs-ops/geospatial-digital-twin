@@ -23,13 +23,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import platform
-import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 __all__ = [
     "MANIFEST_SCHEMA_VERSION",
@@ -57,9 +55,9 @@ class ManifestFileEntry:
     format: str
     path: str
     bytes_written: int
-    sha256: Optional[str] = None
-    vertex_count: Optional[int] = None
-    triangle_count: Optional[int] = None
+    sha256: str | None = None
+    vertex_count: int | None = None
+    triangle_count: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {k: v for k, v in asdict(self).items() if v is not None}
@@ -99,7 +97,7 @@ class SceneManifest:
     building_count: int
     buildings: list[ManifestBuildingEntry] = field(default_factory=list)
     files: list[ManifestFileEntry] = field(default_factory=list)
-    crs: Optional[str] = None
+    crs: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -128,7 +126,7 @@ class SceneManifest:
         return p
 
 
-def _sha256_of(path: Path) -> Optional[str]:
+def _sha256_of(path: Path) -> str | None:
     """Bir dosyanın (veya 3D Tiles gibi bir dizinin) SHA-256 özetini
     hesaplar. Dizinse, içindeki tüm dosyaların göreli-yol-sıralı
     birleşik özetini alır (deterministik). Yol hiç mevcut değilse `None`
@@ -163,10 +161,10 @@ class ManifestBuilder:
         building_entries: list[Any],
         export_results: list[dict[str, Any]],
         *,
-        crs: Optional[str] = None,
+        crs: str | None = None,
         compute_checksums: bool = True,
         generator: str = "harita-modelleme",
-        extra: Optional[dict[str, Any]] = None,
+        extra: dict[str, Any] | None = None,
     ) -> SceneManifest:
         """`building_entries`: `app_shell.session`'daki `_BuildingEntry`
         benzeri, `.key` ve `.building` (bir `Building` nesnesi) alanlarına
@@ -179,28 +177,36 @@ class ManifestBuilder:
             footprint = building.footprint
             xs = [p.x for p in footprint.polygon.points]
             ys = [p.y for p in footprint.polygon.points]
-            buildings.append(ManifestBuildingEntry(
-                building_id=getattr(entry, "key", getattr(footprint, "building_type", "bina")),
-                building_type=str(building.building_type.value if hasattr(building.building_type, "value") else building.building_type),
-                floor_count=len(building.floors),
-                height_m=building.total_height_m,
-                bbox_min=(min(xs), min(ys)) if xs else (0.0, 0.0),
-                bbox_max=(max(xs), max(ys)) if xs else (0.0, 0.0),
-            ))
+            buildings.append(
+                ManifestBuildingEntry(
+                    building_id=getattr(entry, "key", getattr(footprint, "building_type", "bina")),
+                    building_type=str(
+                        building.building_type.value
+                        if hasattr(building.building_type, "value")
+                        else building.building_type
+                    ),
+                    floor_count=len(building.floors),
+                    height_m=building.total_height_m,
+                    bbox_min=(min(xs), min(ys)) if xs else (0.0, 0.0),
+                    bbox_max=(max(xs), max(ys)) if xs else (0.0, 0.0),
+                )
+            )
 
         files: list[ManifestFileEntry] = []
         for res in export_results:
             checksum = None
             if compute_checksums and res.get("path"):
                 checksum = _sha256_of(Path(res["path"]))
-            files.append(ManifestFileEntry(
-                format=res["format"],
-                path=res["path"],
-                bytes_written=res.get("bytes_written", 0),
-                sha256=checksum,
-                vertex_count=res.get("vertex_count"),
-                triangle_count=res.get("triangle_count"),
-            ))
+            files.append(
+                ManifestFileEntry(
+                    format=res["format"],
+                    path=res["path"],
+                    bytes_written=res.get("bytes_written", 0),
+                    sha256=checksum,
+                    vertex_count=res.get("vertex_count"),
+                    triangle_count=res.get("triangle_count"),
+                )
+            )
 
         return SceneManifest(
             schema_version=MANIFEST_SCHEMA_VERSION,

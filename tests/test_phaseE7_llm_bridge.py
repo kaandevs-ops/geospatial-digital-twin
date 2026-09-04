@@ -12,6 +12,7 @@ Buna ek olarak, `AnthropicLLMBridge`'in HTTP/JSON ayrıştırma mantığı
 gerçek ağa çıkmadan - doğrudan test ediliyor (böylece köprünün kendisi de
 gerçekten kanıtlanmış oluyor, yalnızca mock'un davranışı değil).
 """
+
 from __future__ import annotations
 
 import json
@@ -26,15 +27,14 @@ from harita.ai_assistant.intent import IntentAction
 from harita.ai_assistant.intent_parser import IntentParser
 from harita.ai_assistant.llm_bridge import (
     AnthropicLLMBridge,
-    AnthropicLLMBridgeConfig,
     LLMBridgeError,
     make_mock_llm_fn,
 )
 
-
 # ------------------------------------------------------------------ #
 # 1. IntentParser <-> LLM fallback davranışsal sözleşmesi (mock ile)
 # ------------------------------------------------------------------ #
+
 
 def test_ambiguous_sentence_is_unknown_without_llm_fallback():
     parser = IntentParser()  # llm_fn=None
@@ -45,12 +45,18 @@ def test_ambiguous_sentence_is_unknown_without_llm_fallback():
 
 
 def test_ambiguous_sentence_resolves_via_llm_fallback_when_enabled():
-    mock_fn = make_mock_llm_fn({
-        "şu tuhaf binayı biraz daha havalı yap": [
-            {"action": "change_facade", "target": "building",
-             "parameters": {"material": "glass"}, "confidence": 0.55},
-        ],
-    })
+    mock_fn = make_mock_llm_fn(
+        {
+            "şu tuhaf binayı biraz daha havalı yap": [
+                {
+                    "action": "change_facade",
+                    "target": "building",
+                    "parameters": {"material": "glass"},
+                    "confidence": 0.55,
+                },
+            ],
+        }
+    )
     parser = IntentParser(llm_fn=mock_fn)
     result = parser.parse("şu tuhaf binayı biraz daha havalı yap")
     assert len(result.intents) == 1
@@ -80,11 +86,13 @@ def test_llm_fallback_no_match_falls_back_to_unknown():
 
 
 def test_llm_fallback_can_resolve_multiple_fragments_in_one_sentence():
-    mock_fn = make_mock_llm_fn({
-        "bir garip şey yap": [
-            {"action": "add_window", "parameters": {}, "confidence": 0.5},
-        ],
-    })
+    mock_fn = make_mock_llm_fn(
+        {
+            "bir garip şey yap": [
+                {"action": "add_window", "parameters": {}, "confidence": 0.5},
+            ],
+        }
+    )
     parser = IntentParser(llm_fn=mock_fn)
     result = parser.parse("2 kat ekle ve bir garip şey yap")
     actions = [i.action for i in result.intents]
@@ -95,6 +103,7 @@ def test_llm_fallback_can_resolve_multiple_fragments_in_one_sentence():
 # ------------------------------------------------------------------ #
 # 2. AnthropicLLMBridge - API anahtarı yok -> sessizce [] (varsayılan)
 # ------------------------------------------------------------------ #
+
 
 def test_bridge_without_api_key_returns_empty_silently():
     env_backup = os.environ.pop("ANTHROPIC_API_KEY", None)
@@ -138,6 +147,7 @@ def test_bridge_is_configured_true_when_key_present():
 # 3. AnthropicLLMBridge - HTTP/JSON ayrıştırma mantığı (urlopen mock'lu)
 # ------------------------------------------------------------------ #
 
+
 class _FakeHTTPResponse:
     def __init__(self, body: bytes):
         self._body = body
@@ -159,17 +169,27 @@ def _fake_anthropic_response(text: str) -> bytes:
 def test_bridge_parses_successful_response_into_intents():
     os.environ["ANTHROPIC_API_KEY"] = "sk-test-fake-key"
     try:
-        response_json = json.dumps([
-            {"action": "add_floor", "target": "building",
-             "parameters": {"count": 2}, "confidence": 0.9},
-        ])
+        response_json = json.dumps(
+            [
+                {
+                    "action": "add_floor",
+                    "target": "building",
+                    "parameters": {"count": 2},
+                    "confidence": 0.9,
+                },
+            ]
+        )
         with patch("urllib.request.urlopen") as mock_urlopen:
             mock_urlopen.return_value = _FakeHTTPResponse(_fake_anthropic_response(response_json))
             bridge = AnthropicLLMBridge()
             result = bridge("2 kat ekle")
         assert result == [
-            {"action": "add_floor", "target": "building",
-             "parameters": {"count": 2}, "confidence": 0.9},
+            {
+                "action": "add_floor",
+                "target": "building",
+                "parameters": {"count": 2},
+                "confidence": 0.9,
+            },
         ]
     finally:
         os.environ.pop("ANTHROPIC_API_KEY", None)
@@ -232,7 +252,9 @@ def test_bridge_malformed_json_returns_empty_by_default():
     os.environ["ANTHROPIC_API_KEY"] = "sk-test-fake-key"
     try:
         with patch("urllib.request.urlopen") as mock_urlopen:
-            mock_urlopen.return_value = _FakeHTTPResponse(_fake_anthropic_response("{not valid json"))
+            mock_urlopen.return_value = _FakeHTTPResponse(
+                _fake_anthropic_response("{not valid json")
+            )
             bridge = AnthropicLLMBridge()
             assert bridge("bir şey") == []
     finally:
@@ -258,10 +280,16 @@ def test_bridge_end_to_end_with_intent_parser_via_mocked_http():
     motorunun çözemediği bir cümle gerçek uçtan uca zincirle çözülür."""
     os.environ["ANTHROPIC_API_KEY"] = "sk-test-fake-key"
     try:
-        response_json = json.dumps([
-            {"action": "change_roof", "target": "building",
-             "parameters": {"roof_type": "hip"}, "confidence": 0.72},
-        ])
+        response_json = json.dumps(
+            [
+                {
+                    "action": "change_roof",
+                    "target": "building",
+                    "parameters": {"roof_type": "hip"},
+                    "confidence": 0.72,
+                },
+            ]
+        )
         with patch("urllib.request.urlopen") as mock_urlopen:
             mock_urlopen.return_value = _FakeHTTPResponse(_fake_anthropic_response(response_json))
             bridge = AnthropicLLMBridge()
@@ -278,7 +306,8 @@ if __name__ == "__main__":
 
     mod = sys.modules[__name__]
     test_fns = [
-        obj for name, obj in inspect.getmembers(mod)
+        obj
+        for name, obj in inspect.getmembers(mod)
         if name.startswith("test_") and inspect.isfunction(obj)
     ]
     failures = 0

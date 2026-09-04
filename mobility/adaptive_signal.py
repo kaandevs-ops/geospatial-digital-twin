@@ -16,6 +16,7 @@ sinyali kaldırıp yenisini eklemeyi destekler - `_signals` dict'i doğrudan
 mutasyona uğratılmaz, roadmap'in "mevcut mimari korunacak" ilkesiyle
 tutarlı bir dışsal kontrol döngüsü).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -36,7 +37,9 @@ class AdaptiveSignalParams:
 
 
 def queued_vehicle_count(
-    simulator: TrafficSimulator, route_key: str, signal: TrafficSignalPhase,
+    simulator: TrafficSimulator,
+    route_key: str,
+    signal: TrafficSignalPhase,
 ) -> int:
     """`signal.stop_line_distance`'ın gerisinde, hâlâ hareket etmemiş
     (`speed` ~0) araç sayısını sayar - `TrafficSimulator`'ın iç durumunu
@@ -72,7 +75,9 @@ def adapt_signal(
     if queue >= p.queue_length_threshold:
         new_green = min(p.max_green_duration_s, base_signal.green_duration_s + p.green_extension_s)
     else:
-        new_green = max(p.min_green_duration_s, base_signal.green_duration_s - p.green_extension_s / 2.0)
+        new_green = max(
+            p.min_green_duration_s, base_signal.green_duration_s - p.green_extension_s / 2.0
+        )
 
     return TrafficSignalPhase(
         stop_line_distance=base_signal.stop_line_distance,
@@ -130,7 +135,10 @@ class AdaptiveSignalController:
             return
         self._elapsed_since_refresh = 0.0
         new_signal = adapt_signal(
-            self.simulator, self.route_key, self._current_signal, params=self.params,
+            self.simulator,
+            self.route_key,
+            self._current_signal,
+            params=self.params,
         )
         self._install(new_signal)
 

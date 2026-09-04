@@ -34,8 +34,7 @@ from harita.performance.simulation_lod import (
 
 def _rect_room(room_id, x0, y0, x1, y1, room_type=RoomType.OFIS, neighbors=None):
     poly = Polygon(points=[Point2D(x0, y0), Point2D(x1, y0), Point2D(x1, y1), Point2D(x0, y1)])
-    return Room(polygon=poly, room_type=room_type.value, room_id=room_id,
-                neighbors=neighbors or [])
+    return Room(polygon=poly, room_type=room_type.value, room_id=room_id, neighbors=neighbors or [])
 
 
 def _two_floor_building():
@@ -47,10 +46,17 @@ def _two_floor_building():
     modelinde ikisi de aynı graf kenarını üretir ve ayrım anlamsızlaşır)."""
     r1 = _rect_room(1, 0, 0, 4, 4, neighbors=[3])
     r3 = _rect_room(3, 10, 0, 14, 4, neighbors=[1])
-    stair = Stair(position=Point2D(2, 2), width=1.2, run_length=3.0,
-                   step_count=15, step_height=0.18, step_depth=0.28)
-    elevator = ElevatorCore(position=Point2D(12, 2), width=2.0, depth=2.0,
-                              shaft_top_z=3.0, shaft_bottom_z=0.0)
+    stair = Stair(
+        position=Point2D(2, 2),
+        width=1.2,
+        run_length=3.0,
+        step_count=15,
+        step_height=0.18,
+        step_depth=0.28,
+    )
+    elevator = ElevatorCore(
+        position=Point2D(12, 2), width=2.0, depth=2.0, shaft_top_z=3.0, shaft_bottom_z=0.0
+    )
     floor0 = Floor(floor_index=0, rooms=[r1, r3], stairs=[stair], elevators=[elevator])
 
     r2 = _rect_room(2, 0, 0, 4, 4, neighbors=[4])
@@ -62,10 +68,8 @@ def _two_floor_building():
 class TestFaz1_2IndoorRouteIntegration:
     def test_agent_gets_real_graph_path_across_floors(self):
         building_graph = _two_floor_building()
-        agent = Agent(agent_id=1, position=Point2D(1.0, 1.0), goal=Point2D(0, 0),
-                       floor_index=0)
-        EvacuationSimulator.assign_building_exit_paths(
-            [agent], building_graph, exits=[(1, 2)])
+        agent = Agent(agent_id=1, position=Point2D(1.0, 1.0), goal=Point2D(0, 0), floor_index=0)
+        EvacuationSimulator.assign_building_exit_paths([agent], building_graph, exits=[(1, 2)])
 
         assert agent.path_nodes is not None
         assert agent.path_nodes[0] == (0, 1)
@@ -74,10 +78,8 @@ class TestFaz1_2IndoorRouteIntegration:
 
     def test_floor_room_z_sync_as_agent_advances(self):
         building_graph = _two_floor_building()
-        agent = Agent(agent_id=1, position=Point2D(1.0, 1.0), goal=Point2D(0, 0),
-                       floor_index=0)
-        EvacuationSimulator.assign_building_exit_paths(
-            [agent], building_graph, exits=[(1, 2)])
+        agent = Agent(agent_id=1, position=Point2D(1.0, 1.0), goal=Point2D(0, 0), floor_index=0)
+        EvacuationSimulator.assign_building_exit_paths([agent], building_graph, exits=[(1, 2)])
         assert agent.floor_index == 0
         assert agent.room_id == 1
         assert agent.z_m == 0.0
@@ -92,10 +94,14 @@ class TestFaz1_2IndoorRouteIntegration:
 
     def test_run_with_building_graph_keeps_floor_state_current(self):
         building_graph = _two_floor_building()
-        agent = Agent(agent_id=1, position=Point2D(1.0, 1.0), goal=Point2D(0, 0),
-                       floor_index=0, desired_speed=5.0)
-        EvacuationSimulator.assign_building_exit_paths(
-            [agent], building_graph, exits=[(1, 2)])
+        agent = Agent(
+            agent_id=1,
+            position=Point2D(1.0, 1.0),
+            goal=Point2D(0, 0),
+            floor_index=0,
+            desired_speed=5.0,
+        )
+        EvacuationSimulator.assign_building_exit_paths([agent], building_graph, exits=[(1, 2)])
 
         sim = EvacuationSimulator()
         sim.run([agent], dt=0.1, max_time_s=30.0, building_graph=building_graph)
@@ -118,15 +124,21 @@ class TestFaz1_2IndoorRouteIntegration:
 class TestFaz1_3MobilityProfileRouteConstraint:
     def test_wheelchair_never_uses_stairs(self):
         building_graph = _two_floor_building()
-        agent = Agent(agent_id=1, position=Point2D(1.0, 1.0), goal=Point2D(0, 0),
-                       floor_index=0, mobility_profile=MobilityProfile.WHEELCHAIR)
+        agent = Agent(
+            agent_id=1,
+            position=Point2D(1.0, 1.0),
+            goal=Point2D(0, 0),
+            floor_index=0,
+            mobility_profile=MobilityProfile.WHEELCHAIR,
+        )
         # Hem merdiven tarafına (1,2) hem asansör tarafına (1,4) çıkış
         # tanımlı - normal (yürüyen) bir agent merdiven tarafına daha
         # yakın olduğu için (1,2)'yi seçerdi; tekerlekli sandalye
         # profilinin bunu seçMEmesi (merdiven kullanamaması) gerçek kısıtı
         # kanıtlar.
         EvacuationSimulator.assign_building_exit_paths(
-            [agent], building_graph, exits=[(1, 2), (1, 4)])
+            [agent], building_graph, exits=[(1, 2), (1, 4)]
+        )
 
         assert agent.path_nodes[-1] == (1, 4)
         # Rota, dikey geçiş için asansör kenarını kullanmalı, merdiven
@@ -141,11 +153,15 @@ class TestFaz1_3MobilityProfileRouteConstraint:
     def test_wheelchair_gets_stuck_when_elevator_also_disabled(self):
         building_graph = _two_floor_building()
         building_graph.disable_elevators()  # ör. deprem senaryosu
-        agent = Agent(agent_id=1, position=Point2D(1.0, 1.0), goal=Point2D(0, 0),
-                       floor_index=0, mobility_profile=MobilityProfile.WHEELCHAIR)
+        agent = Agent(
+            agent_id=1,
+            position=Point2D(1.0, 1.0),
+            goal=Point2D(0, 0),
+            floor_index=0,
+            mobility_profile=MobilityProfile.WHEELCHAIR,
+        )
         original_path = list(agent.path)
-        EvacuationSimulator.assign_building_exit_paths(
-            [agent], building_graph, exits=[(1, 2)])
+        EvacuationSimulator.assign_building_exit_paths([agent], building_graph, exits=[(1, 2)])
 
         # Roadmap kabul kriteri: "tekerlekli sandalye profili gerçekten
         # sıkışıyor" - sessizce merdivene geri düşmemeli, path boş/eski
@@ -156,10 +172,14 @@ class TestFaz1_3MobilityProfileRouteConstraint:
     def test_walking_agent_still_uses_stairs_when_cheaper(self):
         building_graph = _two_floor_building()
         building_graph.disable_elevators()
-        agent = Agent(agent_id=1, position=Point2D(1.0, 1.0), goal=Point2D(0, 0),
-                       floor_index=0, mobility_profile=MobilityProfile.WALKING)
-        EvacuationSimulator.assign_building_exit_paths(
-            [agent], building_graph, exits=[(1, 2)])
+        agent = Agent(
+            agent_id=1,
+            position=Point2D(1.0, 1.0),
+            goal=Point2D(0, 0),
+            floor_index=0,
+            mobility_profile=MobilityProfile.WALKING,
+        )
+        EvacuationSimulator.assign_building_exit_paths([agent], building_graph, exits=[(1, 2)])
 
         # Yürüyen profil asansör kapalıyken bile merdivenle sıkışmadan
         # rota bulabilmeli.
@@ -175,13 +195,18 @@ class TestFaz1_4SimulationLODWiring:
             SimulationLODLevel(max_distance=float("inf"), mode=SimulationLODMode.CULLED),
         )
         lod_manager = SimulationLODManager(levels=levels)
-        far_agent = Agent(agent_id=1, position=Point2D(1000.0, 1000.0),
-                           goal=Point2D(1010.0, 1000.0), desired_speed=5.0)
+        far_agent = Agent(
+            agent_id=1,
+            position=Point2D(1000.0, 1000.0),
+            goal=Point2D(1010.0, 1000.0),
+            desired_speed=5.0,
+        )
         start_pos = far_agent.position
 
         sim = EvacuationSimulator()
-        sim.run([far_agent], dt=0.1, max_time_s=2.0,
-                 lod_manager=lod_manager, camera_position=(0.0, 0.0))
+        sim.run(
+            [far_agent], dt=0.1, max_time_s=2.0, lod_manager=lod_manager, camera_position=(0.0, 0.0)
+        )
 
         assert far_agent.position == start_pos
         assert not far_agent.evacuated
@@ -192,12 +217,14 @@ class TestFaz1_4SimulationLODWiring:
             SimulationLODLevel(max_distance=1000.0, mode=SimulationLODMode.AGGREGATE),
         )
         lod_manager = SimulationLODManager(levels=levels)
-        agent = Agent(agent_id=1, position=Point2D(100.0, 0.0),
-                       goal=Point2D(105.0, 0.0), desired_speed=5.0)
+        agent = Agent(
+            agent_id=1, position=Point2D(100.0, 0.0), goal=Point2D(105.0, 0.0), desired_speed=5.0
+        )
 
         sim = EvacuationSimulator()
-        result = sim.run([agent], dt=0.1, max_time_s=10.0,
-                          lod_manager=lod_manager, camera_position=(0.0, 0.0))
+        result = sim.run(
+            [agent], dt=0.1, max_time_s=10.0, lod_manager=lod_manager, camera_position=(0.0, 0.0)
+        )
 
         assert result.evacuated_count == 1
         assert agent.evacuated
@@ -214,8 +241,9 @@ class TestFaz1_4SimulationLODWiring:
 
         sim = EvacuationSimulator()
         sim.run([agent_a], dt=0.1, max_time_s=10.0)
-        sim.run([agent_b], dt=0.1, max_time_s=10.0,
-                 lod_manager=lod_manager, camera_position=(0.0, 0.0))
+        sim.run(
+            [agent_b], dt=0.1, max_time_s=10.0, lod_manager=lod_manager, camera_position=(0.0, 0.0)
+        )
 
         assert agent_a.position.x == agent_b.position.x
         assert agent_a.position.y == agent_b.position.y

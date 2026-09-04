@@ -42,7 +42,6 @@ import base64
 import hashlib
 import struct
 from dataclasses import dataclass
-from typing import Optional
 
 from ..extensibility.websocket_api import WSMessage
 from .collab_session import CollaborationHub
@@ -97,7 +96,7 @@ class _RawFrame:
     payload: bytes
 
 
-async def read_frame(reader: asyncio.StreamReader) -> Optional[_RawFrame]:
+async def read_frame(reader: asyncio.StreamReader) -> _RawFrame | None:
     """Bir istemci->sunucu (maskelenmiş) WebSocket çerçevesini okur.
     Bağlantı temiz şekilde kapandıysa (EOF) `None` döner."""
     try:
@@ -132,7 +131,8 @@ async def read_frame(reader: asyncio.StreamReader) -> Optional[_RawFrame]:
 
 
 async def _perform_handshake(
-    reader: asyncio.StreamReader, writer: asyncio.StreamWriter,
+    reader: asyncio.StreamReader,
+    writer: asyncio.StreamWriter,
 ) -> None:
     """HTTP Upgrade isteğini okur, RFC 6455 el sıkışma yanıtını yazar."""
     request_line = await reader.readline()
@@ -152,8 +152,7 @@ async def _perform_handshake(
     client_key = headers.get("sec-websocket-key")
     if not client_key:
         raise WebSocketProtocolError(
-            "Sec-WebSocket-Key başlığı yok — geçerli bir WebSocket "
-            "el sıkışma isteği değil"
+            "Sec-WebSocket-Key başlığı yok — geçerli bir WebSocket el sıkışma isteği değil"
         )
     accept = compute_accept_key(client_key)
     response = (
@@ -183,7 +182,7 @@ class CollaborationWebSocketServer:
         self.hub = hub
         self.host = host
         self.port = port
-        self._server: Optional[asyncio.base_events.Server] = None
+        self._server: asyncio.base_events.Server | None = None
 
     @property
     def actual_port(self) -> int:
@@ -213,7 +212,9 @@ class CollaborationWebSocketServer:
             await self._server.serve_forever()
 
     async def _handle_connection(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter,
+        self,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
     ) -> None:
         try:
             await _perform_handshake(reader, writer)
@@ -282,7 +283,7 @@ class _MinimalWSClient:
         self._writer = writer
 
     @classmethod
-    async def connect(cls, host: str, port: int) -> "_MinimalWSClient":
+    async def connect(cls, host: str, port: int) -> _MinimalWSClient:
         reader, writer = await asyncio.open_connection(host, port)
         key = base64.b64encode(b"harita-e8-test-key-0123").decode("ascii")
         request = (

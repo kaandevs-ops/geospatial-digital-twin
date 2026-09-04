@@ -48,6 +48,7 @@ T = TypeVar("T")
 # LWWRegister — tek değerli alanlar için "son yazan kazanır"
 # ======================================================================== #
 
+
 @dataclass(slots=True)
 class LWWRegister(Generic[T]):
     """Tek bir değeri tutan, çakışmasız birleştirilebilir register.
@@ -65,14 +66,14 @@ class LWWRegister(Generic[T]):
     def _key(self) -> tuple[float, str]:
         return (self.timestamp, self.actor_id)
 
-    def set(self, value: T, timestamp: float, actor_id: str) -> "LWWRegister[T]":
+    def set(self, value: T, timestamp: float, actor_id: str) -> LWWRegister[T]:
         """Yerel bir yazma işlemi uygular — yalnızca yeni yazım "kazanırsa"
         değeri günceller, yoksa mevcut değeri korur. Her zaman kendi
         (muhtemelen değişmemiş) kopyasını döner (fluent API)."""
         candidate = LWWRegister(value=value, timestamp=timestamp, actor_id=actor_id)
         return self.merge(candidate)
 
-    def merge(self, other: "LWWRegister[T]") -> "LWWRegister[T]":
+    def merge(self, other: LWWRegister[T]) -> LWWRegister[T]:
         """İki register'ı çakışmasız birleştirir — büyük olan `_key()`
         kazanır. Commutative: `a.merge(b) == b.merge(a)`. Associative ve
         idempotent (aynı register'ı tekrar merge etmek sonucu değiştirmez)."""
@@ -83,13 +84,14 @@ class LWWRegister(Generic[T]):
         return {"value": self.value, "timestamp": self.timestamp, "actor_id": self.actor_id}
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "LWWRegister[T]":
+    def from_dict(cls, data: dict[str, Any]) -> LWWRegister[T]:
         return cls(value=data["value"], timestamp=data["timestamp"], actor_id=data["actor_id"])
 
 
 # ======================================================================== #
 # ORSet — çoklu-eleman koleksiyonları için (kat/oda listesi vb.)
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class ORSet(Generic[T]):
@@ -115,7 +117,7 @@ class ORSet(Generic[T]):
         tags = self._adds.get(element, set())
         self._tombstones |= tags
 
-    def merge(self, other: "ORSet[T]") -> "ORSet[T]":
+    def merge(self, other: ORSet[T]) -> ORSet[T]:
         """İki ORSet'i çakışmasız birleştirir (commutative/associative/
         idempotent) — yeni bir ORSet döner, `self`/`other` değiştirilmez."""
         merged = ORSet()
@@ -155,12 +157,12 @@ class ORSet(Generic[T]):
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ORSet[T]":
+    def from_dict(cls, data: dict[str, Any]) -> ORSet[T]:
         def _decode_tag(raw: str) -> tuple[str, int]:
             actor, _, seq = raw.rpartition(":")
             return (actor, int(seq))
 
-        result: "ORSet[T]" = cls()
+        result: ORSet[T] = cls()
         for el, raw_tags in data.get("adds", {}).items():
             result._adds[el] = {_decode_tag(t) for t in raw_tags}
         result._tombstones = {_decode_tag(t) for t in data.get("tombstones", [])}
@@ -170,6 +172,7 @@ class ORSet(Generic[T]):
 # ======================================================================== #
 # CRDTBuildingState — bir binanın tüm düzenlenebilir durumu
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class CRDTBuildingState:
@@ -208,7 +211,7 @@ class CRDTBuildingState:
         return self.floor_ids.elements()
 
     # -- birleştirme ------------------------------------------------------
-    def merge(self, other: "CRDTBuildingState") -> "CRDTBuildingState":
+    def merge(self, other: CRDTBuildingState) -> CRDTBuildingState:
         """İki replikayı (örn. iki kullanıcının yerel durumu) çakışmasız
         birleştirir. Commutative/associative/idempotent — bkz. modül
         docstring'i ve `tests/test_faz19_collaboration.py` (birleştirme
@@ -248,7 +251,7 @@ class CRDTBuildingState:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "CRDTBuildingState":
+    def from_dict(cls, data: dict[str, Any]) -> CRDTBuildingState:
         return cls(
             building_key=data["building_key"],
             fields={

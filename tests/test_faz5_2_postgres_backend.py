@@ -15,21 +15,21 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
+from harita.persistence.db_backend import ObjectRecord
 from harita.persistence.postgres_backend import (
+    _PSYCOPG_AVAILABLE,
     PostgresProjectDatabase,
     PostgresUnavailable,
     footprint_to_wkt,
-    _PSYCOPG_AVAILABLE,
 )
-from harita.persistence.project_format import ProjectManifest, FORMAT_VERSION
-from harita.persistence.db_backend import ObjectRecord
+from harita.persistence.project_format import FORMAT_VERSION, ProjectManifest
 
 
 class TestPsycopgAvailability:
     def test_psycopg_import_flag_matches_real_import(self):
         try:
             import psycopg  # noqa: F401
+
             really_available = True
         except ImportError:
             really_available = False
@@ -89,7 +89,11 @@ class _FakeCursor:
 
     def execute(self, sql, params=()):
         sql_norm = " ".join(sql.split())
-        if "CREATE EXTENSION" in sql_norm or sql_norm.startswith("CREATE TABLE") or "CREATE INDEX" in sql_norm:
+        if (
+            "CREATE EXTENSION" in sql_norm
+            or sql_norm.startswith("CREATE TABLE")
+            or "CREATE INDEX" in sql_norm
+        ):
             return
         if sql_norm.startswith("INSERT INTO harita_meta"):
             key, value = params
@@ -104,10 +108,16 @@ class _FakeCursor:
             op = "save" if "'save'" in sql_norm else "delete"
             ts, key, kind = params
             self.store.setdefault("history", []).append((ts, op, key, kind))
-        elif sql_norm.startswith("SELECT key, kind, data, updated_at FROM harita_objects WHERE key"):
+        elif sql_norm.startswith(
+            "SELECT key, kind, data, updated_at FROM harita_objects WHERE key"
+        ):
             key = params[0]
             row = self.store.get("objects", {}).get(key)
-            self._last_result = None if row is None else [(key, row["kind"], _maybe_loads(row["data"]), row["updated_at"])]
+            self._last_result = (
+                None
+                if row is None
+                else [(key, row["kind"], _maybe_loads(row["data"]), row["updated_at"])]
+            )
         elif sql_norm.startswith("SELECT kind FROM harita_objects WHERE key"):
             key = params[0]
             row = self.store.get("objects", {}).get(key)
@@ -165,6 +175,7 @@ class _FakeConnection:
 
 def _fake_db(manifest: ProjectManifest) -> PostgresProjectDatabase:
     import threading
+
     conn = _FakeConnection()
     db = PostgresProjectDatabase(dsn="postgresql://fake/db", _conn=conn, _lock=threading.RLock())
     with conn.cursor() as cur:
@@ -231,15 +242,18 @@ class TestPostgresBackendCRUDWithFakeConnection:
 # Canlı bağlantı — yalnızca gerçek erişilebilir bir Postgres varsa çalışır.
 # ---------------------------------------------------------------------------
 
+
 def _postgres_reachable() -> bool:
     if not _PSYCOPG_AVAILABLE:
         return False
     import os
+
     dsn = os.environ.get("HARITA_TEST_POSTGRES_DSN")
     if not dsn:
         return False
     try:
         import psycopg
+
         with psycopg.connect(dsn, connect_timeout=3) as conn:
             return True
     except Exception:
@@ -257,12 +271,15 @@ def _postgres_reachable() -> bool:
 class TestLivePostgres:
     def test_live_create_save_query_bbox(self):
         import os
+
         dsn = os.environ["HARITA_TEST_POSTGRES_DSN"]
         manifest = ProjectManifest(name="Canlı Test", project_id="live-1")
         db = PostgresProjectDatabase.create(dsn, manifest)
         try:
             db.save_object(
-                "bina_ist", "building", {"floors": 6},
+                "bina_ist",
+                "building",
+                {"floors": 6},
                 footprint=[(28.97, 41.00), (28.98, 41.00), (28.98, 41.01), (28.97, 41.01)],
             )
             hits = db.query_bbox(min_lon=28.9, min_lat=40.9, max_lon=29.1, max_lat=41.1)
@@ -275,4 +292,6 @@ def test_postgres_unavailable_error_has_install_hint_when_missing():
     if _PSYCOPG_AVAILABLE:
         pytest.skip("psycopg bu ortamda kurulu - unavailable dalı test edilemez")
     with pytest.raises(PostgresUnavailable, match="postgres"):
-        PostgresProjectDatabase.create("postgresql://x/y", ProjectManifest(name="x", project_id="x"))
+        PostgresProjectDatabase.create(
+            "postgresql://x/y", ProjectManifest(name="x", project_id="x")
+        )

@@ -54,9 +54,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from ...core_engine.coordinate_systems import GeoPoint
-from ...mesh_engine import Mesh3D
 from ...lighting import SolarPositionCalculator
-from ..sun_simulation import RoofIrradiance, IrradianceResult
+from ...mesh_engine import Mesh3D
+from ..sun_simulation import IrradianceResult, RoofIrradiance
 from ..visibility import ShadowAnalysis
 
 if TYPE_CHECKING:
@@ -130,8 +130,7 @@ class ThermalComfort:
         return cls._CATEGORIES[-1][1]
 
     @classmethod
-    def mean_radiant_temperature(cls, air_temp_c: float,
-                                  irradiance_watts_per_m2: float) -> float:
+    def mean_radiant_temperature(cls, air_temp_c: float, irradiance_watts_per_m2: float) -> float:
         """Basitleştirilmiş radyatif denge (bkz. modül üstü docstring #1):
 
             Tmrt^4 = Tair^4 + (a_k * I_direct) / (eps * sigma)
@@ -142,15 +141,16 @@ class ThermalComfort:
         """
         t_air_k = air_temp_c + 273.15
         i_direct = max(irradiance_watts_per_m2, 0.0)
-        t_mrt_k4 = t_air_k ** 4 + (cls.ABSORPTION_COEFFICIENT * i_direct) / (
+        t_mrt_k4 = t_air_k**4 + (cls.ABSORPTION_COEFFICIENT * i_direct) / (
             cls.BODY_EMISSIVITY * cls.STEFAN_BOLTZMANN
         )
-        t_mrt_k = t_mrt_k4 ** 0.25
+        t_mrt_k = t_mrt_k4**0.25
         return t_mrt_k - 273.15
 
     @classmethod
-    def apparent_temperature(cls, air_temp_c: float, mean_radiant_temp_c: float,
-                              wind_speed_mps: float) -> float:
+    def apparent_temperature(
+        cls, air_temp_c: float, mean_radiant_temp_c: float, wind_speed_mps: float
+    ) -> float:
         """Basitleştirilmiş 'hissedilen sıcaklık' (bkz. modül üstü docstring
         #2): radyan kazanç (Tmrt - Tair, negatifse 0) rüzgarla üstel olarak
         söner, ayrıca doğrudan orantılı bir rüzgar-soğutma terimi eklenir."""
@@ -161,10 +161,17 @@ class ThermalComfort:
         return air_temp_c + damped_gain - wind_cooling
 
     @classmethod
-    def evaluate(cls, point: Vec3, location: GeoPoint, when_utc: datetime,
-                 occluders: list[Mesh3D], air_temp_c: float,
-                 wind_speed_mps: float, roof_tilt_deg: float = 90.0,
-                 roof_azimuth_deg: float = 180.0) -> ThermalComfortResult:
+    def evaluate(
+        cls,
+        point: Vec3,
+        location: GeoPoint,
+        when_utc: datetime,
+        occluders: list[Mesh3D],
+        air_temp_c: float,
+        wind_speed_mps: float,
+        roof_tilt_deg: float = 90.0,
+        roof_azimuth_deg: float = 180.0,
+    ) -> ThermalComfortResult:
         """Belirli bir nokta/an için termal konforu değerlendirir.
 
         `roof_tilt_deg=90.0` (dikey panel) varsayılanı, `RoofIrradiance`'ın
@@ -178,12 +185,15 @@ class ThermalComfort:
 
         if shadow.in_shadow or not sun.is_daylight:
             irradiance = IrradianceResult(
-                watts_per_m2=0.0, sun_elevation_deg=sun.elevation_deg,
+                watts_per_m2=0.0,
+                sun_elevation_deg=sun.elevation_deg,
                 incidence_angle_deg=90.0,
             )
         else:
             irradiance = RoofIrradiance.compute(
-                sun, roof_tilt_deg=roof_tilt_deg, roof_azimuth_deg=roof_azimuth_deg,
+                sun,
+                roof_tilt_deg=roof_tilt_deg,
+                roof_azimuth_deg=roof_azimuth_deg,
             )
 
         tmrt = cls.mean_radiant_temperature(air_temp_c, irradiance.watts_per_m2)
@@ -201,11 +211,17 @@ class ThermalComfort:
         )
 
     @classmethod
-    def evaluate_with_wind_field(cls, point: Vec3, location: GeoPoint,
-                                  when_utc: datetime, occluders: list[Mesh3D],
-                                  air_temp_c: float, wind_field: "WindField",
-                                  grid_origin: tuple[float, float] = (0.0, 0.0),
-                                  **kwargs) -> ThermalComfortResult:
+    def evaluate_with_wind_field(
+        cls,
+        point: Vec3,
+        location: GeoPoint,
+        when_utc: datetime,
+        occluders: list[Mesh3D],
+        air_temp_c: float,
+        wind_field: WindField,
+        grid_origin: tuple[float, float] = (0.0, 0.0),
+        **kwargs,
+    ) -> ThermalComfortResult:
         """Faz E11 asıl köprüsü: D3 `WindSimulation.simulate()` çıktısı bir
         `WindField`'dan, `point`'in (x, y) dünya-uzayı konumuna en yakın
         hücredeki rüzgar hızını örnekleyip `evaluate()`'e besler - böylece
@@ -219,5 +235,4 @@ class ThermalComfort:
         col = max(0, min(wind_field.width - 1, col))
         row = max(0, min(wind_field.height - 1, row))
         speed, _direction = wind_field.at(col, row)
-        return cls.evaluate(point, location, when_utc, occluders, air_temp_c,
-                             speed, **kwargs)
+        return cls.evaluate(point, location, when_utc, occluders, air_temp_c, speed, **kwargs)

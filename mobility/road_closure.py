@@ -15,6 +15,7 @@ city_events.CityEventType.ROAD_CLOSED`/`ROAD_REOPENED`'i (O.4) doğrudan
 birbirine bağlar - yeni bir olay tipi ya da graf mekaniği icat edilmez,
 yalnızca ikisi arasındaki köprü kurulur.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -86,7 +87,11 @@ class RoadClosureSubscriber:
 
 
 def emit_road_closed(
-    bus: EventSystem, node_a: NodeId, node_b: NodeId, *, route_key: str | None = None,
+    bus: EventSystem,
+    node_a: NodeId,
+    node_b: NodeId,
+    *,
+    route_key: str | None = None,
     reason: str = "unspecified",
 ) -> Event:
     """`CityEventType.ROAD_CLOSED` olayını standart payload şemasıyla
@@ -100,7 +105,11 @@ def emit_road_closed(
 
 
 def emit_road_reopened(
-    bus: EventSystem, node_a: NodeId, node_b: NodeId, *, route_key: str | None = None,
+    bus: EventSystem,
+    node_a: NodeId,
+    node_b: NodeId,
+    *,
+    route_key: str | None = None,
 ) -> Event:
     return bus.emit(
         str(CityEventType.ROAD_REOPENED.value),

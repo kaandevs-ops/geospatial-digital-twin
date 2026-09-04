@@ -46,7 +46,9 @@ class CurvedFootprintGenerator:
 
     @staticmethod
     def circular_footprint(
-        center: Point2D, radius: float, segments: int = 32,
+        center: Point2D,
+        radius: float,
+        segments: int = 32,
     ) -> Polygon:
         """Tam dairesel footprint (örn. silindirik kule/atrium tipi bina).
 
@@ -66,8 +68,11 @@ class CurvedFootprintGenerator:
 
     @staticmethod
     def elliptical_footprint(
-        center: Point2D, radius_x: float, radius_y: float,
-        rotation_deg: float = 0.0, segments: int = 32,
+        center: Point2D,
+        radius_x: float,
+        radius_y: float,
+        rotation_deg: float = 0.0,
+        segments: int = 32,
     ) -> Polygon:
         """Eliptik footprint (örn. oval plan AVM/stadyum-benzeri kütle)."""
         segments = max(8, segments)
@@ -85,8 +90,11 @@ class CurvedFootprintGenerator:
 
     @staticmethod
     def rounded_rectangle_footprint(
-        width: float, depth: float, corner_radius: float,
-        center: Point2D | None = None, segments_per_corner: int = 6,
+        width: float,
+        depth: float,
+        corner_radius: float,
+        center: Point2D | None = None,
+        segments_per_corner: int = 6,
     ) -> Polygon:
         """Dikdörtgen footprint'in dört köşesini yuvarlatır (örn. modern
         ofis binalarında sık görülen yumuşatılmış köşe kütlesi).
@@ -102,30 +110,34 @@ class CurvedFootprintGenerator:
 
         if r <= 1e-9:
             # Dejenere durum: normal keskin köşeli dikdörtgene düş.
-            return Polygon([
-                Point2D(center.x - hw, center.y - hd),
-                Point2D(center.x + hw, center.y - hd),
-                Point2D(center.x + hw, center.y + hd),
-                Point2D(center.x - hw, center.y + hd),
-            ])
+            return Polygon(
+                [
+                    Point2D(center.x - hw, center.y - hd),
+                    Point2D(center.x + hw, center.y - hd),
+                    Point2D(center.x + hw, center.y + hd),
+                    Point2D(center.x - hw, center.y + hd),
+                ]
+            )
 
         # Her köşe için merkez + başlangıç/bitiş açısı (CCW, sağ-alttan
         # başlayarak): (cx, cy, start_deg, end_deg)
         corners = [
-            (hw - r, -(hd - r), 270.0, 360.0),   # sağ-alt
-            (hw - r, hd - r, 0.0, 90.0),          # sağ-üst
-            (-(hw - r), hd - r, 90.0, 180.0),     # sol-üst
-            (-(hw - r), -(hd - r), 180.0, 270.0), # sol-alt
+            (hw - r, -(hd - r), 270.0, 360.0),  # sağ-alt
+            (hw - r, hd - r, 0.0, 90.0),  # sağ-üst
+            (-(hw - r), hd - r, 90.0, 180.0),  # sol-üst
+            (-(hw - r), -(hd - r), 180.0, 270.0),  # sol-alt
         ]
         ring: list[Point2D] = []
-        for (ccx, ccy, start_deg, end_deg) in corners:
+        for ccx, ccy, start_deg, end_deg in corners:
             for i in range(segments_per_corner + 1):
                 t = i / segments_per_corner
                 ang = math.radians(start_deg + (end_deg - start_deg) * t)
-                ring.append(Point2D(
-                    center.x + ccx + r * math.cos(ang),
-                    center.y + ccy + r * math.sin(ang),
-                ))
+                ring.append(
+                    Point2D(
+                        center.x + ccx + r * math.cos(ang),
+                        center.y + ccy + r * math.sin(ang),
+                    )
+                )
         return Polygon(ring)
 
     @staticmethod
@@ -147,8 +159,9 @@ class CurvedFootprintGenerator:
             d2 = _orient(p3, p4, p2)
             d3 = _orient(p1, p2, p3)
             d4 = _orient(p1, p2, p4)
-            if ((d1 > 0 and d2 < 0) or (d1 < 0 and d2 > 0)) and \
-               ((d3 > 0 and d4 < 0) or (d3 < 0 and d4 > 0)):
+            if ((d1 > 0 and d2 < 0) or (d1 < 0 and d2 > 0)) and (
+                (d3 > 0 and d4 < 0) or (d3 < 0 and d4 > 0)
+            ):
                 return True
             return False
 

@@ -20,7 +20,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from harita.digital_twin import DigitalTwinRegistry, SensorBinding
 from harita.digital_twin.iot_bridge import (
-    IotMessage,
     MqttBackendUnavailable,
     MqttBridge,
     SensorIotBinding,
@@ -78,7 +77,9 @@ def test_topic_bus_invalid_hash_position_raises():
 def test_sensor_iot_binding_updates_twin_and_logs_event():
     registry = DigitalTwinRegistry()
     twin = registry.create("bina_1")
-    twin.bind_sensor(SensorBinding(sensor_id="temp_01", sensor_type="temperature", target_ref="roof"))
+    twin.bind_sensor(
+        SensorBinding(sensor_id="temp_01", sensor_type="temperature", target_ref="roof")
+    )
     registry.save(twin)
 
     bus = TopicBus()
@@ -130,6 +131,7 @@ def test_mqtt_bridge_unavailable_without_paho():
     bridge = MqttBridge(bus)
     try:
         import paho.mqtt.client  # noqa: F401
+
         return  # paho kurulu - bu test bu ortamda uygulanamaz, atlanır
     except ImportError:
         pass

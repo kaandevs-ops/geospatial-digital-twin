@@ -14,6 +14,7 @@ uyguluyor. Bu testler:
 4. Varyasyonun geometriyi bozmadığını (üçgen/vertex sayısı korunur,
    hacim sıfırlanmaz) doğrular.
 """
+
 from __future__ import annotations
 
 import unittest

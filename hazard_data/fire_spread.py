@@ -30,9 +30,9 @@ kullanım" ilkesi.
 from __future__ import annotations
 
 import random
+from collections.abc import Callable, Hashable, Iterable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Callable, Hashable, Iterable
 
 from ..mobility.pathfinding import NavGraph
 
@@ -81,8 +81,8 @@ class FireSpreadModel:
     wall_cells: frozenset[CellId] = field(default_factory=frozenset)
     door_cells: frozenset[CellId] = field(default_factory=frozenset)
     spread_rate_per_s: float = 0.35
-    wall_barrier_factor: float = 0.05     # duvar: yayılım ~20 kat yavaşlar
-    door_barrier_factor: float = 0.45     # kapı: yayılım ~2 kat yavaşlar
+    wall_barrier_factor: float = 0.05  # duvar: yayılım ~20 kat yavaşlar
+    door_barrier_factor: float = 0.45  # kapı: yayılım ~2 kat yavaşlar
     seed: int | None = 42
 
     elapsed_s: float = field(init=False, default=0.0)
@@ -90,11 +90,7 @@ class FireSpreadModel:
     _rng: random.Random = field(init=False)
 
     def __post_init__(self) -> None:
-        self.intensity = {
-            (x, y): 0.0
-            for y in range(self.height)
-            for x in range(self.width)
-        }
+        self.intensity = {(x, y): 0.0 for y in range(self.height) for x in range(self.width)}
         for cell in self.ignition_cells:
             if cell in self.intensity:
                 self.intensity[cell] = 1.0

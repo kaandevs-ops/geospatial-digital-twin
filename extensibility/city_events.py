@@ -35,7 +35,7 @@ Cascade Engine'i tam olarak bu deseni kullanacak).
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from .event_system import Event, EventSystem
 
@@ -98,7 +98,7 @@ def emit_city_event(
     bus: EventSystem,
     event_type: CityEventType,
     *,
-    source: Optional[str] = None,
+    source: str | None = None,
     **payload_fields: Any,
 ) -> Event:
     """`EventSystem.emit`'in ince, tipli bir sarmalayıcısı.

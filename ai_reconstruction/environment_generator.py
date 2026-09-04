@@ -75,23 +75,27 @@ class AIEnvironmentGenerator:
         object_types = object_types or list(_OBJECT_PROFILES.keys())
         xs = [p.x for p in footprint_polygon.points]
         ys = [p.y for p in footprint_polygon.points]
-        bounds = (min(xs) - margin_m, min(ys) - margin_m,
-                  max(xs) + margin_m, max(ys) + margin_m)
+        bounds = (min(xs) - margin_m, min(ys) - margin_m, max(xs) + margin_m, max(ys) + margin_m)
 
         objects: list[EnvironmentObject] = []
         for obj_type in object_types:
             profile = _OBJECT_PROFILES.get(obj_type, dict(min_dist=5.0, weight=1.0))
             count_target = max(1, int(profile["weight"] * (margin_m / 10.0) * 3))
             points = self._poisson_disk_sample(
-                bounds, profile["min_dist"], max_points=count_target,
+                bounds,
+                profile["min_dist"],
+                max_points=count_target,
             )
             for p in points:
                 if self._is_valid_placement(p, footprint_polygon, min_setback_m):
-                    objects.append(EnvironmentObject(
-                        object_type=obj_type, position=p,
-                        rotation_deg=self._rng.uniform(0, 360),
-                        scale=self._rng.uniform(0.85, 1.15),
-                    ))
+                    objects.append(
+                        EnvironmentObject(
+                            object_type=obj_type,
+                            position=p,
+                            rotation_deg=self._rng.uniform(0, 360),
+                            scale=self._rng.uniform(0.85, 1.15),
+                        )
+                    )
         return objects
 
     def _is_valid_placement(self, point: Point2D, polygon: Polygon, min_setback_m: float) -> bool:
@@ -99,8 +103,7 @@ class AIEnvironmentGenerator:
             return False
         ring = polygon.closed_ring()
         min_edge_dist = min(
-            self._point_segment_distance(point, a, b)
-            for a, b in zip(ring, ring[1:])
+            self._point_segment_distance(point, a, b) for a, b in zip(ring, ring[1:])
         )
         return min_edge_dist >= min_setback_m
 
@@ -108,8 +111,9 @@ class AIEnvironmentGenerator:
     def _point_segment_distance(p: Point2D, a: Point2D, b: Point2D) -> float:
         if a == b:
             return p.distance_to(a)
-        t = ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / \
-            ((b.x - a.x) ** 2 + (b.y - a.y) ** 2)
+        t = ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / (
+            (b.x - a.x) ** 2 + (b.y - a.y) ** 2
+        )
         t = max(0.0, min(1.0, t))
         proj = Point2D(a.x + t * (b.x - a.x), a.y + t * (b.y - a.y))
         return p.distance_to(proj)

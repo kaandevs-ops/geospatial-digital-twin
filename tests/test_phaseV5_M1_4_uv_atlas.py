@@ -11,18 +11,17 @@ maddesinin gerçek UV-yeniden-yazma ile karşılanması (yalnız layout değil).
 from __future__ import annotations
 
 import pytest
-
-from harita.mesh_engine import MeshBuilder, Mesh3D, NormalGenerator
+from harita.mesh_engine import Mesh3D, MeshBuilder
 from harita.mesh_engine.uv_atlas import (
-    WorldScaleUVMapper,
-    MeshUVAtlasBaker,
     AtlasBakeResult,
+    MeshUVAtlasBaker,
+    WorldScaleUVMapper,
 )
-
 
 # ---------------------------------------------------------------------- #
 # WorldScaleUVMapper
 # ---------------------------------------------------------------------- #
+
 
 class TestWorldScaleUVMapper:
     @pytest.mark.parametrize(
@@ -103,6 +102,7 @@ class TestWorldScaleUVMapper:
 # ---------------------------------------------------------------------- #
 # MeshUVAtlasBaker
 # ---------------------------------------------------------------------- #
+
 
 class TestMeshUVAtlasBaker:
     def test_bake_merges_multiple_parts_into_single_mesh(self):

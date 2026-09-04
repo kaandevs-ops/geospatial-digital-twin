@@ -22,10 +22,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import tempfile
 
 import pytest
-
 from harita.app_shell.api import build_app_router
 from harita.app_shell.session import AppSession, AppSessionError
-from harita.core_engine.gis_core.osm_client import BBox, OverpassClient, OverpassError
+from harita.core_engine.gis_core.osm_client import OverpassClient, OverpassError
 
 
 def _fixture_overpass_response() -> dict:
@@ -40,16 +39,22 @@ def _fixture_overpass_response() -> dict:
             {"type": "node", "id": 3, "lat": 39.9204, "lon": 32.8546},
             {"type": "node", "id": 4, "lat": 39.9204, "lon": 32.8541},
             {
-                "type": "way", "id": 2001,
+                "type": "way",
+                "id": 2001,
                 "nodes": [1, 2, 3, 4, 1],
-                "tags": {"building": "apartments", "building:levels": "5", "name": "Ankara Test Bina A"},
+                "tags": {
+                    "building": "apartments",
+                    "building:levels": "5",
+                    "name": "Ankara Test Bina A",
+                },
             },
             {"type": "node", "id": 11, "lat": 39.9210, "lon": 32.8551},
             {"type": "node", "id": 12, "lat": 39.9210, "lon": 32.8555},
             {"type": "node", "id": 13, "lat": 39.9213, "lon": 32.8555},
             {"type": "node", "id": 14, "lat": 39.9213, "lon": 32.8551},
             {
-                "type": "way", "id": 2002,
+                "type": "way",
+                "id": 2002,
                 "nodes": [11, 12, 13, 14, 11],
                 "tags": {"building": "yes", "building:levels": "3"},
             },
@@ -57,7 +62,8 @@ def _fixture_overpass_response() -> dict:
             {"type": "node", "id": 21, "lat": 39.93, "lon": 32.86},
             {"type": "node", "id": 22, "lat": 39.9301, "lon": 32.8601},
             {
-                "type": "way", "id": 2003,
+                "type": "way",
+                "id": 2003,
                 "nodes": [21, 22],
                 "tags": {"building": "yes"},
             },
@@ -85,7 +91,9 @@ class TestImportOsmBboxSessionLevel:
     def test_creates_real_buildings_from_bbox(self):
         session, pid = self._new_session_with_project()
         result = session.import_osm_bbox(
-            pid, **ANKARA_BBOX, client=_fake_client(),
+            pid,
+            **ANKARA_BBOX,
+            client=_fake_client(),
         )
         assert result["raw_feature_count"] == 2  # yalnızca geçerli way'ler
         assert result["created_count"] == 2
@@ -119,7 +127,12 @@ class TestImportOsmBboxSessionLevel:
         session, pid = self._new_session_with_project()
         with pytest.raises(AppSessionError):
             session.import_osm_bbox(
-                pid, south=40.0, west=32.0, north=39.0, east=33.0, client=_fake_client(),
+                pid,
+                south=40.0,
+                west=32.0,
+                north=39.0,
+                east=33.0,
+                client=_fake_client(),
             )
 
     def test_network_failure_raises_readable_error(self):
@@ -156,14 +169,18 @@ class TestOsmImportHttpRoute:
         import harita.app_shell.session as session_mod
 
         monkeypatch.setattr(
-            session_mod, "OverpassClient", lambda *a, **k: _fake_client(),
+            session_mod,
+            "OverpassClient",
+            lambda *a, **k: _fake_client(),
         )
         return router, info["project_id"]
 
     def test_post_osm_import_returns_201_and_buildings(self, monkeypatch):
         router, pid = self._router_with_project(monkeypatch)
         resp = router.dispatch(
-            "POST", f"/api/projects/{pid}/osm/import", body=ANKARA_BBOX,
+            "POST",
+            f"/api/projects/{pid}/osm/import",
+            body=ANKARA_BBOX,
         )
         assert resp.status == 201
         assert resp.body["created_count"] == 2

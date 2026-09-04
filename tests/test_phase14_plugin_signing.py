@@ -23,7 +23,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.extensibility.plugin_signing import (
     PluginTrustStore,
     RSAKeyPair,

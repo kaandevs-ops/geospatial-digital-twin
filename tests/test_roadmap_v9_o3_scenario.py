@@ -17,7 +17,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.mobility.scenario import (
     AgentProfileMix,
     BuildingSource,
@@ -48,6 +47,7 @@ def _make_scenario(scenario_id: str = "s1", **overrides) -> SimulationScenario:
 # --------------------------------------------------------------------------- #
 # Doğrulama
 # --------------------------------------------------------------------------- #
+
 
 def test_valid_scenario_passes_validation():
     _make_scenario().validate()  # exception atmamalı
@@ -98,6 +98,7 @@ def test_none_hazard_valid_for_daily_routine_scenario():
 # Serileştirme
 # --------------------------------------------------------------------------- #
 
+
 def test_to_dict_from_dict_roundtrip():
     sc = _make_scenario(disable_elevators=True, description="acik aciklama")
     restored = SimulationScenario.from_dict(sc.to_dict())
@@ -130,6 +131,7 @@ def test_unknown_hazard_value_raises():
 # --------------------------------------------------------------------------- #
 # Persistence entegrasyonu (yeni depolama icat edilmedi)
 # --------------------------------------------------------------------------- #
+
 
 def test_save_and_load_scenario_roundtrip(tmp_path):
     db = ProjectDatabase.create(

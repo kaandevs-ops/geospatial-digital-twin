@@ -8,24 +8,30 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from harita.core_engine.coordinate_systems import CoordinateConverter, GeoPoint, CoordinateSystem
-from harita.core_engine.geometry_engine import Point2D, Polygon, LineString, GeometryEngine, PointIndex
+from harita.core_engine.coordinate_systems import CoordinateConverter, GeoPoint
+from harita.core_engine.geometry_engine import (
+    GeometryEngine,
+    LineString,
+    Point2D,
+    PointIndex,
+    Polygon,
+)
 from harita.core_engine.gis_core import (
+    DXFParser,
     GeoJSONParser,
-    ShapefileParser,
+    GeoPackageParser,
+    HeightmapParser,
     KMLParser,
     KMZParser,
-    GeoPackageParser,
-    DXFParser,
     Mesh3DParser,
-    HeightmapParser,
+    ShapefileParser,
 )
-from harita.core_engine.tile_engine import TileCoordinate, TileEngine, TileCache, MemoryCache
-
+from harita.core_engine.tile_engine import MemoryCache, TileCache, TileCoordinate, TileEngine
 
 # ------------------------------------------------------------------ #
 # Coordinate systems
 # ------------------------------------------------------------------ #
+
 
 def test_web_mercator_roundtrip():
     p = GeoPoint(lat=41.0082, lon=28.9784)  # İstanbul
@@ -124,6 +130,7 @@ def test_haversine_known_distance():
 # Geometry engine
 # ------------------------------------------------------------------ #
 
+
 def test_polygon_area_and_centroid_square():
     square = Polygon([Point2D(0, 0), Point2D(10, 0), Point2D(10, 10), Point2D(0, 10)])
     assert math.isclose(square.unsigned_area(), 100.0)
@@ -147,8 +154,16 @@ def test_point_in_polygon():
 
 def test_simplify_polygon_reduces_points():
     # neredeyse düz bir kenar üzerinde gereksiz köşeler
-    poly = Polygon([Point2D(0, 0), Point2D(1, 0.01), Point2D(2, -0.01), Point2D(3, 0),
-                     Point2D(3, 3), Point2D(0, 3)])
+    poly = Polygon(
+        [
+            Point2D(0, 0),
+            Point2D(1, 0.01),
+            Point2D(2, -0.01),
+            Point2D(3, 0),
+            Point2D(3, 3),
+            Point2D(0, 3),
+        ]
+    )
     simplified = GeometryEngine.simplify_polygon(poly, tolerance=0.1)
     assert len(simplified.points) < len(poly.points)
 
@@ -184,6 +199,7 @@ def test_point_index_nearest_search():
 # GIS core (GeoJSON)
 # ------------------------------------------------------------------ #
 
+
 def test_geojson_parse_feature_collection():
     geojson_text = """
     {
@@ -211,15 +227,26 @@ def test_geojson_parse_feature_collection():
 
 def test_geojson_filter_by_properties():
     import json as _json
-    fc = GeoJSONParser.parse(_json.dumps({
-        "type": "FeatureCollection",
-        "features": [
-            {"type": "Feature", "properties": {"tip": "villa"},
-             "geometry": {"type": "Point", "coordinates": [0, 0]}},
-            {"type": "Feature", "properties": {"tip": "ofis"},
-             "geometry": {"type": "Point", "coordinates": [1, 1]}},
-        ],
-    }))
+
+    fc = GeoJSONParser.parse(
+        _json.dumps(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {"tip": "villa"},
+                        "geometry": {"type": "Point", "coordinates": [0, 0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"tip": "ofis"},
+                        "geometry": {"type": "Point", "coordinates": [1, 1]},
+                    },
+                ],
+            }
+        )
+    )
     ofisler = fc.filter(tip="ofis")
     assert len(ofisler) == 1
 
@@ -242,6 +269,7 @@ def test_geojson_roundtrip_to_geojson():
 # Tile engine
 # ------------------------------------------------------------------ #
 
+
 def test_tile_coordinate_from_geopoint_and_bounds():
     istanbul = GeoPoint(41.0082, 28.9784)
     tile = TileCoordinate.from_geopoint(istanbul, zoom=10)
@@ -261,6 +289,7 @@ def test_tile_children_and_parent():
 def test_memory_cache_lru_eviction():
     cache = MemoryCache(capacity=2)
     from harita.core_engine.tile_engine import TileData
+
     t1 = TileData(TileCoordinate(0, 0, 0), b"a", "raster")
     t2 = TileData(TileCoordinate(0, 1, 0), b"b", "raster")
     t3 = TileData(TileCoordinate(0, 2, 0), b"c", "raster")
@@ -321,8 +350,10 @@ def test_tile_engine_viewport_and_offline_preload(tmp_path):
 # GIS core - ek format parser'lar (Shapefile/KML/KMZ/GPKG/DXF/Mesh3D/Heightmap)
 # ------------------------------------------------------------------ #
 
+
 def test_shapefile_parser_polygon(tmp_path):
     import struct
+
     shp_path = tmp_path / "test.shp"
     pts = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
     rec_content = struct.pack("<i", 5)
@@ -364,6 +395,7 @@ def test_kml_parser_placemark(tmp_path):
 
 def test_kmz_parser_delegates_to_kml(tmp_path):
     import zipfile
+
     kml_path = tmp_path / "doc.kml"
     kml_path.write_text(
         '<?xml version="1.0"?>'
@@ -383,6 +415,7 @@ def test_kmz_parser_delegates_to_kml(tmp_path):
 def test_geopackage_parser_point(tmp_path):
     import sqlite3
     import struct
+
     gpkg_path = tmp_path / "test.gpkg"
     conn = sqlite3.connect(gpkg_path)
     conn.execute("CREATE TABLE gpkg_geometry_columns (table_name TEXT, column_name TEXT)")
@@ -419,8 +452,10 @@ def test_dxf_parser_line_and_polyline(tmp_path):
 # GIS core - fuzz / bozuk dosya testleri (Roadmap V2, A1 kabul kriteri)
 # ------------------------------------------------------------------ #
 
+
 def test_shapefile_too_short_raises_parse_error(tmp_path):
     from harita.core_engine.gis_core import GISParseError
+
     path = tmp_path / "short.shp"
     path.write_bytes(b"\x00" * 10)
     with pytest.raises(GISParseError):
@@ -428,8 +463,10 @@ def test_shapefile_too_short_raises_parse_error(tmp_path):
 
 
 def test_shapefile_bad_file_code_raises_parse_error(tmp_path):
-    from harita.core_engine.gis_core import GISParseError
     import struct
+
+    from harita.core_engine.gis_core import GISParseError
+
     path = tmp_path / "badcode.shp"
     path.write_bytes(struct.pack(">i", 1234) + b"\x00" * 96)
     with pytest.raises(GISParseError):
@@ -437,8 +474,10 @@ def test_shapefile_bad_file_code_raises_parse_error(tmp_path):
 
 
 def test_shapefile_truncated_record_raises_parse_error(tmp_path):
-    from harita.core_engine.gis_core import GISParseError
     import struct
+
+    from harita.core_engine.gis_core import GISParseError
+
     path = tmp_path / "trunc.shp"
     header = struct.pack(">i", 9994) + b"\x00" * 20
     header += struct.pack(">i", 50)
@@ -454,6 +493,7 @@ def test_shapefile_truncated_record_raises_parse_error(tmp_path):
 
 def test_kml_malformed_xml_raises_parse_error(tmp_path):
     from harita.core_engine.gis_core import GISParseError
+
     path = tmp_path / "bad.kml"
     path.write_text("<kml><Document><Placemark><Point>NOT CLOSED", encoding="utf-8")
     with pytest.raises(GISParseError):
@@ -462,6 +502,7 @@ def test_kml_malformed_xml_raises_parse_error(tmp_path):
 
 def test_kml_bad_coordinate_text_raises_parse_error(tmp_path):
     from harita.core_engine.gis_core import GISParseError
+
     path = tmp_path / "badcoord.kml"
     path.write_text(
         '<?xml version="1.0"?>'
@@ -476,6 +517,7 @@ def test_kml_bad_coordinate_text_raises_parse_error(tmp_path):
 
 def test_kmz_not_a_zip_raises_parse_error(tmp_path):
     from harita.core_engine.gis_core import GISParseError
+
     path = tmp_path / "fake.kmz"
     path.write_bytes(b"this is not a zip archive")
     with pytest.raises(GISParseError):
@@ -484,7 +526,9 @@ def test_kmz_not_a_zip_raises_parse_error(tmp_path):
 
 def test_kmz_missing_kml_entry_raises_parse_error(tmp_path):
     import zipfile
+
     from harita.core_engine.gis_core import GISParseError
+
     path = tmp_path / "empty.kmz"
     with zipfile.ZipFile(path, "w") as zf:
         zf.writestr("readme.txt", "no kml here")
@@ -494,6 +538,7 @@ def test_kmz_missing_kml_entry_raises_parse_error(tmp_path):
 
 def test_dxf_bad_numeric_group_code_raises_parse_error(tmp_path):
     from harita.core_engine.gis_core import GISParseError
+
     path = tmp_path / "bad.dxf"
     path.write_text(
         "0\nSECTION\n2\nENTITIES\n"
@@ -530,6 +575,7 @@ def test_mesh3d_parser_obj(tmp_path):
 
 def test_mesh3d_parser_stl_binary(tmp_path):
     import struct
+
     stl_path = tmp_path / "test.stl"
     with open(stl_path, "wb") as f:
         f.write(b"\x00" * 80)
@@ -546,11 +592,14 @@ def test_mesh3d_parser_gltf(tmp_path):
     import base64
     import json as _json
     import struct
+
     verts = [0, 0, 0, 1, 0, 0, 1, 1, 0]
     buf_bytes = struct.pack("<9f", *verts)
     b64 = base64.b64encode(buf_bytes).decode()
     doc = {
-        "buffers": [{"uri": f"data:application/octet-stream;base64,{b64}", "byteLength": len(buf_bytes)}],
+        "buffers": [
+            {"uri": f"data:application/octet-stream;base64,{b64}", "byteLength": len(buf_bytes)}
+        ],
         "bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": len(buf_bytes)}],
         "accessors": [{"bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3"}],
         "meshes": [{"primitives": [{"attributes": {"POSITION": 0}}]}],
@@ -565,6 +614,7 @@ def test_mesh3d_parser_unsupported_format_raises(tmp_path):
     fbx_path = tmp_path / "test.fbx"
     fbx_path.write_text("dummy", encoding="utf-8")
     import pytest
+
     with pytest.raises(NotImplementedError):
         Mesh3DParser("FBX").parse_file(str(fbx_path))
 
@@ -586,6 +636,7 @@ def test_heightmap_parser_esri_ascii_grid(tmp_path):
 def test_heightmap_parser_raw_binary(tmp_path):
     import json as _json
     import struct
+
     bin_path = tmp_path / "test.bin"
     with open(bin_path, "wb") as f:
         f.write(struct.pack("<4f", 1.0, 2.0, 3.0, 4.0))

@@ -22,24 +22,29 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.core_engine.geometry_engine import Point2D
-from harita.mobility.pathfinding import NavGraph
-from harita.mobility.crowd_simulation import (
-    AgentBehavior, EvacuationSimulator, spawn_random_agents,
-)
-from harita.mobility.crowd_simulation.fire_evacuation import (
-    FireEvacuationComparator, PeriodicFireRerouter,
-)
 from harita.hazard_data.fire_spread import (
-    FIRE_THRESHOLD, SMOKE_THRESHOLD, FireAwareRouter, FireCellState,
+    FIRE_THRESHOLD,
+    SMOKE_THRESHOLD,
+    FireAwareRouter,
+    FireCellState,
     FireSpreadModel,
 )
-
+from harita.mobility.crowd_simulation import (
+    AgentBehavior,
+    EvacuationSimulator,
+    spawn_random_agents,
+)
+from harita.mobility.crowd_simulation.fire_evacuation import (
+    FireEvacuationComparator,
+    PeriodicFireRerouter,
+)
+from harita.mobility.pathfinding import NavGraph
 
 # ============================================================================ #
 # FireSpreadModel
 # ============================================================================ #
+
 
 def test_ignition_cell_starts_at_full_fire():
     m = FireSpreadModel(width=4, height=4, ignition_cells=[(1, 1)], seed=1)
@@ -72,7 +77,10 @@ def test_intensity_saturates_at_one():
 def test_wall_slows_spread_more_than_open_cell():
     open_model = FireSpreadModel(width=5, height=1, ignition_cells=[(0, 0)], seed=3)
     walled_model = FireSpreadModel(
-        width=5, height=1, ignition_cells=[(0, 0)], seed=3,
+        width=5,
+        height=1,
+        ignition_cells=[(0, 0)],
+        seed=3,
         wall_cells=frozenset({(1, 0)}),
     )
     open_model.run(5.0, dt=1.0)
@@ -82,11 +90,17 @@ def test_wall_slows_spread_more_than_open_cell():
 
 def test_door_slows_spread_less_than_wall():
     door_model = FireSpreadModel(
-        width=5, height=1, ignition_cells=[(0, 0)], seed=3,
+        width=5,
+        height=1,
+        ignition_cells=[(0, 0)],
+        seed=3,
         door_cells=frozenset({(1, 0)}),
     )
     wall_model = FireSpreadModel(
-        width=5, height=1, ignition_cells=[(0, 0)], seed=3,
+        width=5,
+        height=1,
+        ignition_cells=[(0, 0)],
+        seed=3,
         wall_cells=frozenset({(1, 0)}),
     )
     door_model.run(5.0, dt=1.0)
@@ -120,6 +134,7 @@ def test_burning_cell_count_and_cells_by_state():
 # ============================================================================ #
 # FireAwareRouter
 # ============================================================================ #
+
 
 def _build_line_graph(n: int) -> NavGraph:
     g = NavGraph()
@@ -182,6 +197,7 @@ def test_router_edges_do_not_get_deleted_from_graph_structure():
 # PeriodicFireRerouter (EvacuationSimulator.run(on_step=...) entegrasyonu)
 # ============================================================================ #
 
+
 def _build_grid_graph(size: int) -> NavGraph:
     g = NavGraph()
     for y in range(size):
@@ -200,8 +216,11 @@ def _grid_scenario(size: int = 6, agent_count: int = 8, seed: int = 3):
     g = _build_grid_graph(size)
     exits = [(size - 1, size - 1)]
     agents = spawn_random_agents(
-        agent_count, Point2D(0.0, 0.0), Point2D((size - 1) * 2.0, (size - 1) * 2.0),
-        Point2D((size - 1) * 2.0, (size - 1) * 2.0), seed=seed,
+        agent_count,
+        Point2D(0.0, 0.0),
+        Point2D((size - 1) * 2.0, (size - 1) * 2.0),
+        Point2D((size - 1) * 2.0, (size - 1) * 2.0),
+        seed=seed,
     )
 
     def node_of_agent(agent):
@@ -216,7 +235,10 @@ def test_periodic_rerouter_advances_fire_and_refreshes_on_interval():
     fire = FireSpreadModel(width=6, height=6, ignition_cells=[(0, 0)], seed=5)
     router = FireAwareRouter(g, node_to_cell=lambda n: n)
     rerouter = PeriodicFireRerouter(
-        fire_model=fire, router=router, exits=exits, node_of_agent=node_of_agent,
+        fire_model=fire,
+        router=router,
+        exits=exits,
+        node_of_agent=node_of_agent,
         refresh_interval_s=2.0,
     )
     EvacuationSimulator().run(agents, dt=0.5, max_time_s=10.0, on_step=rerouter)
@@ -241,7 +263,10 @@ def test_periodic_rerouter_tags_rerouted_agents_avoid_smoke():
     fire = FireSpreadModel(width=6, height=6, ignition_cells=[(5, 4)], seed=5)
     router = FireAwareRouter(g, node_to_cell=lambda n: n)
     rerouter = PeriodicFireRerouter(
-        fire_model=fire, router=router, exits=exits, node_of_agent=node_of_agent,
+        fire_model=fire,
+        router=router,
+        exits=exits,
+        node_of_agent=node_of_agent,
         refresh_interval_s=1.0,
     )
     EvacuationSimulator().run(agents, dt=0.5, max_time_s=15.0, on_step=rerouter)
@@ -256,10 +281,13 @@ def test_periodic_rerouter_tags_rerouted_agents_avoid_smoke():
 # FireEvacuationComparator
 # ============================================================================ #
 
+
 def test_comparator_baseline_has_zero_pct_change():
     report = FireEvacuationComparator.compare(
-        lambda: _grid_scenario(agent_count=6, seed=2), [],
-        dt=0.5, max_time_s=60.0,
+        lambda: _grid_scenario(agent_count=6, seed=2),
+        [],
+        dt=0.5,
+        max_time_s=60.0,
     )
     assert report.baseline.pct_change_vs_baseline == 0.0
     assert report.scenarios == []
@@ -272,7 +300,8 @@ def test_comparator_closed_exit_scenario_reports_pct_change():
     report = FireEvacuationComparator.compare(
         factory,
         [("only_exit_closed", [((3, 4), (4, 4))], [(4, 4)])],
-        dt=0.5, max_time_s=60.0,
+        dt=0.5,
+        max_time_s=60.0,
     )
     assert len(report.scenarios) == 1
     scenario = report.scenarios[0]
@@ -294,7 +323,8 @@ def test_comparator_scenario_factory_called_fresh_each_time():
     FireEvacuationComparator.compare(
         factory,
         [("a", [], [(5, 5)]), ("b", [], [(5, 5)])],
-        dt=0.5, max_time_s=20.0,
+        dt=0.5,
+        max_time_s=20.0,
     )
     # baseline + 2 senaryo = 3 çağrı
     assert call_count["n"] == 3
@@ -302,6 +332,9 @@ def test_comparator_scenario_factory_called_fresh_each_time():
 
 def test_comparator_disclaimer_present():
     report = FireEvacuationComparator.compare(
-        lambda: _grid_scenario(agent_count=3, seed=1), [], dt=0.5, max_time_s=20.0,
+        lambda: _grid_scenario(agent_count=3, seed=1),
+        [],
+        dt=0.5,
+        max_time_s=20.0,
     )
     assert "gösterge niteliğindedir" in report.disclaimer

@@ -9,6 +9,7 @@ aynı desende bağlar: `osm_client.DEFAULT_CATEGORIES["place_of_worship"]`
 -> `ReligiousStructureGenerator.from_osm_tags` (modülün kendi tag ->
 tip sınıflandırması, burada tekrarlanmaz).
 """
+
 from __future__ import annotations
 
 from ..core_engine.geometry_engine import Point2D
@@ -34,7 +35,9 @@ def religious_structure_item_from_point(feature: GeoFeature):
         return None
     x, y = feature.coordinates
     return ReligiousStructureGenerator.from_osm_tags(
-        feature.properties, Point2D(x, y), ground_z=0.0,
+        feature.properties,
+        Point2D(x, y),
+        ground_z=0.0,
     )
 
 

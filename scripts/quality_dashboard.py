@@ -27,6 +27,7 @@ Kullanım::
     python3 scripts/quality_dashboard.py               # çalıştır + logla
     python3 scripts/quality_dashboard.py --no-log       # sadece anlık görüntü, geçmişe ekleme
 """
+
 from __future__ import annotations
 
 import json
@@ -42,20 +43,27 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from visual_regression import _DEMO_CASES, SEED  # noqa: E402
-
 from harita.building_reconstruction import (  # noqa: E402
-    BuildingType, Footprint, ProceduralBuildingGenerator,
+    Footprint,
+    ProceduralBuildingGenerator,
 )
 from harita.mesh_engine.quality_metrics import BatchQualityAnalyzer  # noqa: E402
+from visual_regression import _DEMO_CASES, SEED  # noqa: E402
 
-HISTORY_PATH = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "quality_dashboard_history.jsonl"
-DASHBOARD_HTML_PATH = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "quality_dashboard.html"
+HISTORY_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "tests"
+    / "fixtures"
+    / "quality_dashboard_history.jsonl"
+)
+DASHBOARD_HTML_PATH = (
+    Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "quality_dashboard.html"
+)
 
 MAX_HISTORY_POINTS_IN_CHART = 50
 
 
-def _build_demo_meshes() -> dict[str, "object"]:
+def _build_demo_meshes() -> dict[str, object]:
     """`visual_regression._DEMO_CASES`'i kullanarak deterministik mesh
     seti üretir - iki script aynı bina setini görür, farklı iki demo veri
     setinin yönetim yükünden kaçınılır."""
@@ -90,7 +98,9 @@ def run_dashboard_snapshot() -> dict:
         "watertight_ratio": round(report.watertight_ratio, 4),
         "total_non_manifold_edges": sum(r.non_manifold_edge_count for r in report.reports),
         "total_degenerate_triangles": sum(r.degenerate_triangle_count for r in report.reports),
-        "min_normal_consistency": round(min((r.normal_consistency_ratio for r in report.reports), default=1.0), 4),
+        "min_normal_consistency": round(
+            min((r.normal_consistency_ratio for r in report.reports), default=1.0), 4
+        ),
         "cases": [
             {
                 "name": r.mesh_name,
@@ -120,7 +130,9 @@ def load_history() -> list[dict]:
     return [json.loads(line) for line in lines if line.strip()]
 
 
-def _sparkline_svg(values: list[float], width: int = 300, height: int = 60, color: str = "#2563eb") -> str:
+def _sparkline_svg(
+    values: list[float], width: int = 300, height: int = 60, color: str = "#2563eb"
+) -> str:
     """Bağımlılıksız (saf SVG) küçük trend grafiği - harici bir çizim
     kütüphanesi (matplotlib vb.) gerektirmez, stdlib-only ilkesine uygun."""
     if not values:
@@ -147,7 +159,9 @@ def _sparkline_svg(values: list[float], width: int = 300, height: int = 60, colo
 def render_html(snapshot: dict, history: list[dict]) -> str:
     recent = history[-MAX_HISTORY_POINTS_IN_CHART:]
     tri_trend = _sparkline_svg([h["total_triangles"] for h in recent], color="#2563eb")
-    watertight_trend = _sparkline_svg([h["watertight_ratio"] * 100 for h in recent], color="#16a34a")
+    watertight_trend = _sparkline_svg(
+        [h["watertight_ratio"] * 100 for h in recent], color="#16a34a"
+    )
     nm_trend = _sparkline_svg([h["total_non_manifold_edges"] for h in recent], color="#dc2626")
 
     rows = "\n".join(
@@ -180,14 +194,14 @@ def render_html(snapshot: dict, history: list[dict]) -> str:
 </head>
 <body>
 <h1>Mesh Kalite Dashboard (ROADMAP_V5 Track Q / Q2)</h1>
-<p class="meta">Son çalıştırma: {snapshot['timestamp']} - {len(history)} kayıt geçmişte mevcut.</p>
+<p class="meta">Son çalıştırma: {snapshot["timestamp"]} - {len(history)} kayıt geçmişte mevcut.</p>
 
 <div class="cards">
-  <div class="card"><div class="label">Toplam Üçgen</div><div class="value">{snapshot['total_triangles']}</div></div>
-  <div class="card"><div class="label">Watertight Oranı</div><div class="value">{snapshot['watertight_ratio']:.1%}</div></div>
-  <div class="card"><div class="label">Non-manifold Kenar</div><div class="value">{snapshot['total_non_manifold_edges']}</div></div>
-  <div class="card"><div class="label">Dejenere Üçgen</div><div class="value">{snapshot['total_degenerate_triangles']}</div></div>
-  <div class="card"><div class="label">Min. Normal Tutarlılığı</div><div class="value">{snapshot['min_normal_consistency']:.3f}</div></div>
+  <div class="card"><div class="label">Toplam Üçgen</div><div class="value">{snapshot["total_triangles"]}</div></div>
+  <div class="card"><div class="label">Watertight Oranı</div><div class="value">{snapshot["watertight_ratio"]:.1%}</div></div>
+  <div class="card"><div class="label">Non-manifold Kenar</div><div class="value">{snapshot["total_non_manifold_edges"]}</div></div>
+  <div class="card"><div class="label">Dejenere Üçgen</div><div class="value">{snapshot["total_degenerate_triangles"]}</div></div>
+  <div class="card"><div class="label">Min. Normal Tutarlılığı</div><div class="value">{snapshot["min_normal_consistency"]:.3f}</div></div>
 </div>
 
 <h2>Trend - Toplam Üçgen Sayısı</h2>

@@ -15,6 +15,7 @@ uygulanır; tıpkı `commerce_props.osm_bridge`'in `outdoor_seating=yes`
 filtresini aynı şekilde ele alması gibi (B4 "eksik/çelişkili tag" ilkesi:
 eşleşmeyen tower tipi sessizce atlanır, sahneyi bozmaz).
 """
+
 from __future__ import annotations
 
 from ..core_engine.geometry_engine import Point2D, Polygon

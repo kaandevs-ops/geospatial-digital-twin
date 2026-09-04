@@ -31,6 +31,7 @@ placeholder'ına düşer; ağ erişimi olan bir ortamda değişiklik yapmadan
 gerçek ambientCG dokuları devreye girer. Bu bilinçli bir tasarım, eksik
 değil - `PBRMaterialLibrary` zaten bunun için var.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -83,7 +84,9 @@ def resolve_building_materials(
     result: dict[str, PBRMaterial] = {}
     for surface_class, prediction in predictions.items():
         material, _source = resolve_pbr_material(
-            prediction, variation_seed=variation_seed, library=library,
+            prediction,
+            variation_seed=variation_seed,
+            library=library,
         )
         result[surface_class.value] = material
     return result

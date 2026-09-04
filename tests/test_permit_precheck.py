@@ -1,5 +1,3 @@
-import pytest
-
 from harita.building_reconstruction import (
     BuildingType,
     Footprint,
@@ -14,7 +12,10 @@ def _make_building(floor_count=5):
     poly = Polygon(points=[Point2D(0, 0), Point2D(10, 0), Point2D(10, 8), Point2D(0, 8)])
     footprint = Footprint(polygon=poly)
     return ProceduralBuildingGenerator.generate(
-        footprint, building_type=BuildingType.APARTMAN, floor_count=floor_count, seed=1,
+        footprint,
+        building_type=BuildingType.APARTMAN,
+        floor_count=floor_count,
+        seed=1,
     )
 
 
@@ -23,7 +24,12 @@ def test_no_plot_no_plan_defaults_to_likely_pass_or_revision():
     report = precheck_building(b)
     assert report.verdict in (PermitVerdict.LIKELY_PASS, PermitVerdict.NEEDS_REVISION)
     codes = {i.code for i in report.items}
-    assert {"window_wall_ratio", "fire_escape_route", "setback_distance", "structural_plausibility"} <= codes
+    assert {
+        "window_wall_ratio",
+        "fire_escape_route",
+        "setback_distance",
+        "structural_plausibility",
+    } <= codes
 
 
 def test_setback_violation_fails():

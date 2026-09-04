@@ -20,6 +20,7 @@ tag'e bağlı filtreleme `DEFAULT_CATEGORIES` seviyesinde değil, bu köprüde
 tag kombinasyonlarında heuristik" ilkesiyle tutarlı: `outdoor_seating`
 tag'i yoksa/`yes` değilse feature sessizce atlanır (sahneyi bozmaz).
 """
+
 from __future__ import annotations
 
 from ..core_engine.geometry_engine import Point2D

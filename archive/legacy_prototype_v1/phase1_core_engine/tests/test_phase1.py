@@ -13,7 +13,6 @@ veya bağımsız script olarak:
 from __future__ import annotations
 
 import asyncio
-import math
 import os
 import sys
 import tempfile
@@ -21,21 +20,34 @@ import tempfile
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from harita_modelleme.phase1_core_engine import (  # noqa: E402
-    WGS84, wgs84_to_web_mercator, web_mercator_to_wgs84,
-    wgs84_to_utm, utm_to_wgs84, haversine_distance_m,
-    LocalCoordinateSystem,
-    TileCoordinate, TileEngine, MemoryTileCache, DiskTileCache,
-    lonlat_to_tile, tile_to_lonlat_bounds,
-    parse_geojson, write_geojson, FeatureCollection, Feature,
+    WGS84,
+    DiskTileCache,
+    Feature,
+    FeatureCollection,
     FormatRegistry,
-    PolygonOps, LineOps, PointOps,
+    LineOps,
+    LocalCoordinateSystem,
+    MemoryTileCache,
+    PointOps,
+    PolygonOps,
+    TileCoordinate,
+    TileEngine,
+    haversine_distance_m,
+    lonlat_to_tile,
+    parse_geojson,
+    tile_to_lonlat_bounds,
+    utm_to_wgs84,
+    web_mercator_to_wgs84,
+    wgs84_to_utm,
+    wgs84_to_web_mercator,
+    write_geojson,
 )
 from harita_modelleme.phase1_core_engine.geojson_gis import FormatNotImplementedError
-
 
 # ============================================================================
 # COORDINATE SYSTEMS
 # ============================================================================
+
 
 def test_web_mercator_roundtrip():
     original = WGS84(lon=32.8597, lat=39.9334)  # Ankara
@@ -77,6 +89,7 @@ def test_local_coordinate_system_roundtrip():
 # ============================================================================
 # TILE ENGINE
 # ============================================================================
+
 
 def test_tile_math_roundtrip_bounds_contains_point():
     lon, lat, zoom = 32.8597, 39.9334, 14
@@ -148,6 +161,7 @@ def test_visible_tiles_covers_viewport():
 # GEOJSON / GIS CORE
 # ============================================================================
 
+
 def test_geojson_parse_polygon_feature():
     gj = {
         "type": "FeatureCollection",
@@ -157,10 +171,15 @@ def test_geojson_parse_polygon_feature():
                 "properties": {"name": "test-bina"},
                 "geometry": {
                     "type": "Polygon",
-                    "coordinates": [[
-                        [32.85, 39.93], [32.86, 39.93], [32.86, 39.94],
-                        [32.85, 39.94], [32.85, 39.93],
-                    ]],
+                    "coordinates": [
+                        [
+                            [32.85, 39.93],
+                            [32.86, 39.93],
+                            [32.86, 39.94],
+                            [32.85, 39.94],
+                            [32.85, 39.93],
+                        ]
+                    ],
                 },
             }
         ],
@@ -174,9 +193,11 @@ def test_geojson_parse_polygon_feature():
 
 
 def test_geojson_roundtrip_string():
-    fc = FeatureCollection(features=[
-        Feature(geometry={"type": "Point", "coordinates": [32.85, 39.93]}, properties={"a": 1})
-    ])
+    fc = FeatureCollection(
+        features=[
+            Feature(geometry={"type": "Point", "coordinates": [32.85, 39.93]}, properties={"a": 1})
+        ]
+    )
     text = write_geojson(fc)
     fc2 = parse_geojson(text)
     assert fc2.features[0].geometry["coordinates"] == [32.85, 39.93]
@@ -195,7 +216,9 @@ def test_format_registry_geojson_works_and_others_are_explicit_not_implemented()
     registry = FormatRegistry()
     assert "geojson" in registry.supported_formats()
     assert "shapefile" in registry.planned_formats()
-    fc = FeatureCollection(features=[Feature(geometry={"type": "Point", "coordinates": [1.0, 2.0]})])
+    fc = FeatureCollection(
+        features=[Feature(geometry={"type": "Point", "coordinates": [1.0, 2.0]})]
+    )
     data = registry.write("geojson", fc)
     fc_back = registry.read("geojson", data)
     assert fc_back.features[0].geometry["coordinates"] == [1.0, 2.0]
@@ -210,6 +233,7 @@ def test_format_registry_geojson_works_and_others_are_explicit_not_implemented()
 # ============================================================================
 # GEOMETRY ENGINE
 # ============================================================================
+
 
 def test_polygon_area_and_centroid_square():
     square = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]

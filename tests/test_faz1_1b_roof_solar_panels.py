@@ -11,8 +11,6 @@ from __future__ import annotations
 
 import math
 
-import pytest
-
 from harita.building_reconstruction.roof_generator import RoofDetailGenerator, RoofGenerator
 from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.mesh_engine.quality_metrics import MeshQualityAnalyzer
@@ -28,7 +26,10 @@ class TestSolarPanels:
         roof = RoofGenerator.solar(polygon, base_z=10.0, pitch_deg=15.0)
         base_v, base_t = roof.vertex_count(), roof.triangle_count()
         with_panels = RoofDetailGenerator.add_solar_panels(
-            roof, polygon, base_z=10.0, pitch_deg=15.0,
+            roof,
+            polygon,
+            base_z=10.0,
+            pitch_deg=15.0,
         )
         assert with_panels.vertex_count() > base_v
         assert with_panels.triangle_count() > base_t
@@ -44,7 +45,10 @@ class TestSolarPanels:
         roof = RoofGenerator.solar(polygon, base_z=0.0, pitch_deg=15.0)
         base_report = MeshQualityAnalyzer.analyze(roof)
         with_panels = RoofDetailGenerator.add_solar_panels(
-            roof, polygon, base_z=0.0, pitch_deg=15.0,
+            roof,
+            polygon,
+            base_z=0.0,
+            pitch_deg=15.0,
         )
         report = MeshQualityAnalyzer.analyze(with_panels)
         assert report.degenerate_triangle_count == base_report.degenerate_triangle_count
@@ -57,12 +61,17 @@ class TestSolarPanels:
         pitch_deg = 20.0
         roof = RoofGenerator.solar(polygon, base_z=base_z, pitch_deg=pitch_deg)
         with_panels = RoofDetailGenerator.add_solar_panels(
-            roof, polygon, base_z=base_z, pitch_deg=pitch_deg,
-            panel_w=1.0, panel_d=1.6, thickness=0.04,
+            roof,
+            polygon,
+            base_z=base_z,
+            pitch_deg=pitch_deg,
+            panel_w=1.0,
+            panel_d=1.6,
+            thickness=0.04,
         )
         # Sadece panel vertex'lerini (roof'tan sonra eklenenler) al
         roof_only = RoofGenerator.solar(polygon, base_z=base_z, pitch_deg=pitch_deg)
-        panel_verts = with_panels.vertices[roof_only.vertex_count():]
+        panel_verts = with_panels.vertices[roof_only.vertex_count() :]
         assert len(panel_verts) > 0
 
         span = 12.0
@@ -79,7 +88,11 @@ class TestSolarPanels:
         polygon = _rect_polygon(w=1.0, d=1.0)
         roof = RoofGenerator.solar(polygon, base_z=0.0, pitch_deg=15.0)
         result = RoofDetailGenerator.add_solar_panels(
-            roof, polygon, base_z=0.0, pitch_deg=15.0, margin=0.5,
+            roof,
+            polygon,
+            base_z=0.0,
+            pitch_deg=15.0,
+            margin=0.5,
         )
         assert result.vertex_count() == roof.vertex_count()
 
@@ -92,10 +105,16 @@ class TestSolarPanels:
         big_roof = RoofGenerator.solar(big_polygon, base_z=0.0, pitch_deg=15.0)
 
         small_with_panels = RoofDetailGenerator.add_solar_panels(
-            small_roof, small_polygon, base_z=0.0, pitch_deg=15.0,
+            small_roof,
+            small_polygon,
+            base_z=0.0,
+            pitch_deg=15.0,
         )
         big_with_panels = RoofDetailGenerator.add_solar_panels(
-            big_roof, big_polygon, base_z=0.0, pitch_deg=15.0,
+            big_roof,
+            big_polygon,
+            base_z=0.0,
+            pitch_deg=15.0,
         )
 
         small_panel_verts = small_with_panels.vertex_count() - small_roof.vertex_count()

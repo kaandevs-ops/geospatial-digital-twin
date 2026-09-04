@@ -31,16 +31,16 @@ class RegulationProfile:
 
     name: str
     source_label: str
-    min_room_area_m2: Dict[str, float]
+    min_room_area_m2: dict[str, float]
     min_corridor_width_m: float
-    min_window_wall_ratio: Dict[str, float]
+    min_window_wall_ratio: dict[str, float]
     fire_escape_min_floors: int
     # yeni_roadmap.md Faz 1.4: "Malzeme-yönetmelik ilişkisi: bazı
     # bölgelerde cephe malzemesi kısıtlı olabilir (tarihi doku, iklim
     # bölgesi)". None -> kısıt yok (geriye dönük uyumlu varsayılan).
     # Anahtar: bina tipi (veya "_default"), değer: izinli malzeme
     # (`FacadeMaterial.value`) adları kümesi.
-    allowed_facade_materials: Optional[Dict[str, "frozenset[str]"]] = None
+    allowed_facade_materials: dict[str, frozenset[str]] | None = None
     # Roadmap V9 / Katman 7.3 ("Bina Kapasite Simülasyonu"): "kapasite
     # eşiği uyarısı (TBDY/yönetmelikteki maksimum kabul edilebilir
     # tahliye süresine göre 'güvenli/riskli' etiketi - eşik değeri
@@ -51,9 +51,9 @@ class RegulationProfile:
     # kavramının literatürde sık atıf yapılan genel eğilimine dayanan
     # kaba bir eşik (tek bir ulusal standardın kesin sayısı olarak
     # sunulmaz - `risk_scoring.py` ile aynı disiplin).
-    max_evacuation_time_s: Optional[Dict[str, float]] = None
+    max_evacuation_time_s: dict[str, float] | None = None
 
-    def evacuation_time_threshold_s(self, building_type: Optional[str]) -> Optional[float]:
+    def evacuation_time_threshold_s(self, building_type: str | None) -> float | None:
         """Verilen bina tipi için azami kabul edilebilir tahliye süresi
         (saniye). Tanımlı değilse `None` döner (eşik uygulanamaz -
         sessizce 'güvenli' varsayılmaz, çağıran taraf bunu ayrıca
@@ -61,11 +61,9 @@ class RegulationProfile:
         if not self.max_evacuation_time_s:
             return None
         key = (building_type or "").lower()
-        return self.max_evacuation_time_s.get(
-            key, self.max_evacuation_time_s.get("_default")
-        )
+        return self.max_evacuation_time_s.get(key, self.max_evacuation_time_s.get("_default"))
 
-    def facade_material_allowed(self, building_type: Optional[str], material_value: str) -> bool:
+    def facade_material_allowed(self, building_type: str | None, material_value: str) -> bool:
         """Verilen bina tipi için `material_value` (`FacadeMaterial.value`,
         örn. 'cam') bu profilde izinli mi? Kısıt tanımlanmamışsa (varsayılan
         None) her zaman True döner - mevcut davranış değişmez."""
@@ -79,16 +77,14 @@ class RegulationProfile:
             return True
         return material_value in allowed
 
-    def room_area_threshold(self, room_type: str) -> Optional[float]:
+    def room_area_threshold(self, room_type: str) -> float | None:
         return self.min_room_area_m2.get(room_type)
 
-    def window_ratio_threshold(self, building_type: Optional[str]) -> float:
+    def window_ratio_threshold(self, building_type: str | None) -> float:
         key = (building_type or "").lower()
-        return self.min_window_wall_ratio.get(
-            key, self.min_window_wall_ratio.get("_default", 0.10)
-        )
+        return self.min_window_wall_ratio.get(key, self.min_window_wall_ratio.get("_default", 0.10))
 
-    def with_overrides(self, **kwargs) -> "RegulationProfile":
+    def with_overrides(self, **kwargs) -> RegulationProfile:
         """Belirli alanlari degistirerek yeni bir profil turetir (test/
         senaryo amacli - orijinal profil degismez, `frozen=True`)."""
         return replace(self, **kwargs)
@@ -100,8 +96,8 @@ def _build_default_tr_profile() -> RegulationProfile:
     kaynak ilkesi) ice aktararak varsayilan profili olusturur."""
     # Gecikmeli import: dongusel import onlemek icin (bu paketler de
     # ileride `regulations`'a bagimli olabilir).
-    from ..room_generator import MIN_ROOM_AREA_M2, MIN_CORRIDOR_WIDTH_M
-    from ..facade_generator import MIN_WINDOW_WALL_RATIO, FIRE_ESCAPE_MIN_FLOORS
+    from ..facade_generator import FIRE_ESCAPE_MIN_FLOORS, MIN_WINDOW_WALL_RATIO
+    from ..room_generator import MIN_CORRIDOR_WIDTH_M, MIN_ROOM_AREA_M2
 
     return RegulationProfile(
         name="TR_PAIY_ISO_BYKHY",
@@ -142,7 +138,8 @@ def _build_strict_reference_profile() -> RegulationProfile:
     stricter_ratios = {k: min(v * 1.5, 0.6) for k, v in base.min_window_wall_ratio.items()}
     stricter_evac_times = (
         {k: v * 0.8 for k, v in base.max_evacuation_time_s.items()}
-        if base.max_evacuation_time_s else None
+        if base.max_evacuation_time_s
+        else None
     )
     return RegulationProfile(
         name="STRICT_REFERENCE",
@@ -189,7 +186,7 @@ def _build_historic_zone_profile() -> RegulationProfile:
 # ------------------------------------------------------------------ #
 # Kayit defteri - isimden profile erisim
 # ------------------------------------------------------------------ #
-_REGISTRY: Dict[str, RegulationProfile] = {}
+_REGISTRY: dict[str, RegulationProfile] = {}
 
 
 def _ensure_registry() -> None:

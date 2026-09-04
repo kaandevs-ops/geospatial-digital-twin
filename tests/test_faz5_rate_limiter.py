@@ -17,7 +17,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import tempfile
 
 import pytest
-
 from harita.app_shell.api import build_app_router
 from harita.app_shell.session import AppSession
 from harita.collaboration.auth import (
@@ -158,7 +157,8 @@ class TestOsmImportRateLimitHttp:
             return client
 
         monkeypatch.setattr(
-            "harita.app_shell.session.OverpassClient", _fail_client,
+            "harita.app_shell.session.OverpassClient",
+            _fail_client,
         )
         body = dict(south=39.9198, west=32.8539, north=39.9215, east=32.8557)
         statuses = []

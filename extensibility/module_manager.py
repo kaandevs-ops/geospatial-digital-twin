@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import importlib
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class ModuleNotEnabledError(Exception):
@@ -41,7 +41,7 @@ class ModuleManager:
     """`harita.<alt_paket>` modüllerinin lazy-load + enable/disable yönetimi."""
 
     #: Roadmap'teki 14 faz ile birebir eşleşen varsayılan modül haritası.
-    DEFAULT_MODULES: Dict[str, str] = {
+    DEFAULT_MODULES: dict[str, str] = {
         "core_engine": "harita.core_engine",
         "terrain_engine": "harita.terrain_engine",
         "mesh_engine": "harita.mesh_engine",
@@ -106,7 +106,7 @@ class ModuleManager:
     }
 
     def __init__(self, register_defaults: bool = True) -> None:
-        self._modules: Dict[str, ModuleRecord] = {}
+        self._modules: dict[str, ModuleRecord] = {}
         if register_defaults:
             for name, path in self.DEFAULT_MODULES.items():
                 self.register(name, path)
@@ -131,10 +131,10 @@ class ModuleManager:
             raise ModuleNotEnabledError(f"Modül devre dışı: {name}")
         return record.load()
 
-    def list_modules(self) -> List[str]:
+    def list_modules(self) -> list[str]:
         return list(self._modules.keys())
 
-    def enabled_modules(self) -> List[str]:
+    def enabled_modules(self) -> list[str]:
         return [n for n, r in self._modules.items() if r.enabled]
 
     def _require(self, name: str) -> ModuleRecord:
@@ -146,14 +146,14 @@ class ModuleManager:
 @dataclass
 class Theme:
     name: str
-    colors: Dict[str, str] = field(default_factory=dict)
-    fonts: Dict[str, str] = field(default_factory=dict)
-    extra: Dict[str, Any] = field(default_factory=dict)
+    colors: dict[str, str] = field(default_factory=dict)
+    fonts: dict[str, str] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
     def get_color(self, key: str, default: str = "#000000") -> str:
         return self.colors.get(key, default)
 
-    def merged_with(self, overrides: "Theme") -> "Theme":
+    def merged_with(self, overrides: Theme) -> Theme:
         """Bu temayı temel alıp `overrides` ile eşlenmiş yeni bir tema üretir."""
         return Theme(
             name=overrides.name,
@@ -192,17 +192,17 @@ class ThemeSystem:
     """Editor/Visualization için isimlendirilmiş tema kayıt defteri."""
 
     def __init__(self) -> None:
-        self._themes: Dict[str, Theme] = {
+        self._themes: dict[str, Theme] = {
             "dark": _DEFAULT_DARK,
             "light": _DEFAULT_LIGHT,
         }
         self._active = "dark"
-        self._listeners: List[Any] = []
+        self._listeners: list[Any] = []
 
     def register_theme(self, theme: Theme) -> None:
         self._themes[theme.name] = theme
 
-    def get_theme(self, name: Optional[str] = None) -> Theme:
+    def get_theme(self, name: str | None = None) -> Theme:
         name = name or self._active
         if name not in self._themes:
             raise KeyError(f"Bilinmeyen tema: {name}")
@@ -219,7 +219,7 @@ class ThemeSystem:
     def active_theme(self) -> Theme:
         return self._themes[self._active]
 
-    def list_themes(self) -> List[str]:
+    def list_themes(self) -> list[str]:
         return list(self._themes.keys())
 
     def on_change(self, listener) -> None:  # noqa: ANN001

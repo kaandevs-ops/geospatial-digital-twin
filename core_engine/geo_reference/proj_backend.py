@@ -119,8 +119,10 @@ def transform_datum(
     try:
         # pyproj >= 2.x: transformer.transformer.accuracy (dahili, garantisiz)
         pipeline = pyproj.Transformer.from_crs(
-            f"EPSG:{source_epsg}", f"EPSG:{target_epsg}",
-            always_xy=True, accuracy=None,
+            f"EPSG:{source_epsg}",
+            f"EPSG:{target_epsg}",
+            always_xy=True,
+            accuracy=None,
         )
         accuracy = getattr(pipeline, "accuracy", None)
     except Exception:  # pragma: no cover - tanılama, kritik değil
@@ -146,17 +148,18 @@ def round_trip_error_m(point: GeoPoint, via_epsg: int, wgs84_epsg: int = 4326) -
     from ..coordinate_systems import CoordinateConverter
 
     forward = transform_datum(point, wgs84_epsg, via_epsg)
-    back_point = GeoPoint(lat=forward.lat, lon=forward.lon, elevation=point.elevation) \
-        if via_epsg == wgs84_epsg else None
+    back_point = (
+        GeoPoint(lat=forward.lat, lon=forward.lon, elevation=point.elevation)
+        if via_epsg == wgs84_epsg
+        else None
+    )
     if back_point is None:
         # via_epsg'den geri WGS84'e
         intermediate = pyproj.Transformer.from_crs(
             f"EPSG:{wgs84_epsg}", f"EPSG:{via_epsg}", always_xy=True
         )
         lon_v, lat_v = intermediate.transform(point.lon, point.lat)
-        back = pyproj.Transformer.from_crs(
-            f"EPSG:{via_epsg}", f"EPSG:{wgs84_epsg}", always_xy=True
-        )
+        back = pyproj.Transformer.from_crs(f"EPSG:{via_epsg}", f"EPSG:{wgs84_epsg}", always_xy=True)
         lon_b, lat_b = back.transform(lon_v, lat_v)
         back_point = GeoPoint(lat=lat_b, lon=lon_b)
     return CoordinateConverter.haversine_distance(point, back_point)

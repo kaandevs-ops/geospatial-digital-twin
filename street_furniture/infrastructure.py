@@ -28,15 +28,15 @@ tutarlı.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from ..core_engine.geometry_engine import Point2D, Polygon
 from ..mesh_engine import Mesh3D, MeshBuilder, MeshMerger, UVGenerator
 
-
 # ============================================================================ #
 # Köprü (Bridge)
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class BridgeSpec:
@@ -98,7 +98,9 @@ class BridgeGenerator:
         `pier_ground_z` arasına inen silindirlerdir."""
         deck_footprint = BridgeGenerator._deck_footprint(spec.path, spec.deck_width_m)
         deck_mesh = MeshBuilder.extrude_polygon(
-            deck_footprint, spec.deck_z - spec.deck_thickness_m, spec.deck_thickness_m,
+            deck_footprint,
+            spec.deck_z - spec.deck_thickness_m,
+            spec.deck_thickness_m,
             name="bridge_deck",
         )
         parts = [deck_mesh]
@@ -118,17 +120,19 @@ class BridgeGenerator:
                 mx, my = (ra.x + rb.x) / 2.0, (ra.y + rb.y) / 2.0
                 angle = math.atan2(rb.y - ra.y, rb.x - ra.x)
                 railing = MeshBuilder.build_box(
-                    width=seg_len, depth=0.08, height=spec.railing_height_m,
-                    center_x=0.0, center_y=0.0, base_z=spec.deck_z,
+                    width=seg_len,
+                    depth=0.08,
+                    height=spec.railing_height_m,
+                    center_x=0.0,
+                    center_y=0.0,
+                    base_z=spec.deck_z,
                     name=f"bridge_railing_{side_name}_{i}",
                 )
                 railing = _rotate_translate_mesh_xy(railing, angle, mx, my)
                 parts.append(railing)
 
         # Ayaklar: güzergah uzunluğu boyunca `pier_spacing_m` aralıklarla.
-        total_length = sum(
-            spec.path[i].distance_to(spec.path[i + 1]) for i in range(n - 1)
-        )
+        total_length = sum(spec.path[i].distance_to(spec.path[i + 1]) for i in range(n - 1))
         if total_length > 1e-6 and spec.pier_spacing_m > 0:
             n_piers = max(2, int(total_length / spec.pier_spacing_m) + 1)
             pier_height = max(0.1, spec.deck_z - spec.deck_thickness_m - spec.pier_ground_z)
@@ -136,9 +140,13 @@ class BridgeGenerator:
                 t = k / (n_piers - 1) if n_piers > 1 else 0.0
                 pos = _point_along_path(spec.path, t)
                 pier = MeshBuilder.build_cylinder(
-                    radius=spec.pier_radius_m, height=pier_height,
-                    center_x=pos.x, center_y=pos.y, base_z=spec.pier_ground_z,
-                    segments=10, name=f"bridge_pier_{k}",
+                    radius=spec.pier_radius_m,
+                    height=pier_height,
+                    center_x=pos.x,
+                    center_y=pos.y,
+                    base_z=spec.pier_ground_z,
+                    segments=10,
+                    name=f"bridge_pier_{k}",
                 )
                 parts.append(pier)
 
@@ -186,13 +194,18 @@ def _rotate_translate_mesh_xy(mesh: Mesh3D, angle_rad: float, cx: float, cy: flo
         if v.normal is not None:
             nx, ny = v.normal[0], v.normal[1]
             new_normal = (nx * cos_a - ny * sin_a, nx * sin_a + ny * cos_a, v.normal[2])
-        new_vertices.append(type(v)(cx + rx, cy + ry, v.z, normal=new_normal, tangent=v.tangent, uv=v.uv))
-    return Mesh3D(vertices=new_vertices, triangles=list(mesh.triangles), uvs=list(mesh.uvs), name=mesh.name)
+        new_vertices.append(
+            type(v)(cx + rx, cy + ry, v.z, normal=new_normal, tangent=v.tangent, uv=v.uv)
+        )
+    return Mesh3D(
+        vertices=new_vertices, triangles=list(mesh.triangles), uvs=list(mesh.uvs), name=mesh.name
+    )
 
 
 # ============================================================================ #
 # Tünel Duvarı (Tunnel Wall) — ROADMAP_V8 Faz 6.2 tamamlama maddesi
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class TunnelSpec:
@@ -208,7 +221,7 @@ class TunnelSpec:
     road_width_m: float = 6.0
     wall_thickness_m: float = 0.3
     wall_height_above_road_m: float = 1.2  # duvar, yol tabanından ne kadar yükseğe çıkar
-    road_z: float = -4.0                    # DEFAULT_TUNNEL_DEPTH_M ile tutarlı
+    road_z: float = -4.0  # DEFAULT_TUNNEL_DEPTH_M ile tutarlı
     ground_z: float = 0.0
     floor_thickness_m: float = 0.2
 
@@ -228,7 +241,9 @@ class TunnelGenerator:
         # Taban döşemesi (yol genişliğinde, road_z hizasında ince prizma).
         floor_footprint = BridgeGenerator._deck_footprint(spec.path, spec.road_width_m)
         floor_mesh = MeshBuilder.extrude_polygon(
-            floor_footprint, spec.road_z - spec.floor_thickness_m, spec.floor_thickness_m,
+            floor_footprint,
+            spec.road_z - spec.floor_thickness_m,
+            spec.floor_thickness_m,
             name="tunnel_floor",
         )
         parts = [floor_mesh]
@@ -254,8 +269,12 @@ class TunnelGenerator:
                 mx, my = (ra.x + rb.x) / 2.0, (ra.y + rb.y) / 2.0
                 angle = math.atan2(rb.y - ra.y, rb.x - ra.x)
                 wall = MeshBuilder.build_box(
-                    width=seg_len, depth=spec.wall_thickness_m, height=wall_height,
-                    center_x=0.0, center_y=0.0, base_z=spec.road_z,
+                    width=seg_len,
+                    depth=spec.wall_thickness_m,
+                    height=wall_height,
+                    center_x=0.0,
+                    center_y=0.0,
+                    base_z=spec.road_z,
                     name=f"tunnel_wall_{side_name}_{i}",
                 )
                 wall = _rotate_translate_mesh_xy(wall, angle, mx, my)
@@ -272,6 +291,7 @@ class TunnelGenerator:
 # ============================================================================ #
 # Su Yüzeyleri (Water Surfaces)
 # ============================================================================ #
+
 
 class WaterSurfaceGenerator:
     """Roadmap M2.5: 'Su yüzeyleri: deniz/göl/nehir düzlemleri, basit
@@ -310,14 +330,19 @@ class WaterSurfaceGenerator:
 
     @staticmethod
     def rectangular_surface(
-        center: Point2D, width_m: float, depth_m: float, z: float = 0.0,
+        center: Point2D,
+        width_m: float,
+        depth_m: float,
+        z: float = 0.0,
         name: str = "water_surface",
     ) -> Mesh3D:
         """Basit dikdörtgen su yüzeyi (deniz/göl için hızlı bbox yaklaşımı)."""
         hw, hd = width_m / 2.0, depth_m / 2.0
         ring = [
-            Point2D(center.x - hw, center.y - hd), Point2D(center.x + hw, center.y - hd),
-            Point2D(center.x + hw, center.y + hd), Point2D(center.x - hw, center.y + hd),
+            Point2D(center.x - hw, center.y - hd),
+            Point2D(center.x + hw, center.y - hd),
+            Point2D(center.x + hw, center.y + hd),
+            Point2D(center.x - hw, center.y + hd),
         ]
         return WaterSurfaceGenerator.polygon_surface(Polygon(ring), z=z, name=name)
 
@@ -325,6 +350,7 @@ class WaterSurfaceGenerator:
 # ============================================================================ #
 # Peyzaj Detayları (Sidewalk / Curb / Crosswalk / Parking Lines)
 # ============================================================================ #
+
 
 class LandscapeDetailGenerator:
     """Roadmap M2.5: 'Peyzaj elemanları: kaldırım, bordür, yaya geçidi
@@ -339,8 +365,12 @@ class LandscapeDetailGenerator:
 
     @staticmethod
     def sidewalk_strip(
-        path: list[Point2D], width_m: float = 2.0, thickness_m: float = 0.12,
-        z: float = 0.0, offset_from_road_m: float = 0.0, name: str = "sidewalk",
+        path: list[Point2D],
+        width_m: float = 2.0,
+        thickness_m: float = 0.12,
+        z: float = 0.0,
+        offset_from_road_m: float = 0.0,
+        name: str = "sidewalk",
     ) -> Mesh3D:
         """Yol kenarı boyunca kaldırım şeridi. `offset_from_road_m`,
         yolun merkez hattından ne kadar uzağa (yol kenarına) yerleştirmek
@@ -348,17 +378,20 @@ class LandscapeDetailGenerator:
         verirse 0 bırakılabilir."""
         footprint = BridgeGenerator._deck_footprint(path, width_m)
         if offset_from_road_m:
-            footprint = Polygon([
-                Point2D(p.x, p.y + offset_from_road_m) for p in footprint.closed_ring()[:-1]
-            ])
+            footprint = Polygon(
+                [Point2D(p.x, p.y + offset_from_road_m) for p in footprint.closed_ring()[:-1]]
+            )
         return UVGenerator.planar_mapping(
             MeshBuilder.extrude_polygon(footprint, z, thickness_m, name=name), axis="z"
         )
 
     @staticmethod
     def curb_strip(
-        path: list[Point2D], height_m: float = 0.15, width_m: float = 0.15,
-        z: float = 0.0, name: str = "curb",
+        path: list[Point2D],
+        height_m: float = 0.15,
+        width_m: float = 0.15,
+        z: float = 0.0,
+        name: str = "curb",
     ) -> Mesh3D:
         """Bordür — kaldırımdan biraz daha yüksek, dar bir şerit."""
         footprint = BridgeGenerator._deck_footprint(path, width_m)
@@ -368,15 +401,21 @@ class LandscapeDetailGenerator:
 
     @staticmethod
     def crosswalk_stripes(
-        center: Point2D, direction_deg: float, road_width_m: float,
-        stripe_count: int = 6, stripe_width_m: float = 0.4, stripe_length_m: float = 0.5,
-        gap_m: float = 0.4, z: float = 0.02, name_prefix: str = "crosswalk",
+        center: Point2D,
+        direction_deg: float,
+        road_width_m: float,
+        stripe_count: int = 6,
+        stripe_width_m: float = 0.4,
+        stripe_length_m: float = 0.5,
+        gap_m: float = 0.4,
+        z: float = 0.02,
+        name_prefix: str = "crosswalk",
     ) -> Mesh3D:
         """Yaya geçidi (zebra) çizgileri — yol genişliği boyunca, hareket
         yönüne dik sıralanmış ince şeritler."""
         theta = math.radians(direction_deg)
-        along_x, along_y = math.cos(theta), math.sin(theta)   # yol yönü
-        perp_x, perp_y = -along_y, along_x                     # yol genişliği yönü
+        along_x, along_y = math.cos(theta), math.sin(theta)  # yol yönü
+        perp_x, perp_y = -along_y, along_x  # yol genişliği yönü
 
         stripes: list[Mesh3D] = []
         total_span = stripe_count * stripe_width_m + (stripe_count - 1) * gap_m
@@ -386,8 +425,13 @@ class LandscapeDetailGenerator:
             sx = center.x + perp_x * offset
             sy = center.y + perp_y * offset
             box = MeshBuilder.build_box(
-                width=stripe_length_m, depth=stripe_width_m, height=0.02,
-                center_x=0.0, center_y=0.0, base_z=z, name=f"{name_prefix}_{i}",
+                width=stripe_length_m,
+                depth=stripe_width_m,
+                height=0.02,
+                center_x=0.0,
+                center_y=0.0,
+                base_z=z,
+                name=f"{name_prefix}_{i}",
             )
             box = _rotate_translate_mesh_xy(box, theta, sx, sy)
             stripes.append(box)
@@ -395,9 +439,14 @@ class LandscapeDetailGenerator:
 
     @staticmethod
     def parking_lines(
-        origin: Point2D, direction_deg: float, stall_count: int,
-        stall_width_m: float = 2.5, stall_depth_m: float = 5.0,
-        line_thickness_m: float = 0.08, z: float = 0.02, name_prefix: str = "parking_line",
+        origin: Point2D,
+        direction_deg: float,
+        stall_count: int,
+        stall_width_m: float = 2.5,
+        stall_depth_m: float = 5.0,
+        line_thickness_m: float = 0.08,
+        z: float = 0.02,
+        name_prefix: str = "parking_line",
     ) -> Mesh3D:
         """Otopark çizgileri — art arda dizilmiş park yeri ayraç
         çizgileri (her ayraç, park yeri derinliği kadar uzunlukta ince
@@ -411,8 +460,13 @@ class LandscapeDetailGenerator:
             lx = origin.x + along_x * offset
             ly = origin.y + along_y * offset
             box = MeshBuilder.build_box(
-                width=line_thickness_m, depth=stall_depth_m, height=0.02,
-                center_x=0.0, center_y=0.0, base_z=z, name=f"{name_prefix}_{i}",
+                width=line_thickness_m,
+                depth=stall_depth_m,
+                height=0.02,
+                center_x=0.0,
+                center_y=0.0,
+                base_z=z,
+                name=f"{name_prefix}_{i}",
             )
             box = _rotate_translate_mesh_xy(box, theta + math.pi / 2.0, lx, ly)
             lines.append(box)

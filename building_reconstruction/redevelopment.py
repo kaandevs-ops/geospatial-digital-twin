@@ -27,8 +27,9 @@ tetikler, sonuçlar Katman 9'un before/after karşılaştırmasına girdi olur.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any
 
 from ..extensibility.city_events import CityEventType, emit_city_event
 from ..extensibility.event_system import EventSystem
@@ -42,10 +43,10 @@ class BuildingChangeRecord:
 
     building_id: str
     change_kind: str  # "demolished" | "rebuilt" | "floor_count_changed" | ...
-    old_floor_count: Optional[int] = None
-    new_floor_count: Optional[int] = None
-    old_building_type: Optional[str] = None
-    new_building_type: Optional[str] = None
+    old_floor_count: int | None = None
+    new_floor_count: int | None = None
+    old_building_type: str | None = None
+    new_building_type: str | None = None
 
 
 #: Bir yeniden-hesaplama callback'i: değişikliği alır, hangi katmanı
@@ -91,7 +92,11 @@ class BuildingRedevelopmentOrchestrator:
 
     def _on_building_changed(self, event: Any) -> None:
         payload = getattr(event, "payload", {}) or {}
-        change = BuildingChangeRecord(**payload) if not isinstance(payload, BuildingChangeRecord) else payload
+        change = (
+            BuildingChangeRecord(**payload)
+            if not isinstance(payload, BuildingChangeRecord)
+            else payload
+        )
         self.apply(change)
 
     def apply(self, change: BuildingChangeRecord) -> RedevelopmentReport:
@@ -111,7 +116,9 @@ class BuildingRedevelopmentOrchestrator:
         self.history.append(report)
         return report
 
-    def notify_building_changed(self, change: BuildingChangeRecord, *, source: str = "editor") -> RedevelopmentReport:
+    def notify_building_changed(
+        self, change: BuildingChangeRecord, *, source: str = "editor"
+    ) -> RedevelopmentReport:
         """Doğrudan çağrı yolu (Event Bus olmadan da kullanılabilir —
         örn. `app_shell.session`'ın senkron REST akışında): olayı yayınlar
         (varsa) ve yeniden hesaplamayı tetikler.
@@ -123,7 +130,8 @@ class BuildingRedevelopmentOrchestrator:
         """
         if self._bus is not None:
             event = emit_city_event(
-                self._bus, CityEventType.BUILDING_CHANGED,
+                self._bus,
+                CityEventType.BUILDING_CHANGED,
                 source=source,
                 building_id=change.building_id,
                 change_kind=change.change_kind,

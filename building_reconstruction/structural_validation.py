@@ -67,7 +67,7 @@ import math
 from dataclasses import dataclass, field
 from enum import Enum
 
-from ..core_engine.geometry_engine import Point2D, Polygon
+from ..core_engine.geometry_engine import Polygon
 
 
 class IssueSeverity(str, Enum):
@@ -104,7 +104,7 @@ class StructuralValidationReport:
 
 # Varsayılan limitler (tipik konut/ofis ölçeği; gerçek yönetmelik/mühendislik
 # hesabı yerine geçmez — bkz. modül docstring'i).
-DEFAULT_MAX_CANTILEVER_M = 1.8       # tipik balkon/çıkma projeksiyon limiti
+DEFAULT_MAX_CANTILEVER_M = 1.8  # tipik balkon/çıkma projeksiyon limiti
 #: Narinlik oranı eşiği (toplam yükseklik / en dar footprint boyutu, H/B).
 #: BU OTURUMDA DOĞRULANDI (resmigazete.gov.tr + afad.gov.tr TBDY 2018
 #: tam metni araştırıldı): TBDY 2018 Madde 3.3, Bina Yükseklik Sınıfını
@@ -118,8 +118,8 @@ DEFAULT_MAX_CANTILEVER_M = 1.8       # tipik balkon/çıkma projeksiyon limiti
 #: pratiğinde (rüzgar/devrilme stabilitesi ön-tasarım kontrolleri gibi
 #: TBDY-dışı bağlamlarda) sık atıfta bulunulan kaba bir eşiktir.
 DEFAULT_MAX_SLENDERNESS_RATIO = 8.0
-DEFAULT_MIN_FLOOR_HEIGHT_M = 2.2     # TSE/yönetmelik asgari net kat yüksekliği yaklaşıklaması
-DEFAULT_MAX_FLOOR_HEIGHT_M = 8.0     # bu değerin üzeri (asma kat/atrium hariç) olağandışı
+DEFAULT_MIN_FLOOR_HEIGHT_M = 2.2  # TSE/yönetmelik asgari net kat yüksekliği yaklaşıklaması
+DEFAULT_MAX_FLOOR_HEIGHT_M = 8.0  # bu değerin üzeri (asma kat/atrium hariç) olağandışı
 
 #: A1 (burulma düzensizliği) GEOMETRİK PROXY eşiği: footprint centroid'inin
 #: bounding-box merkezinden kayma oranı (kayma_mesafesi / karakteristik_boyut).
@@ -170,56 +170,72 @@ def validate_building(
     total_height = building.total_height_m
     slenderness = total_height / min_dim if min_dim > 0 else float("inf")
     if slenderness > max_slenderness_ratio:
-        issues.append(StructuralIssue(
-            code="excessive_slenderness",
-            severity=IssueSeverity.CRITICAL if slenderness > max_slenderness_ratio * 1.5 else IssueSeverity.WARNING,
-            message=(
-                f"Bina çok ince/uzun görünüyor (yükseklik/en-dar-kenar oranı "
-                f"{slenderness:.1f}, limit {max_slenderness_ratio:.1f}). Gerçek "
-                "yapısal analiz olmadan bu geometri fiziksel olarak riskli kabul edilmeli."
-            ),
-            value=slenderness, limit=max_slenderness_ratio,
-        ))
+        issues.append(
+            StructuralIssue(
+                code="excessive_slenderness",
+                severity=IssueSeverity.CRITICAL
+                if slenderness > max_slenderness_ratio * 1.5
+                else IssueSeverity.WARNING,
+                message=(
+                    f"Bina çok ince/uzun görünüyor (yükseklik/en-dar-kenar oranı "
+                    f"{slenderness:.1f}, limit {max_slenderness_ratio:.1f}). Gerçek "
+                    "yapısal analiz olmadan bu geometri fiziksel olarak riskli kabul edilmeli."
+                ),
+                value=slenderness,
+                limit=max_slenderness_ratio,
+            )
+        )
 
     # -- 2) Kat yüksekliği sağlığı ---------------------------------------- #
     for floor in building.floors:
         if floor.height_m < min_floor_height_m:
-            issues.append(StructuralIssue(
-                code="floor_height_too_low",
-                severity=IssueSeverity.WARNING,
-                message=(
-                    f"Kat {floor.level}: yükseklik {floor.height_m:.2f} m, "
-                    f"asgari makul değer {min_floor_height_m:.2f} m'nin altında."
-                ),
-                value=floor.height_m, limit=min_floor_height_m,
-            ))
+            issues.append(
+                StructuralIssue(
+                    code="floor_height_too_low",
+                    severity=IssueSeverity.WARNING,
+                    message=(
+                        f"Kat {floor.level}: yükseklik {floor.height_m:.2f} m, "
+                        f"asgari makul değer {min_floor_height_m:.2f} m'nin altında."
+                    ),
+                    value=floor.height_m,
+                    limit=min_floor_height_m,
+                )
+            )
         elif floor.height_m > max_floor_height_m:
-            issues.append(StructuralIssue(
-                code="floor_height_unusually_high",
-                severity=IssueSeverity.INFO,
-                message=(
-                    f"Kat {floor.level}: yükseklik {floor.height_m:.2f} m, "
-                    f"olağan üst sınır {max_floor_height_m:.2f} m'nin üzerinde "
-                    "(atrium/asma kat değilse gözden geçirin)."
-                ),
-                value=floor.height_m, limit=max_floor_height_m,
-            ))
+            issues.append(
+                StructuralIssue(
+                    code="floor_height_unusually_high",
+                    severity=IssueSeverity.INFO,
+                    message=(
+                        f"Kat {floor.level}: yükseklik {floor.height_m:.2f} m, "
+                        f"olağan üst sınır {max_floor_height_m:.2f} m'nin üzerinde "
+                        "(atrium/asma kat değilse gözden geçirin)."
+                    ),
+                    value=floor.height_m,
+                    limit=max_floor_height_m,
+                )
+            )
 
     # -- 3) Konsol (cantilever) — balkon projeksiyonları ------------------- #
     max_cantilever_found = 0.0
-    for balcony in (balconies or []):
+    for balcony in balconies or []:
         depth = getattr(balcony, "depth", 0.0)
         max_cantilever_found = max(max_cantilever_found, depth)
         if depth > max_cantilever_m:
-            issues.append(StructuralIssue(
-                code="excessive_cantilever",
-                severity=IssueSeverity.CRITICAL if depth > max_cantilever_m * 1.5 else IssueSeverity.WARNING,
-                message=(
-                    f"Balkon projeksiyonu {depth:.2f} m, tipik konsol limiti "
-                    f"{max_cantilever_m:.2f} m'yi aşıyor — gerçek statik hesap gerekir."
-                ),
-                value=depth, limit=max_cantilever_m,
-            ))
+            issues.append(
+                StructuralIssue(
+                    code="excessive_cantilever",
+                    severity=IssueSeverity.CRITICAL
+                    if depth > max_cantilever_m * 1.5
+                    else IssueSeverity.WARNING,
+                    message=(
+                        f"Balkon projeksiyonu {depth:.2f} m, tipik konsol limiti "
+                        f"{max_cantilever_m:.2f} m'yi aşıyor — gerçek statik hesap gerekir."
+                    ),
+                    value=depth,
+                    limit=max_cantilever_m,
+                )
+            )
 
     # -- 4) Kat-footprint taşması (şu an her zaman 0 — bkz. modül NOT'u) -- #
     # `ProceduralBuildingGenerator` tüm katlarda aynı footprint'i kullandığı
@@ -240,18 +256,21 @@ def validate_building(
     eccentricity = math.hypot(centroid.x - bbox_center_x, centroid.y - bbox_center_y)
     eccentricity_ratio = eccentricity / characteristic_size
     if eccentricity_ratio > max_plan_eccentricity_ratio:
-        issues.append(StructuralIssue(
-            code="plan_eccentricity_proxy",
-            severity=IssueSeverity.WARNING,
-            message=(
-                f"Footprint alan-merkezi, bounding-box merkezinden "
-                f"{eccentricity_ratio * 100:.1f}% oranında kaymış (limit "
-                f"{max_plan_eccentricity_ratio * 100:.1f}%) — plan asimetrisi/"
-                "çarpıklığı olası, TBDY A1 (burulma düzensizliği) GEOMETRİK "
-                "GÖSTERGESİdir, rijitlik merkezi hesabı yerine geçmez."
-            ),
-            value=eccentricity_ratio, limit=max_plan_eccentricity_ratio,
-        ))
+        issues.append(
+            StructuralIssue(
+                code="plan_eccentricity_proxy",
+                severity=IssueSeverity.WARNING,
+                message=(
+                    f"Footprint alan-merkezi, bounding-box merkezinden "
+                    f"{eccentricity_ratio * 100:.1f}% oranında kaymış (limit "
+                    f"{max_plan_eccentricity_ratio * 100:.1f}%) — plan asimetrisi/"
+                    "çarpıklığı olası, TBDY A1 (burulma düzensizliği) GEOMETRİK "
+                    "GÖSTERGESİdir, rijitlik merkezi hesabı yerine geçmez."
+                ),
+                value=eccentricity_ratio,
+                limit=max_plan_eccentricity_ratio,
+            )
+        )
 
     # -- 6) Kat yüksekliği sıçraması — TBDY B2 (yumuşak kat) GEOMETRİK
     #       PROXY'si. Bir katın komşularına oranla anormal yüksek olması
@@ -260,9 +279,7 @@ def validate_building(
     floors_sorted = sorted(building.floors, key=lambda f: f.level)
     for idx, floor in enumerate(floors_sorted):
         neighbor_heights = [
-            floors_sorted[j].height_m
-            for j in (idx - 1, idx + 1)
-            if 0 <= j < len(floors_sorted)
+            floors_sorted[j].height_m for j in (idx - 1, idx + 1) if 0 <= j < len(floors_sorted)
         ]
         if not neighbor_heights:
             continue
@@ -271,18 +288,21 @@ def validate_building(
             continue
         ratio = floor.height_m / avg_neighbor
         if ratio > soft_story_height_ratio:
-            issues.append(StructuralIssue(
-                code="soft_story_height_proxy",
-                severity=IssueSeverity.WARNING,
-                message=(
-                    f"Kat {floor.level}: yükseklik ({floor.height_m:.2f} m) komşu "
-                    f"katların ortalamasının ({avg_neighbor:.2f} m) {ratio:.2f} "
-                    f"katı (limit {soft_story_height_ratio:.2f}x) — olası yumuşak "
-                    "kat (TBDY B2) GEOMETRİK GÖSTERGESİ, gerçek rijitlik oranı "
-                    "hesabı değildir; sahada doğrulanmalıdır."
-                ),
-                value=ratio, limit=soft_story_height_ratio,
-            ))
+            issues.append(
+                StructuralIssue(
+                    code="soft_story_height_proxy",
+                    severity=IssueSeverity.WARNING,
+                    message=(
+                        f"Kat {floor.level}: yükseklik ({floor.height_m:.2f} m) komşu "
+                        f"katların ortalamasının ({avg_neighbor:.2f} m) {ratio:.2f} "
+                        f"katı (limit {soft_story_height_ratio:.2f}x) — olası yumuşak "
+                        "kat (TBDY B2) GEOMETRİK GÖSTERGESİ, gerçek rijitlik oranı "
+                        "hesabı değildir; sahada doğrulanmalıdır."
+                    ),
+                    value=ratio,
+                    limit=soft_story_height_ratio,
+                )
+            )
 
     is_plausible = not any(i.severity == IssueSeverity.CRITICAL for i in issues)
     return StructuralValidationReport(

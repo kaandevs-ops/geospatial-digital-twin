@@ -17,10 +17,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
-from .geometry_3d import ExportResult, UnsupportedFormatError
 from ..mesh_engine import Mesh3D
+from .geometry_3d import ExportResult, UnsupportedFormatError
 
 
 @dataclass(slots=True)
@@ -42,58 +41,60 @@ class SVGCanvas:
 
     width: float
     height: float
-    background: Optional[str] = "#ffffff"
+    background: str | None = "#ffffff"
     _elements: list[str] = field(default_factory=list)
 
-    def line(self, x1: float, y1: float, x2: float, y2: float,
-             style: SVGStyle = SVGStyle()) -> None:
+    def line(
+        self, x1: float, y1: float, x2: float, y2: float, style: SVGStyle = SVGStyle()
+    ) -> None:
         self._elements.append(
             f'<line x1="{x1:.3f}" y1="{y1:.3f}" x2="{x2:.3f}" y2="{y2:.3f}" '
             f'stroke="{style.stroke}" stroke-width="{style.stroke_width}" />'
         )
 
-    def polygon(self, points: list[tuple[float, float]],
-                style: SVGStyle = SVGStyle()) -> None:
+    def polygon(self, points: list[tuple[float, float]], style: SVGStyle = SVGStyle()) -> None:
         pts = " ".join(f"{x:.3f},{y:.3f}" for x, y in points)
         self._elements.append(
             f'<polygon points="{pts}" fill="{style.fill}" '
             f'stroke="{style.stroke}" stroke-width="{style.stroke_width}" />'
         )
 
-    def polyline(self, points: list[tuple[float, float]],
-                 style: SVGStyle = SVGStyle()) -> None:
+    def polyline(self, points: list[tuple[float, float]], style: SVGStyle = SVGStyle()) -> None:
         pts = " ".join(f"{x:.3f},{y:.3f}" for x, y in points)
         self._elements.append(
             f'<polyline points="{pts}" fill="none" '
             f'stroke="{style.stroke}" stroke-width="{style.stroke_width}" />'
         )
 
-    def circle(self, cx: float, cy: float, r: float,
-               style: SVGStyle = SVGStyle()) -> None:
+    def circle(self, cx: float, cy: float, r: float, style: SVGStyle = SVGStyle()) -> None:
         self._elements.append(
             f'<circle cx="{cx:.3f}" cy="{cy:.3f}" r="{r:.3f}" fill="{style.fill}" '
             f'stroke="{style.stroke}" stroke-width="{style.stroke_width}" />'
         )
 
-    def text(self, x: float, y: float, content: str,
-              style: SVGStyle = SVGStyle()) -> None:
-        safe = (content.replace("&", "&amp;").replace("<", "&lt;")
-                .replace(">", "&gt;"))
+    def text(self, x: float, y: float, content: str, style: SVGStyle = SVGStyle()) -> None:
+        safe = content.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         self._elements.append(
             f'<text x="{x:.3f}" y="{y:.3f}" font-family="{style.font_family}" '
             f'font-size="{style.font_size}" fill="{style.stroke}">{safe}</text>'
         )
 
     def to_string(self) -> str:
-        bg = (f'<rect x="0" y="0" width="{self.width}" height="{self.height}" '
-              f'fill="{self.background}" />') if self.background else ""
+        bg = (
+            (
+                f'<rect x="0" y="0" width="{self.width}" height="{self.height}" '
+                f'fill="{self.background}" />'
+            )
+            if self.background
+            else ""
+        )
         body = "\n  ".join(self._elements)
         return (
             f'<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n'
             f'<svg xmlns="http://www.w3.org/2000/svg" '
             f'width="{self.width}" height="{self.height}" '
             f'viewBox="0 0 {self.width} {self.height}">\n'
-            f'  {bg}\n  {body}\n</svg>\n'
+            f"  {bg}\n  {body}\n</svg>\n"
         )
 
     def save(self, path: str) -> ExportResult:
@@ -111,8 +112,7 @@ class FloorPlanSVGExporter:
     """
 
     @staticmethod
-    def export(rooms: list, path: str, margin: float = 20.0,
-                scale: float = 1.0) -> ExportResult:
+    def export(rooms: list, path: str, margin: float = 20.0, scale: float = 1.0) -> ExportResult:
         all_points: list[tuple[float, float]] = []
         for room in rooms:
             all_points.extend(getattr(room, "polygon", []))
@@ -155,8 +155,9 @@ class PNGExporter:
     """
 
     @staticmethod
-    def export_footprint(mesh: Mesh3D, path: str, width: int = 1024,
-                          height: int = 1024) -> ExportResult:
+    def export_footprint(
+        mesh: Mesh3D, path: str, width: int = 1024, height: int = 1024
+    ) -> ExportResult:
         try:
             from PIL import Image, ImageDraw
         except ImportError as exc:
@@ -185,14 +186,15 @@ class PNGExporter:
             py = height - (margin * height + ny * height * (1 - 2 * margin))
             return px, py
 
-        for (i, j, k) in mesh.triangles:
+        for i, j, k in mesh.triangles:
             a, b, c = mesh.vertices[i], mesh.vertices[j], mesh.vertices[k]
             poly = [_to_px(a.x, a.y), _to_px(b.x, b.y), _to_px(c.x, c.y)]
             draw.polygon(poly, outline=(30, 30, 30), fill=(220, 225, 232))
 
         img.save(path, format="PNG")
-        return ExportResult(path, "png", Path(path).stat().st_size,
-                             mesh.vertex_count(), mesh.triangle_count())
+        return ExportResult(
+            path, "png", Path(path).stat().st_size, mesh.vertex_count(), mesh.triangle_count()
+        )
 
 
 class PDFExporter:
@@ -271,8 +273,7 @@ class PDFExporter:
         for off in offsets[1:]:
             buf += f"{off:010d} 00000 n \n".encode("latin-1")
         buf += (
-            f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
-            f"startxref\n{xref_offset}\n%%EOF"
+            f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF"
         ).encode("latin-1")
 
         Path(path).write_bytes(bytes(buf))

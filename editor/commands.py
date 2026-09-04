@@ -23,8 +23,8 @@ yazılmıştır (tekrar tekrar çağrılabilir).
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
 
 
 class EditorCommand(ABC):
@@ -58,12 +58,10 @@ class EditorCommand(ABC):
         self._applied = False
 
     @abstractmethod
-    def _do(self) -> None:
-        ...
+    def _do(self) -> None: ...
 
     @abstractmethod
-    def _undo(self) -> None:
-        ...
+    def _undo(self) -> None: ...
 
 
 class FunctionCommand(EditorCommand):
@@ -72,7 +70,9 @@ class FunctionCommand(EditorCommand):
     her operasyon için ayrı bir `EditorCommand` alt sınıfı yazmak yerine
     kapanan (closure) fonksiyon çiftleri geçilir."""
 
-    def __init__(self, do_fn: Callable[[], None], undo_fn: Callable[[], None], label: str = "op") -> None:
+    def __init__(
+        self, do_fn: Callable[[], None], undo_fn: Callable[[], None], label: str = "op"
+    ) -> None:
         super().__init__(label)
         self._do_fn = do_fn
         self._undo_fn = undo_fn
@@ -97,7 +97,7 @@ class CommandGroup(EditorCommand):
     def __post_init__(self) -> None:
         EditorCommand.__init__(self, self.label)
 
-    def add(self, command: EditorCommand) -> "CommandGroup":
+    def add(self, command: EditorCommand) -> CommandGroup:
         self.commands.append(command)
         return self
 

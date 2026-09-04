@@ -20,7 +20,6 @@ eklenmeyen yerler").
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from ..ai_assistant.llm_providers import LLMCallError, LLMProvider, ProviderUnavailableError
 from .sandbox_guard import GuardResult, check_source
@@ -80,9 +79,9 @@ def _strip_code_fences(text: str) -> str:
 
 def generate_script_draft(
     instruction: str,
-    provider: Optional[LLMProvider] = None,
-    available_variables: Optional[list[str]] = None,
-    available_functions: Optional[list[str]] = None,
+    provider: LLMProvider | None = None,
+    available_variables: list[str] | None = None,
+    available_functions: list[str] | None = None,
 ) -> ScriptDraft:
     """Doğal dil bir otomasyon isteğini script taslağına çevirir ve
     HEMEN `sandbox_guard.check_source` ile statik olarak denetler.
@@ -111,7 +110,9 @@ def generate_script_draft(
         return ScriptDraft(source="", guard=failed_guard, generated_by_llm=False)
 
     source = _strip_code_fences(raw)
-    guard = check_source(source) if source else GuardResult(
-        ok=False, reason="LLM boş bir taslak döndürdü."
+    guard = (
+        check_source(source)
+        if source
+        else GuardResult(ok=False, reason="LLM boş bir taslak döndürdü.")
     )
     return ScriptDraft(source=source, guard=guard, generated_by_llm=True)

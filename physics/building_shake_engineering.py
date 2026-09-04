@@ -52,10 +52,10 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
+from ..hazard_data.risk_scoring import BasicBuildingType
 from . import GroundShakeForceModel
 from .building_damage import DamageLevel
 from .building_shake import STRUCTURE_SHAKE_PROFILES, StructureShakeProfile
-from ..hazard_data.risk_scoring import BasicBuildingType
 
 __all__ = [
     "EngineeringModeDataStatus",
@@ -158,7 +158,10 @@ class FloorEstimatedProperties:
 
 
 def _uniform_shear_building_k_from_f1(
-    *, mass_kg: float, num_floors: int, target_f1_hz: float,
+    *,
+    mass_kg: float,
+    num_floors: int,
+    target_f1_hz: float,
 ) -> float:
     """N eşit-kütleli/eşit-rijitlikli, sabit-tabanlı kesme-çerçevesinin
     (uniform shear building) TEMEL moduna ait bilinen kapalı-form
@@ -198,17 +201,29 @@ def estimate_floor_properties(
     if num_floors < 1:
         raise ValueError("num_floors >= 1 olmalı")
 
-    mass_per_m2 = _TYPICAL_SEISMIC_MASS_KG_PER_M2.get(
-        structure_type, _DEFAULT_SEISMIC_MASS_KG_PER_M2,
-    ) if structure_type is not None else _DEFAULT_SEISMIC_MASS_KG_PER_M2
+    mass_per_m2 = (
+        _TYPICAL_SEISMIC_MASS_KG_PER_M2.get(
+            structure_type,
+            _DEFAULT_SEISMIC_MASS_KG_PER_M2,
+        )
+        if structure_type is not None
+        else _DEFAULT_SEISMIC_MASS_KG_PER_M2
+    )
     mass_kg = mass_per_m2 * floor_area_m2
 
-    profile: StructureShakeProfile = STRUCTURE_SHAKE_PROFILES.get(
-        structure_type, STRUCTURE_SHAKE_PROFILES[BasicBuildingType.BETONARME_CERCEVE],
-    ) if structure_type is not None else STRUCTURE_SHAKE_PROFILES[BasicBuildingType.BETONARME_CERCEVE]
+    profile: StructureShakeProfile = (
+        STRUCTURE_SHAKE_PROFILES.get(
+            structure_type,
+            STRUCTURE_SHAKE_PROFILES[BasicBuildingType.BETONARME_CERCEVE],
+        )
+        if structure_type is not None
+        else STRUCTURE_SHAKE_PROFILES[BasicBuildingType.BETONARME_CERCEVE]
+    )
 
     k = _uniform_shear_building_k_from_f1(
-        mass_kg=mass_kg, num_floors=num_floors, target_f1_hz=profile.natural_frequency_hz,
+        mass_kg=mass_kg,
+        num_floors=num_floors,
+        target_f1_hz=profile.natural_frequency_hz,
     )
     return FloorEstimatedProperties(mass_kg=mass_kg, story_stiffness_n_per_m=k)
 
@@ -222,15 +237,17 @@ def estimate_floor_properties(
 class EngineeringShakeState:
     """Bir zaman adımında, bir kat için MDOF çözücünün ürettiği durum."""
 
-    floor_index: int                 # 1..N (0 = sabit taban, dahil edilmez)
-    displacement_m: float            # taban-göreli yatay yerdeğiştirme
+    floor_index: int  # 1..N (0 = sabit taban, dahil edilmez)
+    displacement_m: float  # taban-göreli yatay yerdeğiştirme
     velocity_m_s: float
     acceleration_m_s2: float
-    interstory_drift_ratio: float    # (bu kat - alt kat yerdeğiştirmesi) / kat yüksekliği
+    interstory_drift_ratio: float  # (bu kat - alt kat yerdeğiştirmesi) / kat yüksekliği
     honesty_note: str = ENGINEERING_MODE_HONESTY_NOTE
 
 
-def _solve_tridiagonal(lower: list[float], diag: list[float], upper: list[float], rhs: list[float]) -> list[float]:
+def _solve_tridiagonal(
+    lower: list[float], diag: list[float], upper: list[float], rhs: list[float]
+) -> list[float]:
     """Thomas algoritması (tridiagonal doğrusal sistem, O(N)) - kesme-
     çerçevesi rijitlik matrisinin doğal (tridiagonal) yapısını
     kullanır, genel amaçlı (O(N^3)) bir Gauss eliminasyonuna gerek
@@ -273,9 +290,9 @@ class MDOFShearFrameModel:
     floor_height_m: float = 3.0
     damping_ratio: float = 0.05
 
-    _u: list[float] = field(init=False, repr=False)   # yerdeğiştirme
-    _v: list[float] = field(init=False, repr=False)   # hız
-    _a: list[float] = field(init=False, repr=False)   # ivme
+    _u: list[float] = field(init=False, repr=False)  # yerdeğiştirme
+    _v: list[float] = field(init=False, repr=False)  # hız
+    _a: list[float] = field(init=False, repr=False)  # ivme
     _t: float = field(init=False, default=0.0)
     diverged: bool = field(init=False, default=False)
 
@@ -303,7 +320,9 @@ class MDOFShearFrameModel:
         omega_1_estimate = math.sqrt(k0 / m0) if m0 > 0 else 1.0
         return 2.0 * self.damping_ratio * omega_1_estimate
 
-    def _assemble_tridiagonal(self, a0: float, a1: float) -> tuple[list[float], list[float], list[float]]:
+    def _assemble_tridiagonal(
+        self, a0: float, a1: float
+    ) -> tuple[list[float], list[float], list[float]]:
         """K_eff = K + a0*M + a1*C matrisinin tridiagonal köşegenlerini
         kurar (M, C köşegen olduğu için K_eff de tridiagonal kalır)."""
         n = self.num_floors
@@ -312,7 +331,7 @@ class MDOFShearFrameModel:
         upper = [0.0] * n
         for i in range(n):
             m_i = self.floor_properties[i].mass_kg
-            k_i = self.floor_properties[i].story_stiffness_n_per_m       # i. kat ile alt kat arası
+            k_i = self.floor_properties[i].story_stiffness_n_per_m  # i. kat ile alt kat arası
             k_ip1 = self.floor_properties[i + 1].story_stiffness_n_per_m if i + 1 < n else 0.0
             c_i = self._alpha_mass_damping * m_i
             diag[i] = (k_i + k_ip1) + a0 * m_i + a1 * c_i
@@ -361,13 +380,15 @@ class MDOFShearFrameModel:
             a_new = a0 * (u_new[i] - self._u[i]) - a2 * self._v[i] - a3 * self._a[i]
             v_new = self._v[i] + dt * ((1.0 - gamma) * self._a[i] + gamma * a_new)
             drift = (u_new[i] - prev_u) / max(self.floor_height_m, 1e-6)
-            states.append(EngineeringShakeState(
-                floor_index=i + 1,
-                displacement_m=u_new[i],
-                velocity_m_s=v_new,
-                acceleration_m_s2=a_new,
-                interstory_drift_ratio=drift,
-            ))
+            states.append(
+                EngineeringShakeState(
+                    floor_index=i + 1,
+                    displacement_m=u_new[i],
+                    velocity_m_s=v_new,
+                    acceleration_m_s2=a_new,
+                    interstory_drift_ratio=drift,
+                )
+            )
             self._u[i], self._v[i], self._a[i] = u_new[i], v_new, a_new
             prev_u = u_new[i]
 
@@ -397,16 +418,16 @@ class DriftDamageHint:
 
     damage_level: DamageLevel
     drift_ratio: float
-    threshold_label: str        # okunabilir eşik adı (IO/LS/CP)
+    threshold_label: str  # okunabilir eşik adı (IO/LS/CP)
 
 
 #: Kamuya açık, standart mühendislik referans eşikleri (ATC-40 / FEMA 356
 #: "Immediate Occupancy" / "Life Safety" / "Collapse Prevention" öteleme
 #: oranı sınırları - literatürde yaygın kullanılan yaklaşık değerler,
 #: belirli bir binaya özel mühendislik hesabı değildir).
-_DRIFT_IO = 0.007   # Immediate Occupancy sınırı
-_DRIFT_LS = 0.025   # Life Safety sınırı
-_DRIFT_CP = 0.05    # Collapse Prevention sınırı
+_DRIFT_IO = 0.007  # Immediate Occupancy sınırı
+_DRIFT_LS = 0.025  # Life Safety sınırı
+_DRIFT_CP = 0.05  # Collapse Prevention sınırı
 
 
 def drift_based_damage_hint(drift_ratio: float) -> DriftDamageHint:
@@ -415,11 +436,27 @@ def drift_based_damage_hint(drift_ratio: float) -> DriftDamageHint:
     eşleyen bir hasar İPUCU döner (kesin hasar kararı değil)."""
     drift = abs(drift_ratio)
     if drift < _DRIFT_IO:
-        return DriftDamageHint(damage_level=DamageLevel.NONE, drift_ratio=drift, threshold_label="< IO (Immediate Occupancy)")
+        return DriftDamageHint(
+            damage_level=DamageLevel.NONE,
+            drift_ratio=drift,
+            threshold_label="< IO (Immediate Occupancy)",
+        )
     if drift < _DRIFT_LS:
-        return DriftDamageHint(damage_level=DamageLevel.LIGHT, drift_ratio=drift, threshold_label="IO..LS arası")
+        return DriftDamageHint(
+            damage_level=DamageLevel.LIGHT, drift_ratio=drift, threshold_label="IO..LS arası"
+        )
     if drift < _DRIFT_CP:
-        return DriftDamageHint(damage_level=DamageLevel.MODERATE, drift_ratio=drift, threshold_label="LS..CP arası")
+        return DriftDamageHint(
+            damage_level=DamageLevel.MODERATE, drift_ratio=drift, threshold_label="LS..CP arası"
+        )
     if drift < _DRIFT_CP * 1.5:
-        return DriftDamageHint(damage_level=DamageLevel.SEVERE, drift_ratio=drift, threshold_label=">= CP (Collapse Prevention)")
-    return DriftDamageHint(damage_level=DamageLevel.COLLAPSED, drift_ratio=drift, threshold_label=">> CP (muhtemel çökme)")
+        return DriftDamageHint(
+            damage_level=DamageLevel.SEVERE,
+            drift_ratio=drift,
+            threshold_label=">= CP (Collapse Prevention)",
+        )
+    return DriftDamageHint(
+        damage_level=DamageLevel.COLLAPSED,
+        drift_ratio=drift,
+        threshold_label=">> CP (muhtemel çökme)",
+    )

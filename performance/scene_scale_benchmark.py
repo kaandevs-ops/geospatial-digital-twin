@@ -28,12 +28,11 @@ Bağımlılık: yalnızca stdlib (`tracemalloc` - gerçek Python-heap ölçümü
 
 from __future__ import annotations
 
-import math
 import tracemalloc
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from ..core_engine.geometry_engine import Point2D, Polygon
-from ..mesh_engine import MeshBuilder, Mesh3D
+from ..mesh_engine import Mesh3D, MeshBuilder
 from ..render_engine.scene_bridge import (
     Scene,
     total_triangle_count_for_camera,
@@ -47,6 +46,7 @@ Vec3 = tuple[float, float, float]
 # ============================================================================ #
 # Ucuz katalog modeli
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class BuildingDescriptor:
@@ -70,7 +70,8 @@ def build_city_catalog(n_side: int, spacing: float = 20.0) -> dict[str, Building
         for j in range(n_side):
             name = f"bina_{i}_{j}"
             catalog[name] = BuildingDescriptor(
-                name=name, position=(i * spacing, 0.0, j * spacing),
+                name=name,
+                position=(i * spacing, 0.0, j * spacing),
             )
     return catalog
 
@@ -79,16 +80,21 @@ def _descriptor_to_mesh(desc: BuildingDescriptor) -> Mesh3D:
     """Katalog girdisinden gerçek geometriyi (yalnızca "yükleme" anında)
     üretir - Faz 2 `MeshBuilder.extrude_polygon` ile aynı yol, D2'nin
     `add_mesh_with_lod`'una beslenecek."""
-    poly = Polygon(points=[
-        Point2D(0.0, 0.0), Point2D(desc.width, 0.0),
-        Point2D(desc.width, desc.depth), Point2D(0.0, desc.depth),
-    ])
+    poly = Polygon(
+        points=[
+            Point2D(0.0, 0.0),
+            Point2D(desc.width, 0.0),
+            Point2D(desc.width, desc.depth),
+            Point2D(0.0, desc.depth),
+        ]
+    )
     return MeshBuilder.extrude_polygon(poly, base_z=0.0, height=desc.height, name=desc.name)
 
 
 # ============================================================================ #
 # Streaming <-> Scene köprüsü
 # ============================================================================ #
+
 
 class StreamingSceneCache:
     """Faz 13 `SceneStreaming` ile Faz D2 `Scene.add_mesh_with_lod`
@@ -115,9 +121,7 @@ class StreamingSceneCache:
             mesh = _descriptor_to_mesh(desc)
             self.scene.add_mesh_with_lod(mesh, translation=desc.position)
         if diff.to_unload:
-            self.scene.nodes = [
-                n for n in self.scene.nodes if n.name not in diff.to_unload
-            ]
+            self.scene.nodes = [n for n in self.scene.nodes if n.name not in diff.to_unload]
         return diff
 
     @property
@@ -138,6 +142,7 @@ class StreamingSceneCache:
 # ============================================================================ #
 # Ölçek benchmark'ı
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class ScaleBenchmarkResult:
@@ -165,7 +170,9 @@ def benchmark_resident_memory_scaling(
         catalog = build_city_catalog(n_side, spacing=spacing)
         cache = StreamingSceneCache(catalog, radius=radius)
         center = (
-            (n_side - 1) * spacing / 2.0, 0.0, (n_side - 1) * spacing / 2.0,
+            (n_side - 1) * spacing / 2.0,
+            0.0,
+            (n_side - 1) * spacing / 2.0,
         )
 
         was_tracing = tracemalloc.is_tracing()
@@ -180,12 +187,14 @@ def benchmark_resident_memory_scaling(
             tracemalloc.stop()
 
         catalog_size = n_side * n_side
-        results.append(ScaleBenchmarkResult(
-            catalog_size=catalog_size,
-            resident_count=cache.resident_count,
-            resident_bytes=resident_bytes,
-            bytes_per_catalog_building=resident_bytes / catalog_size,
-        ))
+        results.append(
+            ScaleBenchmarkResult(
+                catalog_size=catalog_size,
+                resident_count=cache.resident_count,
+                resident_bytes=resident_bytes,
+                bytes_per_catalog_building=resident_bytes / catalog_size,
+            )
+        )
     return results
 
 

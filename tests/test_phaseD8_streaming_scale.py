@@ -33,10 +33,10 @@ from harita.performance.scene_scale_benchmark import (
     build_city_catalog,
 )
 
-
 # ============================================================================ #
 # build_city_catalog
 # ============================================================================ #
+
 
 def test_build_city_catalog_produces_expected_size_and_no_mesh_cost():
     catalog = build_city_catalog(n_side=12, spacing=15.0)
@@ -63,6 +63,7 @@ def test_build_city_catalog_large_scale_is_fast():
 # ============================================================================ #
 # StreamingSceneCache
 # ============================================================================ #
+
 
 def test_streaming_cache_only_loads_buildings_within_radius():
     catalog = build_city_catalog(n_side=20, spacing=20.0)
@@ -131,9 +132,12 @@ def test_streaming_cache_real_time_lod_transition_on_camera_move():
 # A13 kabul kriteri: doğrusal-altı bellek büyümesi
 # ============================================================================ #
 
+
 def test_resident_memory_grows_sub_linearly_with_catalog_size():
     results = benchmark_resident_memory_scaling(
-        n_sides=(10, 20, 40), spacing=20.0, radius=45.0,
+        n_sides=(10, 20, 40),
+        spacing=20.0,
+        radius=45.0,
     )
     assert len(results) == 3
     for r in results:
@@ -169,10 +173,18 @@ def test_resident_count_bounded_across_10000_plus_catalog():
 
 def test_assert_sub_linear_growth_raises_on_violating_sequence():
     violating = [
-        ScaleBenchmarkResult(catalog_size=100, resident_count=10,
-                              resident_bytes=1000, bytes_per_catalog_building=10.0),
-        ScaleBenchmarkResult(catalog_size=200, resident_count=10,
-                              resident_bytes=2200, bytes_per_catalog_building=11.0),
+        ScaleBenchmarkResult(
+            catalog_size=100,
+            resident_count=10,
+            resident_bytes=1000,
+            bytes_per_catalog_building=10.0,
+        ),
+        ScaleBenchmarkResult(
+            catalog_size=200,
+            resident_count=10,
+            resident_bytes=2200,
+            bytes_per_catalog_building=11.0,
+        ),
     ]
     try:
         assert_sub_linear_growth(violating)
@@ -183,8 +195,12 @@ def test_assert_sub_linear_growth_raises_on_violating_sequence():
 
 def test_assert_sub_linear_growth_requires_at_least_two_points():
     single = [
-        ScaleBenchmarkResult(catalog_size=100, resident_count=10,
-                              resident_bytes=1000, bytes_per_catalog_building=10.0),
+        ScaleBenchmarkResult(
+            catalog_size=100,
+            resident_count=10,
+            resident_bytes=1000,
+            bytes_per_catalog_building=10.0,
+        ),
     ]
     try:
         assert_sub_linear_growth(single)

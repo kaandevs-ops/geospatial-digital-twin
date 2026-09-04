@@ -55,7 +55,7 @@ class ICPResult:
         r = self.rotation
         t = self.translation
         out = []
-        for (x, y, z) in points:
+        for x, y, z in points:
             nx = r[0][0] * x + r[0][1] * y + r[0][2] * z + t[0]
             ny = r[1][0] * x + r[1][1] * y + r[1][2] * z + t[1]
             nz = r[2][0] * x + r[2][1] * y + r[2][2] * z + t[2]
@@ -65,8 +65,7 @@ class ICPResult:
 
 def _mat_mul(a: Matrix3, b: Matrix3) -> Matrix3:
     return tuple(
-        tuple(sum(a[i][k] * b[k][j] for k in range(3)) for j in range(3))
-        for i in range(3)
+        tuple(sum(a[i][k] * b[k][j] for k in range(3)) for j in range(3)) for i in range(3)
     )
 
 
@@ -101,8 +100,8 @@ def _jacobi_eigen_symmetric(a: Matrix3, max_sweeps: int = 100, tol: float = 1e-1
                 if abs(m[p][q]) < 1e-15:
                     continue
                 theta = (m[q][q] - m[p][p]) / (2 * m[p][q])
-                t = (1 if theta >= 0 else -1) / (abs(theta) + math.sqrt(theta ** 2 + 1))
-                c = 1.0 / math.sqrt(t ** 2 + 1)
+                t = (1 if theta >= 0 else -1) / (abs(theta) + math.sqrt(theta**2 + 1))
+                c = 1.0 / math.sqrt(t**2 + 1)
                 s = t * c
                 mpp, mqq, mpq = m[p][p], m[q][q], m[p][q]
                 m[p][p] = c * c * mpp - 2 * s * c * mpq + s * s * mqq
@@ -149,8 +148,7 @@ def _kabsch_rotation(source_centered: list[Point3], target_centered: list[Point3
     for i in range(3):
         if singular[i] > 1e-12:
             col = [
-                sum(h_mat[r][c] * v_sorted[c][i] for c in range(3)) / singular[i]
-                for r in range(3)
+                sum(h_mat[r][c] * v_sorted[c][i] for c in range(3)) / singular[i] for r in range(3)
             ]
         else:
             col = [0.0, 0.0, 0.0]
@@ -226,9 +224,11 @@ def run_icp(
                 r[2][0] * pt[0] + r[2][1] * pt[1] + r[2][2] * pt[2],
             )
 
-        t_step = (tx - _rotate((cx, cy, cz), r_step)[0],
-                   ty - _rotate((cx, cy, cz), r_step)[1],
-                   tz - _rotate((cx, cy, cz), r_step)[2])
+        t_step = (
+            tx - _rotate((cx, cy, cz), r_step)[0],
+            ty - _rotate((cx, cy, cz), r_step)[1],
+            tz - _rotate((cx, cy, cz), r_step)[2],
+        )
 
         current = [
             (

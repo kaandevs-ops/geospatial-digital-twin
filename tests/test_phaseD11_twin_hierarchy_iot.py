@@ -18,23 +18,22 @@ Kapsam:
 
 import math
 import sys
-import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from harita.digital_twin import DigitalTwin, DigitalTwinRegistry, SensorBinding
 from harita.digital_twin.hierarchy import (
-    TwinHierarchy,
     SensorSeriesConfig,
-    generate_sensor_timeseries,
+    TwinHierarchy,
     apply_timeseries_to_sensor,
+    generate_sensor_timeseries,
 )
-
 
 # ========================================================================== #
 # TwinHierarchy - yapı ve temel sorgular
 # ========================================================================== #
+
 
 def test_hierarchy_add_and_parent_child_queries():
     h = TwinHierarchy()
@@ -53,7 +52,11 @@ def test_hierarchy_add_and_parent_child_queries():
     assert not h.is_leaf("block-1")
     assert h.roots() == ["neighborhood-1"]
     assert set(h.descendants("neighborhood-1")) == {
-        "block-1", "block-2", "bldg-1", "bldg-2", "bldg-3",
+        "block-1",
+        "block-2",
+        "bldg-1",
+        "bldg-2",
+        "bldg-3",
     }
     assert h.depth_of("bldg-1") == 2
     assert h.ancestors("bldg-1") == ["block-1", "neighborhood-1"]
@@ -75,6 +78,7 @@ def test_hierarchy_reparenting_updates_children_sets():
 # ========================================================================== #
 # Agregasyon doğruluğu
 # ========================================================================== #
+
 
 def _energy_metric(twin):
     if twin is None:
@@ -138,14 +142,16 @@ def test_reduce_fn_can_be_customized_eg_max():
     h, root_id = _build_three_level_hierarchy(registry, n_blocks=2, buildings_per_block=5)
 
     max_energy = h.aggregate(registry, root_id, _energy_metric, reduce_fn=lambda vs: max(vs))
-    all_leaves = [_energy_metric(registry.get(leaf))
-                  for leaf in h.descendants(root_id) if h.is_leaf(leaf)]
+    all_leaves = [
+        _energy_metric(registry.get(leaf)) for leaf in h.descendants(root_id) if h.is_leaf(leaf)
+    ]
     assert max_energy == max(all_leaves)
 
 
 # ========================================================================== #
 # A5 kabul kriteri: 1000 twin'lik hiyerarşi, O(log n) davranışı
 # ========================================================================== #
+
 
 class _CountingHierarchy(TwinHierarchy):
     """Test amaçlı: `metric_fn` çağrı sayısını sayar (aggregate() üretim
@@ -161,6 +167,7 @@ class _CountingHierarchy(TwinHierarchy):
         def counting_metric(twin):
             self.metric_calls += 1
             return metric_fn(twin)
+
         return self.aggregate(registry, twin_id, counting_metric, sum, cache_key)
 
 
@@ -249,6 +256,7 @@ def test_invalidate_without_query_does_not_recompute_unrelated_branches():
 # Sensör zaman-serisi üretimi
 # ========================================================================== #
 
+
 def test_generate_sensor_timeseries_is_deterministic_for_same_seed():
     cfg = SensorSeriesConfig(seed=42, noise_std=1.0)
     s1 = generate_sensor_timeseries(0.0, 200, cfg)
@@ -270,8 +278,13 @@ def test_generate_sensor_timeseries_daily_cycle_peak_and_trough():
     noktalarında beklenen değerlere ulaştığını doğrular."""
     day = 86400.0
     cfg = SensorSeriesConfig(
-        base_value=10.0, daily_amplitude=5.0, seasonal_amplitude=0.0,
-        noise_std=0.0, interval_seconds=day / 4, seed=0, day_seconds=day,
+        base_value=10.0,
+        daily_amplitude=5.0,
+        seasonal_amplitude=0.0,
+        noise_std=0.0,
+        interval_seconds=day / 4,
+        seed=0,
+        day_seconds=day,
     )
     series = generate_sensor_timeseries(0.0, 4, cfg)
     values = [v for _, v in series]
@@ -288,8 +301,13 @@ def test_generate_sensor_timeseries_daily_cycle_peak_and_trough():
 def test_generate_sensor_timeseries_seasonal_component():
     year = 365.25 * 86400.0
     cfg = SensorSeriesConfig(
-        base_value=0.0, daily_amplitude=0.0, seasonal_amplitude=10.0,
-        noise_std=0.0, interval_seconds=year / 4, seed=0, year_seconds=year,
+        base_value=0.0,
+        daily_amplitude=0.0,
+        seasonal_amplitude=10.0,
+        noise_std=0.0,
+        interval_seconds=year / 4,
+        seed=0,
+        year_seconds=year,
     )
     series = generate_sensor_timeseries(0.0, 4, cfg)
     values = [v for _, v in series]
@@ -299,8 +317,12 @@ def test_generate_sensor_timeseries_seasonal_component():
 
 def test_generate_sensor_timeseries_respects_min_max_clamp():
     cfg = SensorSeriesConfig(
-        base_value=0.0, daily_amplitude=100.0, seasonal_amplitude=0.0,
-        noise_std=0.0, min_value=-1.0, max_value=1.0,
+        base_value=0.0,
+        daily_amplitude=100.0,
+        seasonal_amplitude=0.0,
+        noise_std=0.0,
+        min_value=-1.0,
+        max_value=1.0,
     )
     series = generate_sensor_timeseries(0.0, 20, cfg)
     for _, v in series:
@@ -308,8 +330,9 @@ def test_generate_sensor_timeseries_respects_min_max_clamp():
 
 
 def test_generate_sensor_timeseries_overrides_kwargs():
-    series = generate_sensor_timeseries(0.0, 10, base_value=100.0, noise_std=0.0,
-                                          daily_amplitude=0.0, seasonal_amplitude=0.0)
+    series = generate_sensor_timeseries(
+        0.0, 10, base_value=100.0, noise_std=0.0, daily_amplitude=0.0, seasonal_amplitude=0.0
+    )
     for _, v in series:
         assert math.isclose(v, 100.0, abs_tol=1e-9)
 
@@ -317,6 +340,7 @@ def test_generate_sensor_timeseries_overrides_kwargs():
 # ========================================================================== #
 # apply_timeseries_to_sensor
 # ========================================================================== #
+
 
 def test_apply_timeseries_updates_sensor_and_logs_single_event():
     twin = DigitalTwin(id="bldg-x")
@@ -367,6 +391,7 @@ def test_apply_timeseries_empty_series_is_noop():
 # Serialization
 # ========================================================================== #
 
+
 def test_hierarchy_to_dict_from_dict_roundtrip():
     h = TwinHierarchy()
     h.add("root")
@@ -384,6 +409,7 @@ def test_hierarchy_to_dict_from_dict_roundtrip():
 # ========================================================================== #
 # Üst seviye harita paketinden erişilebilirlik (re-export)
 # ========================================================================== #
+
 
 def test_top_level_harita_package_reexports_d11_symbols():
     import harita

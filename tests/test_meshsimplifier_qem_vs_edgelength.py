@@ -7,17 +7,19 @@ göre ölçülebilir şekilde daha düşük geometrik hata (basit nokta-örnekle
 simetrik Hausdorff yaklaşıklığı) verdiğini doğrular.
 """
 
-import math
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from harita.core_engine.geometry_engine import Point2D, Polygon
-from harita.mesh_engine import MeshBuilder, MeshSimplifier, Mesh3D, Vertex3D
 from harita.building_reconstruction import (
-    Footprint, Building, BuildingType, ProceduralBuildingGenerator,
+    Building,
+    BuildingType,
+    Footprint,
+    ProceduralBuildingGenerator,
 )
+from harita.core_engine.geometry_engine import Point2D, Polygon
+from harita.mesh_engine import Mesh3D, MeshBuilder, MeshSimplifier, Vertex3D
 
 
 def _box_polygon(w: float, d: float) -> Polygon:
@@ -40,9 +42,7 @@ def _symmetric_hausdorff_proxy(mesh_a: Mesh3D, mesh_b: Mesh3D) -> float:
             worst = max(worst, best)
         return worst
 
-    return (
-        _one_directional(mesh_a, mesh_b) + _one_directional(mesh_b, mesh_a)
-    ) / 2.0
+    return (_one_directional(mesh_a, mesh_b) + _one_directional(mesh_b, mesh_a)) / 2.0
 
 
 def _build_hip_roof_building_mesh() -> Mesh3D:
@@ -52,7 +52,9 @@ def _build_hip_roof_building_mesh() -> Mesh3D:
     poly = _box_polygon(18, 14)
     fp = Footprint(polygon=poly, building_type="apartments", floor_count=4, height_m=12.0)
     building: Building = ProceduralBuildingGenerator.generate(
-        fp, building_type=BuildingType.APARTMAN, seed=7,
+        fp,
+        building_type=BuildingType.APARTMAN,
+        seed=7,
     )
     return building.full_mesh()
 

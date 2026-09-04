@@ -52,11 +52,11 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Iterable, List, Optional, Sequence
 
-from . import GeoFeature, GeoFeatureCollection, GISParseError
 from ..coordinate_systems import CoordinateConverter, CoordinateSystem, GeoPoint, ProjectedPoint
+from . import GeoFeature, GeoFeatureCollection, GISParseError
 
 #: Bilinen, genel kullanıma açık Overpass API aynaları (resmi + topluluk
 #: işletmeli). Sırayla denenir - biri kapalı/rate-limited olursa diğerine
@@ -82,6 +82,7 @@ class OverpassNetworkError(OverpassError):
 # ============================================================================ #
 # BBox
 # ============================================================================ #
+
 
 @dataclass(frozen=True, slots=True)
 class BBox:
@@ -113,6 +114,7 @@ class BBox:
 # Overpass istemcisi
 # ============================================================================ #
 
+
 @dataclass
 class OverpassClient:
     """Overpass API'ye bina footprint sorgusu gönderen stdlib-only istemci."""
@@ -142,7 +144,7 @@ class OverpassClient:
         """Ham Overpass JSON yanıtını çeker - aynalar sırayla denenir."""
         query = self.build_query(bbox)
         payload = urllib.parse.urlencode({"data": query}).encode("utf-8")
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
 
         for endpoint in self.endpoints:
             request = urllib.request.Request(
@@ -158,8 +160,13 @@ class OverpassClient:
                 with urllib.request.urlopen(request, timeout=self.timeout_s) as response:
                     raw_bytes = response.read()
                 return json.loads(raw_bytes.decode("utf-8"))
-            except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError,
-                    OSError, ValueError) as exc:
+            except (
+                urllib.error.URLError,
+                urllib.error.HTTPError,
+                TimeoutError,
+                OSError,
+                ValueError,
+            ) as exc:
                 last_error = exc
                 continue
 
@@ -178,6 +185,7 @@ class OverpassClient:
 # ============================================================================ #
 # Overpass JSON -> GeoFeatureCollection
 # ============================================================================ #
+
 
 class OSMBuildingParser:
     """Ham Overpass JSON'unu (node + way [+ relation] elemanları) mevcut
@@ -200,7 +208,7 @@ class OSMBuildingParser:
                 elif el_type == "way":
                     ways[el["id"]] = el
 
-            features: List[GeoFeature] = []
+            features: list[GeoFeature] = []
 
             # -- way["building"] doğrudan poligonlar ------------------------- #
             for way in ways.values():
@@ -213,11 +221,13 @@ class OSMBuildingParser:
                 props = dict(tags)
                 props["osm_id"] = way["id"]
                 props["osm_type"] = "way"
-                features.append(GeoFeature(
-                    geometry_type="Polygon",
-                    coordinates=[ring],
-                    properties=props,
-                ))
+                features.append(
+                    GeoFeature(
+                        geometry_type="Polygon",
+                        coordinates=[ring],
+                        properties=props,
+                    )
+                )
 
             # -- relation["building"] (multipolygon) - yalnızca outer halka -- #
             for el in elements:
@@ -238,11 +248,13 @@ class OSMBuildingParser:
                     props = dict(tags)
                     props["osm_id"] = el["id"]
                     props["osm_type"] = "relation"
-                    features.append(GeoFeature(
-                        geometry_type="Polygon",
-                        coordinates=[ring],
-                        properties=props,
-                    ))
+                    features.append(
+                        GeoFeature(
+                            geometry_type="Polygon",
+                            coordinates=[ring],
+                            properties=props,
+                        )
+                    )
 
             return GeoFeatureCollection(features, crs="EPSG:4326")
         except OverpassError:
@@ -251,7 +263,7 @@ class OSMBuildingParser:
             raise OverpassError(f"Beklenmeyen Overpass yanıt biçimi: {exc}") from exc
 
     @staticmethod
-    def _way_to_ring(way: dict, nodes: dict[int, tuple[float, float]]) -> Optional[list]:
+    def _way_to_ring(way: dict, nodes: dict[int, tuple[float, float]]) -> list | None:
         node_ids = way.get("nodes", [])
         coords = [nodes[nid] for nid in node_ids if nid in nodes]
         if len(coords) < 3:
@@ -265,8 +277,10 @@ class OSMBuildingParser:
 # WGS84 (derece) -> yerel metre projeksiyonu
 # ============================================================================ #
 
+
 def project_to_local_meters(
-    collection: GeoFeatureCollection, origin: Optional[GeoPoint] = None,
+    collection: GeoFeatureCollection,
+    origin: GeoPoint | None = None,
 ) -> GeoFeatureCollection:
     """`collection`'daki `Polygon`/`LineString`/`Point` özniteliklerini
     (derece cinsinden WGS84) `CoordinateConverter.wgs84_to_local` ile metre
@@ -295,41 +309,49 @@ def project_to_local_meters(
     if origin is None:
         origin = _centroid_of_collection(collection)
 
-    def _project_ring(ring: List[tuple]) -> list:
+    def _project_ring(ring: list[tuple]) -> list:
         local_ring = []
         for lon, lat in ring:
             projected: ProjectedPoint = CoordinateConverter.wgs84_to_local(
-                GeoPoint(lat=lat, lon=lon), origin,
+                GeoPoint(lat=lat, lon=lon),
+                origin,
             )
             local_ring.append((projected.x, projected.y))
         return local_ring
 
-    projected_features: List[GeoFeature] = []
+    projected_features: list[GeoFeature] = []
     for feature in collection.features:
         if feature.geometry_type == "Polygon":
             ring = feature.coordinates[0]
-            projected_features.append(GeoFeature(
-                geometry_type="Polygon",
-                coordinates=[_project_ring(ring)],
-                properties=feature.properties,
-            ))
+            projected_features.append(
+                GeoFeature(
+                    geometry_type="Polygon",
+                    coordinates=[_project_ring(ring)],
+                    properties=feature.properties,
+                )
+            )
         elif feature.geometry_type == "LineString":
             line = feature.coordinates
-            projected_features.append(GeoFeature(
-                geometry_type="LineString",
-                coordinates=_project_ring(line),
-                properties=feature.properties,
-            ))
+            projected_features.append(
+                GeoFeature(
+                    geometry_type="LineString",
+                    coordinates=_project_ring(line),
+                    properties=feature.properties,
+                )
+            )
         elif feature.geometry_type == "Point":
             lon, lat = feature.coordinates
             projected: ProjectedPoint = CoordinateConverter.wgs84_to_local(
-                GeoPoint(lat=lat, lon=lon), origin,
+                GeoPoint(lat=lat, lon=lon),
+                origin,
             )
-            projected_features.append(GeoFeature(
-                geometry_type="Point",
-                coordinates=(projected.x, projected.y),
-                properties=feature.properties,
-            ))
+            projected_features.append(
+                GeoFeature(
+                    geometry_type="Point",
+                    coordinates=(projected.x, projected.y),
+                    properties=feature.properties,
+                )
+            )
         # Bilinmeyen/desteklenmeyen geometri tipleri (şu an yok) sessizce
         # atlanır - önceki davranışla tutarlı ("eksik veri sahneyi bozmasın").
 
@@ -340,7 +362,9 @@ def project_to_local_meters(
 
 
 def local_meters_collection_centroid_to_wgs84(
-    x: float, y: float, origin: GeoPoint,
+    x: float,
+    y: float,
+    origin: GeoPoint,
 ) -> GeoPoint:
     """`project_to_local_meters`'ın tersi — tek bir yerel-metre noktasını
     (`origin`'e göre) geri WGS84 (lat/lon)'a çevirir. C6/2. dilimin
@@ -348,14 +372,15 @@ def local_meters_collection_centroid_to_wgs84(
     için gerekli (mesh üretimi yerel metrede kalır, yalnızca konum geri
     projekte edilir)."""
     geo = CoordinateConverter.local_to_wgs84(
-        ProjectedPoint(x=x, y=y, system=CoordinateSystem.LOCAL), origin,
+        ProjectedPoint(x=x, y=y, system=CoordinateSystem.LOCAL),
+        origin,
     )
     return geo
 
 
 def _centroid_of_collection(collection: GeoFeatureCollection) -> GeoPoint:
-    lons: List[float] = []
-    lats: List[float] = []
+    lons: list[float] = []
+    lats: list[float] = []
     for feature in collection.features:
         if feature.geometry_type != "Polygon":
             continue
@@ -370,6 +395,7 @@ def _centroid_of_collection(collection: GeoFeatureCollection) -> GeoPoint:
 # ============================================================================ #
 # Uçtan uca boru hattı: bbox -> gerçek OSM footprint -> Building
 # ============================================================================ #
+
 
 @dataclass
 class OSMIntegrationResult:
@@ -386,8 +412,8 @@ class OSMIntegrationResult:
 
 def fetch_and_generate_buildings(
     bbox: BBox,
-    client: Optional[OverpassClient] = None,
-    origin: Optional[GeoPoint] = None,
+    client: OverpassClient | None = None,
+    origin: GeoPoint | None = None,
 ) -> OSMIntegrationResult:
     """Roadmap R5'in uçtan uca kabul kriterinin somut karşılığı:
 
@@ -451,6 +477,7 @@ def fetch_and_generate_buildings(
 # ilkesi gereği DOKUNULMADAN bırakıldı; yeni kategoriler ayrı, ek bir yol
 # olarak eklendi (geriye dönük uyumluluk kırılmıyor).
 
+
 @dataclass(frozen=True, slots=True)
 class OSMCategory:
     """Tek bir veri katmanının Overpass filtresi + geometri sınıflandırması.
@@ -480,89 +507,130 @@ DEFAULT_CATEGORIES: dict[str, OSMCategory] = {
     "trees": OSMCategory(key="trees", overpass_filter="natural=tree", geometry="point"),
     "forest": OSMCategory(key="forest", overpass_filter="landuse=forest", geometry="polygon"),
     "wood": OSMCategory(key="wood", overpass_filter="natural=wood", geometry="polygon"),
-    "water_area": OSMCategory(key="water_area", overpass_filter="natural=water", geometry="polygon"),
+    "water_area": OSMCategory(
+        key="water_area", overpass_filter="natural=water", geometry="polygon"
+    ),
     "waterway": OSMCategory(key="waterway", overpass_filter="waterway", geometry="line"),
     # Faz C3 (3. dilim) — B1 "kentsel mobilya" alt kümesi. Anahtarlar
     # bilinçli olarak `street_furniture.StreetFurnitureType` değerleriyle
     # aynı isimlendirildi (bkz. `street_furniture/osm_bridge.py`
     # `CATEGORY_KEY_TO_OSM_TAG` eşlemesi) — takip kolaylığı için.
-    "street_lamp": OSMCategory(key="street_lamp", overpass_filter="highway=street_lamp", geometry="point"),
+    "street_lamp": OSMCategory(
+        key="street_lamp", overpass_filter="highway=street_lamp", geometry="point"
+    ),
     "power_pole": OSMCategory(key="power_pole", overpass_filter="power=pole", geometry="point"),
-    "waste_basket": OSMCategory(key="waste_basket", overpass_filter="amenity=waste_basket", geometry="point"),
+    "waste_basket": OSMCategory(
+        key="waste_basket", overpass_filter="amenity=waste_basket", geometry="point"
+    ),
     "bench": OSMCategory(key="bench", overpass_filter="amenity=bench", geometry="point"),
     "bus_stop": OSMCategory(key="bus_stop", overpass_filter="highway=bus_stop", geometry="point"),
-    "bus_station": OSMCategory(key="bus_station", overpass_filter="amenity=bus_station", geometry="point"),
+    "bus_station": OSMCategory(
+        key="bus_station", overpass_filter="amenity=bus_station", geometry="point"
+    ),
     # Faz C3 (4. dilim) — B1 "dini ve kültürel yapılar". Alt tip (cami/
     # kilise/sinagog/genel) `religion` tag'inden `religious_structures.
     # osm_bridge` tarafından çözülür (bkz. o modül).
-    "place_of_worship": OSMCategory(key="place_of_worship", overpass_filter="amenity=place_of_worship", geometry="point"),
+    "place_of_worship": OSMCategory(
+        key="place_of_worship", overpass_filter="amenity=place_of_worship", geometry="point"
+    ),
     # Faz C3 (5. dilim) — B1 "ticaret ve gündelik yaşam". `restaurant`/
     # `cafe` her ikisi de nokta olarak çekilir; `outdoor_seating=yes`
     # filtresi geometri seviyesinde değil `commerce_props/osm_bridge.py`
     # içinde (properties üzerinden) uygulanır (bkz. o modülün docstring'i).
-    "marketplace": OSMCategory(key="marketplace", overpass_filter="amenity=marketplace", geometry="polygon"),
-    "restaurant": OSMCategory(key="restaurant", overpass_filter="amenity=restaurant", geometry="point"),
+    "marketplace": OSMCategory(
+        key="marketplace", overpass_filter="amenity=marketplace", geometry="polygon"
+    ),
+    "restaurant": OSMCategory(
+        key="restaurant", overpass_filter="amenity=restaurant", geometry="point"
+    ),
     "cafe": OSMCategory(key="cafe", overpass_filter="amenity=cafe", geometry="point"),
     # Faz C3 (6. dilim) — B1 "spor ve rekreasyon". Saha/stadyum/havuz
     # Polygon, oyun alanı Point (bkz. `sport_recreation/osm_bridge.py`).
     "pitch": OSMCategory(key="pitch", overpass_filter="leisure=pitch", geometry="polygon"),
     "stadium": OSMCategory(key="stadium", overpass_filter="leisure=stadium", geometry="polygon"),
-    "swimming_pool": OSMCategory(key="swimming_pool", overpass_filter="leisure=swimming_pool", geometry="polygon"),
-    "playground": OSMCategory(key="playground", overpass_filter="leisure=playground", geometry="point"),
+    "swimming_pool": OSMCategory(
+        key="swimming_pool", overpass_filter="leisure=swimming_pool", geometry="polygon"
+    ),
+    "playground": OSMCategory(
+        key="playground", overpass_filter="leisure=playground", geometry="point"
+    ),
     # Faz C3 (7. dilim, B1'in son dilimi) — B1 "altyapı" alt kümesi.
     # `man_made=tower` tek başına iletişim kulesi anlamına gelmez (su
     # kulesi vb. de aynı tag'i kullanır) — `tower:type=communication`
     # ikincil filtresi `power_infrastructure/osm_bridge.py`'de uygulanır.
     "power_line": OSMCategory(key="power_line", overpass_filter="power=line", geometry="line"),
-    "substation": OSMCategory(key="substation", overpass_filter="power=substation", geometry="polygon"),
-    "communication_tower": OSMCategory(key="communication_tower", overpass_filter="man_made=tower", geometry="point"),
-
+    "substation": OSMCategory(
+        key="substation", overpass_filter="power=substation", geometry="polygon"
+    ),
+    "communication_tower": OSMCategory(
+        key="communication_tower", overpass_filter="man_made=tower", geometry="point"
+    ),
     # ------------------------------------------------------------------ #
     # ROADMAP_V8 Bölüm 2 — B1'in V7'de eksik bırakılan kalan alt maddeleri.
     # ------------------------------------------------------------------ #
-
     # Faz 2.1 — ulaşım: demiryolu (line), istasyon/girişler + trafik
     # ışığı/yaya geçidi (point), otopark (polygon), bisiklet park yeri +
     # taksi durağı (point).
-    "railway_rail": OSMCategory(key="railway_rail", overpass_filter="railway=rail", geometry="line"),
-    "railway_subway": OSMCategory(key="railway_subway", overpass_filter="railway=subway", geometry="line"),
-    "railway_tram": OSMCategory(key="railway_tram", overpass_filter="railway=tram", geometry="line"),
-    "railway_station": OSMCategory(key="railway_station", overpass_filter="railway=station", geometry="point"),
-    "subway_entrance": OSMCategory(key="subway_entrance", overpass_filter="railway=subway_entrance", geometry="point"),
+    "railway_rail": OSMCategory(
+        key="railway_rail", overpass_filter="railway=rail", geometry="line"
+    ),
+    "railway_subway": OSMCategory(
+        key="railway_subway", overpass_filter="railway=subway", geometry="line"
+    ),
+    "railway_tram": OSMCategory(
+        key="railway_tram", overpass_filter="railway=tram", geometry="line"
+    ),
+    "railway_station": OSMCategory(
+        key="railway_station", overpass_filter="railway=station", geometry="point"
+    ),
+    "subway_entrance": OSMCategory(
+        key="subway_entrance", overpass_filter="railway=subway_entrance", geometry="point"
+    ),
     "parking": OSMCategory(key="parking", overpass_filter="amenity=parking", geometry="polygon"),
-    "bicycle_parking": OSMCategory(key="bicycle_parking", overpass_filter="amenity=bicycle_parking", geometry="point"),
+    "bicycle_parking": OSMCategory(
+        key="bicycle_parking", overpass_filter="amenity=bicycle_parking", geometry="point"
+    ),
     "taxi": OSMCategory(key="taxi", overpass_filter="amenity=taxi", geometry="point"),
-    "traffic_signals": OSMCategory(key="traffic_signals", overpass_filter="highway=traffic_signals", geometry="point"),
+    "traffic_signals": OSMCategory(
+        key="traffic_signals", overpass_filter="highway=traffic_signals", geometry="point"
+    ),
     "crossing": OSMCategory(key="crossing", overpass_filter="highway=crossing", geometry="point"),
-
     # Faz 2.2 — ticaret ve gündelik yaşamın tamamlanması.
-    "shopping_mall": OSMCategory(key="shopping_mall", overpass_filter="shop=mall", geometry="polygon"),
-    "supermarket": OSMCategory(key="supermarket", overpass_filter="shop=supermarket", geometry="polygon"),
-
+    "shopping_mall": OSMCategory(
+        key="shopping_mall", overpass_filter="shop=mall", geometry="polygon"
+    ),
+    "supermarket": OSMCategory(
+        key="supermarket", overpass_filter="shop=supermarket", geometry="polygon"
+    ),
     # Faz 2.3 — kentsel mobilyanın tamamlanması (traffic_sign bilinçli
     # olarak burada DEĞİL, `OPTIONAL_CATEGORIES`'te — B1'in kendi notuyla
     # "düşük öncelik, isteğe bağlı katman", varsayılan sorguya dahil
     # edilmez / B3 performans kaygısı).
-    "drinking_water": OSMCategory(key="drinking_water", overpass_filter="amenity=drinking_water", geometry="point"),
+    "drinking_water": OSMCategory(
+        key="drinking_water", overpass_filter="amenity=drinking_water", geometry="point"
+    ),
     "fountain": OSMCategory(key="fountain", overpass_filter="amenity=fountain", geometry="point"),
-    "bicycle_rental": OSMCategory(key="bicycle_rental", overpass_filter="amenity=bicycle_rental", geometry="point"),
-
+    "bicycle_rental": OSMCategory(
+        key="bicycle_rental", overpass_filter="amenity=bicycle_rental", geometry="point"
+    ),
     # Faz 2.4 — doğal öğeler ve arazi bilgisinin tamamlanması.
     "coastline": OSMCategory(key="coastline", overpass_filter="natural=coastline", geometry="line"),
     "grass": OSMCategory(key="grass", overpass_filter="landuse=grass", geometry="polygon"),
     "park": OSMCategory(key="park", overpass_filter="leisure=park", geometry="polygon"),
-    "flowerbed": OSMCategory(key="flowerbed", overpass_filter="landuse=flowerbed", geometry="polygon"),
+    "flowerbed": OSMCategory(
+        key="flowerbed", overpass_filter="landuse=flowerbed", geometry="polygon"
+    ),
     "farmland": OSMCategory(key="farmland", overpass_filter="landuse=farmland", geometry="polygon"),
     # `boundary=administrative` B1'de açıkça "3D model değil, etiket/
     # overlay" diye belirtilmiş — mesh üretimi yapılmaz, yalnızca harita
     # katmanı (GeoJSON çizgi + etiket) için veri sağlanır (bkz.
     # `editor.osm_bridge.administrative_boundary_geojson`).
-    "administrative_boundary": OSMCategory(key="administrative_boundary", overpass_filter="boundary=administrative", geometry="line"),
-
+    "administrative_boundary": OSMCategory(
+        key="administrative_boundary", overpass_filter="boundary=administrative", geometry="line"
+    ),
     # Faz 2.5 — anıt/heykel kategorisi.
     "monument": OSMCategory(key="monument", overpass_filter="historic=monument", geometry="point"),
     "artwork": OSMCategory(key="artwork", overpass_filter="tourism=artwork", geometry="point"),
-
     # ------------------------------------------------------------------ #
     # ROADMAP_V9 Faz VI / Katman 3.1-3.2 — "POI kaynağı: OSM'den
     # amenity=school, shop=*, public_transport=stop_position tag'leri"
@@ -570,7 +638,9 @@ DEFAULT_CATEGORIES: dict[str, OSMCategory] = {
     # ------------------------------------------------------------------ #
     "school": OSMCategory(key="school", overpass_filter="amenity=school", geometry="polygon"),
     "transit_stop_position": OSMCategory(
-        key="transit_stop_position", overpass_filter="public_transport=stop_position", geometry="point",
+        key="transit_stop_position",
+        overpass_filter="public_transport=stop_position",
+        geometry="point",
     ),
 }
 
@@ -580,7 +650,9 @@ DEFAULT_CATEGORIES: dict[str, OSMCategory] = {
 #: çağıran taraf `fetch_category_features(bbox, category_keys=[*DEFAULT_CATEGORIES, "traffic_sign"])`
 #: gibi açıkça isteyerek etkinleştirebilir.
 OPTIONAL_CATEGORIES: dict[str, OSMCategory] = {
-    "traffic_sign": OSMCategory(key="traffic_sign", overpass_filter="traffic_sign", geometry="point"),
+    "traffic_sign": OSMCategory(
+        key="traffic_sign", overpass_filter="traffic_sign", geometry="point"
+    ),
 }
 
 
@@ -600,7 +672,9 @@ def _category_query_clause(bbox_str: str, category: OSMCategory) -> str:
 
 
 def build_category_query(
-    bbox: BBox, categories: Sequence[OSMCategory], timeout_s: float = 30.0,
+    bbox: BBox,
+    categories: Sequence[OSMCategory],
+    timeout_s: float = 30.0,
 ) -> str:
     """Birden çok kategori için tek bir Overpass QL sorgusu üretir (tek
     ağ isteğinde birden fazla katman çekilir — B6'daki rate-limit/mirror
@@ -608,13 +682,7 @@ def build_category_query(
     istek başına iş artar)."""
     bbox_str = bbox.overpass_bbox_str()
     body = "".join(_category_query_clause(bbox_str, c) for c in categories)
-    return (
-        f"[out:json][timeout:{int(timeout_s)}];\n"
-        f"(\n{body});\n"
-        f"out body;\n"
-        f">;\n"
-        f"out skel qt;\n"
-    )
+    return f"[out:json][timeout:{int(timeout_s)}];\n(\n{body});\nout body;\n>;\nout skel qt;\n"
 
 
 class OSMCategoryParser:
@@ -629,7 +697,8 @@ class OSMCategoryParser:
 
     @staticmethod
     def parse_overpass_json(
-        data: dict, categories: Sequence[OSMCategory],
+        data: dict,
+        categories: Sequence[OSMCategory],
     ) -> GeoFeatureCollection:
         try:
             elements = data.get("elements", [])
@@ -646,7 +715,7 @@ class OSMCategoryParser:
                 elif el_type == "way":
                     ways[el["id"]] = el
 
-            features: List[GeoFeature] = []
+            features: list[GeoFeature] = []
 
             for el in elements:
                 el_type = el.get("type")
@@ -662,11 +731,13 @@ class OSMCategoryParser:
                     props["osm_id"] = el["id"]
                     props["osm_type"] = "node"
                     props["__category__"] = category.key
-                    features.append(GeoFeature(
-                        geometry_type="Point",
-                        coordinates=[el["lon"], el["lat"]],
-                        properties=props,
-                    ))
+                    features.append(
+                        GeoFeature(
+                            geometry_type="Point",
+                            coordinates=[el["lon"], el["lat"]],
+                            properties=props,
+                        )
+                    )
 
                 elif el_type == "way" and category.geometry in ("line", "polygon"):
                     node_ids = el.get("nodes", [])
@@ -682,13 +753,21 @@ class OSMCategoryParser:
                             continue
                         if coords[0] != coords[-1]:
                             coords = coords + [coords[0]]
-                        features.append(GeoFeature(
-                            geometry_type="Polygon", coordinates=[coords], properties=props,
-                        ))
+                        features.append(
+                            GeoFeature(
+                                geometry_type="Polygon",
+                                coordinates=[coords],
+                                properties=props,
+                            )
+                        )
                     else:
-                        features.append(GeoFeature(
-                            geometry_type="LineString", coordinates=coords, properties=props,
-                        ))
+                        features.append(
+                            GeoFeature(
+                                geometry_type="LineString",
+                                coordinates=coords,
+                                properties=props,
+                            )
+                        )
 
                 elif el_type == "relation" and category.geometry == "polygon":
                     for member in el.get("members", []):
@@ -707,9 +786,13 @@ class OSMCategoryParser:
                         props["osm_id"] = el["id"]
                         props["osm_type"] = "relation"
                         props["__category__"] = category.key
-                        features.append(GeoFeature(
-                            geometry_type="Polygon", coordinates=[coords], properties=props,
-                        ))
+                        features.append(
+                            GeoFeature(
+                                geometry_type="Polygon",
+                                coordinates=[coords],
+                                properties=props,
+                            )
+                        )
 
             return GeoFeatureCollection(features, crs="EPSG:4326")
         except OverpassError:
@@ -719,8 +802,9 @@ class OSMCategoryParser:
 
     @staticmethod
     def _match_category(
-        tags: dict, by_key: dict[str, OSMCategory],
-    ) -> Optional[OSMCategory]:
+        tags: dict,
+        by_key: dict[str, OSMCategory],
+    ) -> OSMCategory | None:
         # Belirlilik önceliği: `key=value` filtreleri, salt `key` filtrelerinden
         # önce kontrol edilir (ör. "natural=tree" "natural=water"dan ayrı
         # kategori olsa da ikisi de `natural` anahtarını paylaşıyor).
@@ -750,8 +834,8 @@ def summarize_categories(collection: GeoFeatureCollection) -> dict[str, int]:
 
 def fetch_category_features(
     bbox: BBox,
-    category_keys: Optional[Sequence[str]] = None,
-    client: Optional[OverpassClient] = None,
+    category_keys: Sequence[str] | None = None,
+    client: OverpassClient | None = None,
 ) -> GeoFeatureCollection:
     """Faz C2 uçtan uca giriş noktası: bbox + kategori listesi ->
     tek Overpass isteği -> `GeoFeatureCollection` (WGS84, her feature'da
@@ -780,7 +864,7 @@ def fetch_category_features(
 
     query = build_category_query(bbox, categories, timeout_s=client.timeout_s)
     payload = urllib.parse.urlencode({"data": query}).encode("utf-8")
-    last_error: Optional[Exception] = None
+    last_error: Exception | None = None
 
     for endpoint in client.endpoints:
         request = urllib.request.Request(
@@ -797,8 +881,13 @@ def fetch_category_features(
                 raw_bytes = response.read()
             raw = json.loads(raw_bytes.decode("utf-8"))
             return OSMCategoryParser.parse_overpass_json(raw, categories)
-        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError,
-                OSError, ValueError) as exc:
+        except (
+            urllib.error.URLError,
+            urllib.error.HTTPError,
+            TimeoutError,
+            OSError,
+            ValueError,
+        ) as exc:
             last_error = exc
             continue
 

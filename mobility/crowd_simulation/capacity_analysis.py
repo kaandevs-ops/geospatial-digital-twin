@@ -24,7 +24,6 @@ talimatına uygun olarak yalnızca mevcut `EvacuationBenchmark` /
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from ...building_reconstruction.regulations import RegulationProfile, default_profile
 from . import (
@@ -51,15 +50,15 @@ class CapacityRunResult:
     timed_out: bool
     bottleneck_cell: tuple | None
     bottleneck_count: int | None
-    threshold_s: Optional[float]
-    within_threshold: Optional[bool]     # threshold_s yoksa None (sessizce "güvenli" varsayılmaz)
+    threshold_s: float | None
+    within_threshold: bool | None  # threshold_s yoksa None (sessizce "güvenli" varsayılmaz)
 
 
 @dataclass(slots=True)
 class CapacityAnalysisReport:
     """Batch koşumun tam raporu - `CapacityAnalyzer.run_batch()` çıktısı."""
 
-    building_type: Optional[str]
+    building_type: str | None
     exit_width_m: float
     regulation_profile_name: str
     runs: list[CapacityRunResult] = field(default_factory=list)
@@ -69,7 +68,7 @@ class CapacityAnalysisReport:
         "işaretleri ve bina-özgü engeller birebir modellenmemiştir."
     )
 
-    def worst_case(self) -> Optional[CapacityRunResult]:
+    def worst_case(self) -> CapacityRunResult | None:
         """En uzun tahliye süresine sahip koşum - genelde en yüksek agent
         sayısına karşılık gelir, ama zaman aşımı/darboğaz farkları
         yüzünden garanti değildir; bu yüzden doğrudan max() ile bulunur."""
@@ -119,8 +118,8 @@ class CapacityAnalyzer:
         room_depth_m: float,
         exit_width_m: float,
         agent_counts: tuple[int, ...] = DEFAULT_CAPACITY_AGENT_COUNTS,
-        building_type: Optional[str] = None,
-        regulation_profile: Optional[RegulationProfile] = None,
+        building_type: str | None = None,
+        regulation_profile: RegulationProfile | None = None,
         seed: int = 42,
         dt: float = 0.1,
         max_time_s: float = 900.0,
@@ -144,26 +143,37 @@ class CapacityAnalyzer:
 
         for count in agent_counts:
             agents, exit_point = EvacuationBenchmark.build_single_exit_room(
-                count, room_width_m, room_depth_m, exit_width_m, seed=seed,
+                count,
+                room_width_m,
+                room_depth_m,
+                exit_width_m,
+                seed=seed,
             )
             simulator = EvacuationSimulator(SocialForceModel())
-            recorder = SimulationRecorder(keyframe_interval_s=0.5) if SimulationRecorder is not None else None
-            result = simulator.run(agents, obstacles=None, dt=dt, max_time_s=max_time_s,
-                                     recorder=recorder)
+            recorder = (
+                SimulationRecorder(keyframe_interval_s=0.5)
+                if SimulationRecorder is not None
+                else None
+            )
+            result = simulator.run(
+                agents, obstacles=None, dt=dt, max_time_s=max_time_s, recorder=recorder
+            )
 
             within_threshold = (
                 (result.evacuation_time_s <= threshold_s) if threshold_s is not None else None
             )
-            report.runs.append(CapacityRunResult(
-                agent_count=count,
-                evacuation_time_s=result.evacuation_time_s,
-                evacuated_count=result.evacuated_count,
-                total_agents=result.total_agents,
-                timed_out=result.timed_out,
-                bottleneck_cell=result.bottleneck_location,
-                bottleneck_count=result.bottleneck_peak_count,
-                threshold_s=threshold_s,
-                within_threshold=within_threshold,
-            ))
+            report.runs.append(
+                CapacityRunResult(
+                    agent_count=count,
+                    evacuation_time_s=result.evacuation_time_s,
+                    evacuated_count=result.evacuated_count,
+                    total_agents=result.total_agents,
+                    timed_out=result.timed_out,
+                    bottleneck_cell=result.bottleneck_location,
+                    bottleneck_count=result.bottleneck_peak_count,
+                    threshold_s=threshold_s,
+                    within_threshold=within_threshold,
+                )
+            )
 
         return report

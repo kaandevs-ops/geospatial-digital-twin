@@ -2,18 +2,31 @@ from __future__ import annotations
 
 import unittest
 
-from harita.core_engine.geometry_engine import Point2D
-from harita.digital_twin import DigitalTwin, DigitalTwinRegistry
+from harita.climate_data.air_quality_estimate import (
+    RoadSegmentTraffic,
+    estimate_network_air_quality,
+    estimate_segment_air_quality,
+)
+from harita.climate_data.microclimate import (
+    UrbanFabricSample,
+    estimate_heat_island_index,
+    fabric_from_footprint,
+)
+from harita.climate_data.noise_estimate import (
+    crowd_noise_db,
+    estimate_noise,
+    traffic_noise_db,
+)
+from harita.climate_data.open_meteo_client import HourlyClimateSample
+from harita.digital_twin import DigitalTwinRegistry
 from harita.digital_twin.hierarchy import TwinHierarchy
 from harita.extensibility.city_events import CityEventType
 from harita.extensibility.event_system import EventSystem
 from harita.mobility.pathfinding import NavGraph
-
 from harita.power_infrastructure.demand_model import (
     BuildingDemandProfile,
     BuildingDemandRegistry,
     BuildingDemandType,
-    HOURS_PER_YEAR,
     aggregate_city_demand_kw,
     peak_hour,
 )
@@ -22,41 +35,28 @@ from harita.power_infrastructure.outage_propagation import (
     OutagePropagationEngine,
     build_power_network_graph,
 )
-from harita.climate_data.microclimate import (
-    UrbanFabricSample,
-    estimate_heat_island_index,
-    fabric_from_footprint,
-)
-from harita.climate_data.open_meteo_client import HourlyClimateSample
-from harita.climate_data.air_quality_estimate import (
-    RoadSegmentTraffic,
-    estimate_network_air_quality,
-    estimate_segment_air_quality,
-)
-from harita.climate_data.noise_estimate import (
-    crowd_noise_db,
-    estimate_noise,
-    traffic_noise_db,
-)
 
 
 class DemandModelTests(unittest.TestCase):
     def test_hourly_curve_conserves_annual_average(self):
-        profile = BuildingDemandProfile("b1", annual_kwh=8760.0,
-                                         demand_type=BuildingDemandType.RESIDENTIAL)
+        profile = BuildingDemandProfile(
+            "b1", annual_kwh=8760.0, demand_type=BuildingDemandType.RESIDENTIAL
+        )
         curve = profile.daily_curve_kw()
         self.assertEqual(len(curve), 24)
         # ortalama guc == 1.0 kW olmali (8760 kWh / 8760 saat)
         self.assertAlmostEqual(sum(curve) / 24.0, 1.0, places=6)
 
     def test_residential_evening_peak_higher_than_night(self):
-        profile = BuildingDemandProfile("b1", annual_kwh=8760.0,
-                                         demand_type=BuildingDemandType.RESIDENTIAL)
+        profile = BuildingDemandProfile(
+            "b1", annual_kwh=8760.0, demand_type=BuildingDemandType.RESIDENTIAL
+        )
         self.assertGreater(profile.hourly_load_kw(19), profile.hourly_load_kw(3))
 
     def test_commercial_daytime_peak_higher_than_night(self):
-        profile = BuildingDemandProfile("b2", annual_kwh=8760.0,
-                                         demand_type=BuildingDemandType.COMMERCIAL)
+        profile = BuildingDemandProfile(
+            "b2", annual_kwh=8760.0, demand_type=BuildingDemandType.COMMERCIAL
+        )
         self.assertGreater(profile.hourly_load_kw(13), profile.hourly_load_kw(3))
 
     def test_invalid_hour_raises(self):
@@ -65,8 +65,9 @@ class DemandModelTests(unittest.TestCase):
             profile.hourly_load_kw(24)
 
     def test_peak_hour_matches_max_of_curve(self):
-        profile = BuildingDemandProfile("b1", annual_kwh=8760.0,
-                                         demand_type=BuildingDemandType.RESIDENTIAL)
+        profile = BuildingDemandProfile(
+            "b1", annual_kwh=8760.0, demand_type=BuildingDemandType.RESIDENTIAL
+        )
         registry = BuildingDemandRegistry()
         registry.register(profile)
         hour, kw = peak_hour(registry, "b1")
@@ -93,11 +94,12 @@ class DemandModelTests(unittest.TestCase):
         demand_registry.register(BuildingDemandProfile("bld_a", annual_kwh=8760.0))
         demand_registry.register(BuildingDemandProfile("bld_b", annual_kwh=17520.0))
 
-        total = aggregate_city_demand_kw(hierarchy, registry, demand_registry, "neighborhood", hour=3)
-        direct = (
-            demand_registry.get("bld_a").hourly_load_kw(3)
-            + demand_registry.get("bld_b").hourly_load_kw(3)
+        total = aggregate_city_demand_kw(
+            hierarchy, registry, demand_registry, "neighborhood", hour=3
         )
+        direct = demand_registry.get("bld_a").hourly_load_kw(3) + demand_registry.get(
+            "bld_b"
+        ).hourly_load_kw(3)
         self.assertAlmostEqual(total, direct, places=6)
 
     def test_hierarchy_aggregation_zero_for_untracked_leaf(self):
@@ -171,7 +173,8 @@ class OutagePropagationTests(unittest.TestCase):
 
     def test_missing_nodes_in_lines_are_skipped_not_raised(self):
         graph = build_power_network_graph(
-            substation_ids=["sub1"], building_ids=["bld1"],
+            substation_ids=["sub1"],
+            building_ids=["bld1"],
             lines=[("sub1", "bld1"), ("sub1", "ghost")],
         )
         self.assertFalse(graph.has_node("ghost"))
@@ -179,54 +182,82 @@ class OutagePropagationTests(unittest.TestCase):
 
 class MicroclimateTests(unittest.TestCase):
     def test_dense_high_rise_has_higher_index_than_open_low_rise(self):
-        dense = UrbanFabricSample(average_building_height_m=40.0, average_street_width_m=8.0,
-                                   building_footprint_ratio=0.7)
-        open_area = UrbanFabricSample(average_building_height_m=6.0, average_street_width_m=20.0,
-                                       building_footprint_ratio=0.1)
+        dense = UrbanFabricSample(
+            average_building_height_m=40.0, average_street_width_m=8.0, building_footprint_ratio=0.7
+        )
+        open_area = UrbanFabricSample(
+            average_building_height_m=6.0, average_street_width_m=20.0, building_footprint_ratio=0.1
+        )
         dense_report = estimate_heat_island_index(dense)
         open_report = estimate_heat_island_index(open_area)
         self.assertGreater(dense_report.heat_island_index_c, open_report.heat_island_index_c)
 
     def test_canopy_coverage_reduces_index(self):
-        base = UrbanFabricSample(average_building_height_m=20.0, average_street_width_m=10.0,
-                                  building_footprint_ratio=0.5, canopy_coverage_ratio=0.0)
-        shaded = UrbanFabricSample(average_building_height_m=20.0, average_street_width_m=10.0,
-                                    building_footprint_ratio=0.5, canopy_coverage_ratio=0.6)
+        base = UrbanFabricSample(
+            average_building_height_m=20.0,
+            average_street_width_m=10.0,
+            building_footprint_ratio=0.5,
+            canopy_coverage_ratio=0.0,
+        )
+        shaded = UrbanFabricSample(
+            average_building_height_m=20.0,
+            average_street_width_m=10.0,
+            building_footprint_ratio=0.5,
+            canopy_coverage_ratio=0.6,
+        )
         self.assertLess(
             estimate_heat_island_index(shaded).heat_island_index_c,
             estimate_heat_island_index(base).heat_island_index_c,
         )
 
     def test_index_never_negative_or_above_cap(self):
-        extreme = UrbanFabricSample(average_building_height_m=200.0, average_street_width_m=1.0,
-                                     building_footprint_ratio=1.0, canopy_coverage_ratio=0.0)
+        extreme = UrbanFabricSample(
+            average_building_height_m=200.0,
+            average_street_width_m=1.0,
+            building_footprint_ratio=1.0,
+            canopy_coverage_ratio=0.0,
+        )
         report = estimate_heat_island_index(extreme)
         self.assertGreaterEqual(report.heat_island_index_c, 0.0)
         self.assertLessEqual(report.heat_island_index_c, 6.0)
 
     def test_baseline_temperature_propagates_to_local_estimate(self):
-        fabric = UrbanFabricSample(average_building_height_m=10.0, average_street_width_m=10.0,
-                                    building_footprint_ratio=0.3)
+        fabric = UrbanFabricSample(
+            average_building_height_m=10.0,
+            average_street_width_m=10.0,
+            building_footprint_ratio=0.3,
+        )
         baseline = HourlyClimateSample(
-            time_iso="2024-06-01T12:00", temperature_c=30.0, cloud_cover_pct=10.0,
-            shortwave_radiation_wm2=800.0, direct_radiation_wm2=600.0, diffuse_radiation_wm2=200.0,
+            time_iso="2024-06-01T12:00",
+            temperature_c=30.0,
+            cloud_cover_pct=10.0,
+            shortwave_radiation_wm2=800.0,
+            direct_radiation_wm2=600.0,
+            diffuse_radiation_wm2=200.0,
         )
         report = estimate_heat_island_index(fabric, baseline=baseline)
         self.assertIsNotNone(report.estimated_local_temperature_c)
         self.assertAlmostEqual(
-            report.estimated_local_temperature_c, 30.0 + report.heat_island_index_c, places=6,
+            report.estimated_local_temperature_c,
+            30.0 + report.heat_island_index_c,
+            places=6,
         )
 
     def test_no_baseline_leaves_local_estimate_none(self):
-        fabric = UrbanFabricSample(average_building_height_m=10.0, average_street_width_m=10.0,
-                                    building_footprint_ratio=0.3)
+        fabric = UrbanFabricSample(
+            average_building_height_m=10.0,
+            average_street_width_m=10.0,
+            building_footprint_ratio=0.3,
+        )
         report = estimate_heat_island_index(fabric)
         self.assertIsNone(report.estimated_local_temperature_c)
 
     def test_fabric_from_footprint_helper(self):
         fabric = fabric_from_footprint(
-            building_heights_m=[10.0, 20.0, 30.0], cell_area_m2=1000.0,
-            building_footprint_area_m2=400.0, average_street_width_m=12.0,
+            building_heights_m=[10.0, 20.0, 30.0],
+            cell_area_m2=1000.0,
+            building_footprint_area_m2=400.0,
+            average_street_width_m=12.0,
         )
         self.assertAlmostEqual(fabric.average_building_height_m, 20.0)
         self.assertAlmostEqual(fabric.building_footprint_ratio, 0.4)

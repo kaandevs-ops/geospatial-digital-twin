@@ -38,7 +38,6 @@ from __future__ import annotations
 import json
 import struct
 import sys
-import zipfile
 from pathlib import Path
 
 import pytest
@@ -54,10 +53,10 @@ from harita.core_engine.gis_core import (
     ShapefileParser,
 )
 
-
 # ------------------------------------------------------------------ #
 # 1. GeoJSON — artık GISParseError'a sarmalanıyor
 # ------------------------------------------------------------------ #
+
 
 def test_geojson_malformed_json_raises_parse_error(tmp_path):
     path = tmp_path / "bad.geojson"
@@ -75,11 +74,16 @@ def test_geojson_unsupported_type_raises_parse_error(tmp_path):
 
 def test_geojson_valid_file_still_parses(tmp_path):
     path = tmp_path / "ok.geojson"
-    path.write_text(json.dumps({
-        "type": "Feature",
-        "geometry": {"type": "Point", "coordinates": [28.9784, 41.0082]},
-        "properties": {"name": "Istanbul"},
-    }), encoding="utf-8")
+    path.write_text(
+        json.dumps(
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [28.9784, 41.0082]},
+                "properties": {"name": "Istanbul"},
+            }
+        ),
+        encoding="utf-8",
+    )
     fc = GeoJSONParser.parse_file(str(path))
     assert len(fc) == 1
     assert fc.features[0].geometry_type == "Point"
@@ -89,18 +93,21 @@ def test_geojson_valid_file_still_parses(tmp_path):
 # 2. GeoPackage — GISParseError sarmalaması + SQL identifier güvenliği
 # ------------------------------------------------------------------ #
 
-def _make_gpkg(tmp_path, table="points", geom_col="geom", extra_sql=None,
-                blob_rows=(b"garbage-not-a-gpb-blob",)):
+
+def _make_gpkg(
+    tmp_path,
+    table="points",
+    geom_col="geom",
+    extra_sql=None,
+    blob_rows=(b"garbage-not-a-gpb-blob",),
+):
     import sqlite3
+
     path = tmp_path / "test.gpkg"
     conn = sqlite3.connect(str(path))
     cur = conn.cursor()
-    cur.execute(
-        "CREATE TABLE gpkg_geometry_columns (table_name TEXT, column_name TEXT)"
-    )
-    cur.execute(
-        "INSERT INTO gpkg_geometry_columns VALUES (?, ?)", (table, geom_col)
-    )
+    cur.execute("CREATE TABLE gpkg_geometry_columns (table_name TEXT, column_name TEXT)")
+    cur.execute("INSERT INTO gpkg_geometry_columns VALUES (?, ?)", (table, geom_col))
     safe_table = table.replace('"', '""')
     cur.execute(f'CREATE TABLE "{safe_table}" (id INTEGER, "{geom_col}" BLOB)')
     for i, blob in enumerate(blob_rows):
@@ -114,6 +121,7 @@ def _make_gpkg(tmp_path, table="points", geom_col="geom", extra_sql=None,
 
 def test_gpkg_missing_geometry_columns_table_raises_parse_error(tmp_path):
     import sqlite3
+
     path = tmp_path / "nogeo.gpkg"
     conn = sqlite3.connect(str(path))
     conn.execute("CREATE TABLE unrelated (x INTEGER)")
@@ -128,7 +136,9 @@ def test_gpkg_corrupt_wkb_blob_raises_parse_error_not_raw_exception(tmp_path):
     Header geçerli (GP magic + SRS ID) ama WKB kısmı bir Point ilan edip
     gerçek koordinat verisini sağlamıyor -> struct.unpack buffer-too-small
     fırlatır; eskiden bu yakalanmıyordu."""
-    truncated_wkb = struct.pack("<BI", 1, 1) + b"\x00" * 3  # Point ilan edildi, 16 byte yerine 3 byte
+    truncated_wkb = (
+        struct.pack("<BI", 1, 1) + b"\x00" * 3
+    )  # Point ilan edildi, 16 byte yerine 3 byte
     blob = b"GP" + bytes([0, 0]) + b"\x00\x00\x00\x00" + truncated_wkb
     path = _make_gpkg(tmp_path, blob_rows=(blob,))
     with pytest.raises(GISParseError):
@@ -155,6 +165,7 @@ def test_gpkg_wkb_huge_declared_ring_count_raises_parse_error_fast(tmp_path):
     blob = b"GP" + bytes([0, 0]) + b"\x00\x00\x00\x00" + wkb
     path = _make_gpkg(tmp_path, blob_rows=(blob,))
     import time
+
     start = time.monotonic()
     with pytest.raises(GISParseError):
         GeoPackageParser().parse_file(str(path))
@@ -176,11 +187,12 @@ def test_gpkg_valid_point_still_parses(tmp_path):
 # 3. Shapefile — num_parts/num_points bellek-tükenmesi DoS koruması
 # ------------------------------------------------------------------ #
 
+
 def _shp_with_record(rec_content: bytes) -> bytes:
-    header = struct.pack(">i", 9994) + b"\x00" * 20   # 0:24  file code + unused
-    header += struct.pack(">i", 50)                    # 24:28 file length
-    header += struct.pack("<i", 1000)                   # 28:32 version
-    header += struct.pack("<i", 5) + b"\x00" * 64        # 32:36 shape type + 36:100 bbox etc.
+    header = struct.pack(">i", 9994) + b"\x00" * 20  # 0:24  file code + unused
+    header += struct.pack(">i", 50)  # 24:28 file length
+    header += struct.pack("<i", 1000)  # 28:32 version
+    header += struct.pack("<i", 5) + b"\x00" * 64  # 32:36 shape type + 36:100 bbox etc.
     assert len(header) == 100
     record = struct.pack(">ii", 1, len(rec_content) // 2) + rec_content
     return header + record
@@ -196,6 +208,7 @@ def test_shapefile_huge_declared_num_parts_raises_parse_error_fast(tmp_path):
     path = tmp_path / "bomb.shp"
     path.write_bytes(_shp_with_record(rec_content))
     import time
+
     start = time.monotonic()
     with pytest.raises(GISParseError):
         ShapefileParser().parse_file(str(path))
@@ -247,6 +260,7 @@ def test_shapefile_valid_polygon_still_parses_after_hardening(tmp_path):
 # ------------------------------------------------------------------ #
 # 4. Mesh3D / Heightmap — GISParseError sarmalaması
 # ------------------------------------------------------------------ #
+
 
 def test_mesh3d_obj_bad_float_raises_parse_error(tmp_path):
     path = tmp_path / "bad.obj"
@@ -304,8 +318,7 @@ def test_heightmap_raw_binary_size_mismatch_raises_parse_error(tmp_path):
 def test_heightmap_valid_esri_ascii_still_parses(tmp_path):
     path = tmp_path / "ok.asc"
     path.write_text(
-        "ncols 2\nnrows 2\nxllcorner 0\nyllcorner 0\ncellsize 1\nnodata_value -9999\n"
-        "1 2\n3 4\n",
+        "ncols 2\nnrows 2\nxllcorner 0\nyllcorner 0\ncellsize 1\nnodata_value -9999\n1 2\n3 4\n",
         encoding="utf-8",
     )
     fc = HeightmapParser().parse_file(str(path))

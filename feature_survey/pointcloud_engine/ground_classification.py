@@ -25,7 +25,6 @@ Removing Nonground Measurements from Airborne LIDAR Data" makalesindeki
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 
 Point3 = tuple[float, float, float]
@@ -71,9 +70,11 @@ def _grid_min_z(
     return grid, min_x, min_y
 
 
-def _morphological_erode(grid: dict[tuple[int, int], float], radius: int) -> dict[tuple[int, int], float]:
+def _morphological_erode(
+    grid: dict[tuple[int, int], float], radius: int
+) -> dict[tuple[int, int], float]:
     out: dict[tuple[int, int], float] = {}
-    for (cx, cy) in grid:
+    for cx, cy in grid:
         vals = []
         for dx in range(-radius, radius + 1):
             for dy in range(-radius, radius + 1):
@@ -84,9 +85,11 @@ def _morphological_erode(grid: dict[tuple[int, int], float], radius: int) -> dic
     return out
 
 
-def _morphological_dilate(grid: dict[tuple[int, int], float], radius: int) -> dict[tuple[int, int], float]:
+def _morphological_dilate(
+    grid: dict[tuple[int, int], float], radius: int
+) -> dict[tuple[int, int], float]:
     out: dict[tuple[int, int], float] = {}
-    for (cx, cy) in grid:
+    for cx, cy in grid:
         vals = []
         for dx in range(-radius, radius + 1):
             for dy in range(-radius, radius + 1):
@@ -147,7 +150,7 @@ def progressive_morphological_filter(
         prev_window = w
 
     classification: list[int] = []
-    for (x, y, z) in points:
+    for x, y, z in points:
         cell = (int((x - min_x) // cell_size_m), int((y - min_y) // cell_size_m))
         if cell in nonground_cells:
             classification.append(ASPRS_UNCLASSIFIED)

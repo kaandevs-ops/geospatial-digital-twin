@@ -98,10 +98,13 @@ class SportRecreationGenerator:
         )
         if item.area_type is SportAreaType.PITCH:
             markings = SportRecreationGenerator._pitch_line_markings(
-                item.polygon, top_z=base_z_offset + height,
+                item.polygon,
+                top_z=base_z_offset + height,
             )
             if markings is not None:
-                return MeshMerger.merge([base_mesh, markings], name=f"sport_area_{item.area_type.value}")
+                return MeshMerger.merge(
+                    [base_mesh, markings], name=f"sport_area_{item.area_type.value}"
+                )
             return base_mesh
         if item.area_type is SportAreaType.STADIUM:
             tiers = SportRecreationGenerator._stadium_tiers(item.polygon, base_z_offset)
@@ -142,14 +145,30 @@ class SportRecreationGenerator:
 
         if long_is_x:
             # Orta çizgi: dikey, y boyunca.
-            pieces.append(MeshBuilder.build_box(
-                lw, depth, lh, center_x=cx, center_y=cy, base_z=top_z, name="pitch_halfway_line",
-            ))
+            pieces.append(
+                MeshBuilder.build_box(
+                    lw,
+                    depth,
+                    lh,
+                    center_x=cx,
+                    center_y=cy,
+                    base_z=top_z,
+                    name="pitch_halfway_line",
+                )
+            )
             circle_r = min(depth * 0.18, width * 0.12)
         else:
-            pieces.append(MeshBuilder.build_box(
-                width, lw, lh, center_x=cx, center_y=cy, base_z=top_z, name="pitch_halfway_line",
-            ))
+            pieces.append(
+                MeshBuilder.build_box(
+                    width,
+                    lw,
+                    lh,
+                    center_x=cx,
+                    center_y=cy,
+                    base_z=top_z,
+                    name="pitch_halfway_line",
+                )
+            )
             circle_r = min(width * 0.18, depth * 0.12)
 
         # Orta yuvarlak: 12 köşeli ince şerit (poligon değil, kısa kutu
@@ -165,7 +184,12 @@ class SportRecreationGenerator:
             seg_cx, seg_cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
             angle = math.atan2(y1 - y0, x1 - x0)
             seg = MeshBuilder.build_box(
-                seg_len, lw, lh, center_x=0.0, center_y=0.0, base_z=top_z,
+                seg_len,
+                lw,
+                lh,
+                center_x=0.0,
+                center_y=0.0,
+                base_z=top_z,
                 name="pitch_center_circle_segment",
             )
             cos_a, sin_a = math.cos(angle), math.sin(angle)
@@ -182,16 +206,30 @@ class SportRecreationGenerator:
         for sign in (-1, 1):
             if long_is_x:
                 box_cx = cx + sign * (width / 2.0 - box_depth / 2.0)
-                pieces.append(MeshBuilder.build_box(
-                    box_depth, box_width, lh, center_x=box_cx, center_y=cy, base_z=top_z,
-                    name="pitch_penalty_box",
-                ))
+                pieces.append(
+                    MeshBuilder.build_box(
+                        box_depth,
+                        box_width,
+                        lh,
+                        center_x=box_cx,
+                        center_y=cy,
+                        base_z=top_z,
+                        name="pitch_penalty_box",
+                    )
+                )
             else:
                 box_cy = cy + sign * (depth / 2.0 - box_depth / 2.0)
-                pieces.append(MeshBuilder.build_box(
-                    box_width, box_depth, lh, center_x=cx, center_y=box_cy, base_z=top_z,
-                    name="pitch_penalty_box",
-                ))
+                pieces.append(
+                    MeshBuilder.build_box(
+                        box_width,
+                        box_depth,
+                        lh,
+                        center_x=cx,
+                        center_y=box_cy,
+                        base_z=top_z,
+                        name="pitch_penalty_box",
+                    )
+                )
 
         return MeshMerger.merge(pieces, name="pitch_line_markings")
 
@@ -216,13 +254,18 @@ class SportRecreationGenerator:
         current_polygon = polygon
         z = base_z_offset
         for tier_index in range(SportRecreationGenerator.STADIUM_TIER_COUNT):
-            tiers.append(MeshBuilder.extrude_polygon(
-                current_polygon, base_z=z, height=SportRecreationGenerator.STADIUM_TIER_HEIGHT_M,
-                name=f"sport_area_stadium_tier_{tier_index}",
-            ))
+            tiers.append(
+                MeshBuilder.extrude_polygon(
+                    current_polygon,
+                    base_z=z,
+                    height=SportRecreationGenerator.STADIUM_TIER_HEIGHT_M,
+                    name=f"sport_area_stadium_tier_{tier_index}",
+                )
+            )
             z += SportRecreationGenerator.STADIUM_TIER_HEIGHT_M
             next_polygon = SetbackFloorGenerator.offset_footprint(
-                current_polygon, SportRecreationGenerator.STADIUM_TIER_INSET_M,
+                current_polygon,
+                SportRecreationGenerator.STADIUM_TIER_INSET_M,
             )
             # Aşırı içe ofsetin poligonu dejenere hale getirmesini önle
             # (B4 ilkesi - kabaca alan pozitif kalmalı).
@@ -240,34 +283,69 @@ class SportRecreationGenerator:
         # Kaydırak platformu + rampa (rampa, eksene hizalı basit kutu ile
         # yaklaştırılır - B1'in "düşük-poly" vurgusuyla tutarlı).
         slide_platform = MeshBuilder.build_box(
-            0.9, 0.9, 0.1, center_x=position.x - 1.2, center_y=position.y,
-            base_z=ground_z + 1.2, name="playground_slide_platform",
+            0.9,
+            0.9,
+            0.1,
+            center_x=position.x - 1.2,
+            center_y=position.y,
+            base_z=ground_z + 1.2,
+            name="playground_slide_platform",
         )
         slide_support = MeshBuilder.build_box(
-            0.15, 0.15, 1.2, center_x=position.x - 1.2, center_y=position.y,
-            base_z=ground_z, name="playground_slide_support",
+            0.15,
+            0.15,
+            1.2,
+            center_x=position.x - 1.2,
+            center_y=position.y,
+            base_z=ground_z,
+            name="playground_slide_support",
         )
         slide_ramp = MeshBuilder.build_box(
-            1.6, 0.6, 0.08, center_x=position.x - 0.3, center_y=position.y,
-            base_z=ground_z + 0.55, name="playground_slide_ramp",
+            1.6,
+            0.6,
+            0.08,
+            center_x=position.x - 0.3,
+            center_y=position.y,
+            base_z=ground_z + 0.55,
+            name="playground_slide_ramp",
         )
 
         # Salıncak: iki dikey direk + üst kiriş + tek oturak (temsili).
         swing_post_a = MeshBuilder.build_cylinder(
-            radius=0.06, height=2.2, center_x=position.x + 1.0, center_y=position.y - 0.8,
-            base_z=ground_z, segments=6, name="playground_swing_post_a",
+            radius=0.06,
+            height=2.2,
+            center_x=position.x + 1.0,
+            center_y=position.y - 0.8,
+            base_z=ground_z,
+            segments=6,
+            name="playground_swing_post_a",
         )
         swing_post_b = MeshBuilder.build_cylinder(
-            radius=0.06, height=2.2, center_x=position.x + 1.0, center_y=position.y + 0.8,
-            base_z=ground_z, segments=6, name="playground_swing_post_b",
+            radius=0.06,
+            height=2.2,
+            center_x=position.x + 1.0,
+            center_y=position.y + 0.8,
+            base_z=ground_z,
+            segments=6,
+            name="playground_swing_post_b",
         )
         swing_beam = MeshBuilder.build_box(
-            0.1, 1.7, 0.1, center_x=position.x + 1.0, center_y=position.y,
-            base_z=ground_z + 2.15, name="playground_swing_beam",
+            0.1,
+            1.7,
+            0.1,
+            center_x=position.x + 1.0,
+            center_y=position.y,
+            base_z=ground_z + 2.15,
+            name="playground_swing_beam",
         )
         swing_seat = MeshBuilder.build_box(
-            0.4, 0.15, 0.03, center_x=position.x + 1.0, center_y=position.y,
-            base_z=ground_z + 0.45, name="playground_swing_seat",
+            0.4,
+            0.15,
+            0.03,
+            center_x=position.x + 1.0,
+            center_y=position.y,
+            base_z=ground_z + 0.45,
+            name="playground_swing_seat",
         )
 
         # ROADMAP_V8.md Faz 5.6d: oyun alanı prop çeşitliliği en az 3
@@ -275,35 +353,61 @@ class SportRecreationGenerator:
         # vardı) — üçüncü eleman: tahterevalli (basit çapraz kiriş +
         # merkez pivot + iki uç oturak, düşük-poly).
         seesaw_pivot = MeshBuilder.build_cylinder(
-            radius=0.12, height=0.45, center_x=position.x, center_y=position.y - 1.6,
-            base_z=ground_z, segments=6, name="playground_seesaw_pivot",
+            radius=0.12,
+            height=0.45,
+            center_x=position.x,
+            center_y=position.y - 1.6,
+            base_z=ground_z,
+            segments=6,
+            name="playground_seesaw_pivot",
         )
         seesaw_beam = MeshBuilder.build_box(
-            2.4, 0.18, 0.06, center_x=position.x, center_y=position.y - 1.6,
-            base_z=ground_z + 0.45, name="playground_seesaw_beam",
+            2.4,
+            0.18,
+            0.06,
+            center_x=position.x,
+            center_y=position.y - 1.6,
+            base_z=ground_z + 0.45,
+            name="playground_seesaw_beam",
         )
         seesaw_seat_a = MeshBuilder.build_box(
-            0.3, 0.2, 0.05, center_x=position.x - 1.1, center_y=position.y - 1.6,
-            base_z=ground_z + 0.5, name="playground_seesaw_seat_a",
+            0.3,
+            0.2,
+            0.05,
+            center_x=position.x - 1.1,
+            center_y=position.y - 1.6,
+            base_z=ground_z + 0.5,
+            name="playground_seesaw_seat_a",
         )
         seesaw_seat_b = MeshBuilder.build_box(
-            0.3, 0.2, 0.05, center_x=position.x + 1.1, center_y=position.y - 1.6,
-            base_z=ground_z + 0.5, name="playground_seesaw_seat_b",
+            0.3,
+            0.2,
+            0.05,
+            center_x=position.x + 1.1,
+            center_y=position.y - 1.6,
+            base_z=ground_z + 0.5,
+            name="playground_seesaw_seat_b",
         )
 
         return MeshMerger.merge(
             [
-                slide_platform, slide_support, slide_ramp,
-                swing_post_a, swing_post_b, swing_beam, swing_seat,
-                seesaw_pivot, seesaw_beam, seesaw_seat_a, seesaw_seat_b,
+                slide_platform,
+                slide_support,
+                slide_ramp,
+                swing_post_a,
+                swing_post_b,
+                swing_beam,
+                swing_seat,
+                seesaw_pivot,
+                seesaw_beam,
+                seesaw_seat_a,
+                seesaw_seat_b,
             ],
             name="playground",
         )
 
     @staticmethod
-    def generate_batch(
-        areas: list[SportAreaItem], playgrounds: list[PlaygroundItem]
-    ) -> Mesh3D:
+    def generate_batch(areas: list[SportAreaItem], playgrounds: list[PlaygroundItem]) -> Mesh3D:
         """Bir bbox'taki tüm spor/rekreasyon feature'larını tek mesh'te
         birleştirir (önceki köprülerin `generate_batch`/`generate_market`
         deseniyle tutarlı)."""
@@ -320,8 +424,8 @@ class SportRecreationGenerator:
 # tanımları hazır olduktan sonra en altta import edilir (döngüsel importu
 # önlemek için önceki köprülerle aynı desen).
 from .osm_bridge import (  # noqa: E402
-    sport_recreation_item_from_feature,
     generate_sport_recreation_for_collection,
+    sport_recreation_item_from_feature,
 )
 
 __all__ = [

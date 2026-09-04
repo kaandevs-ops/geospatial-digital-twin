@@ -17,17 +17,14 @@ Test edilenler:
    oturuyor, `vertical_*` parametreleri `None` iken eski davranış
    (regresyonsuz) korunuyor.
 """
+
 from __future__ import annotations
 
-import math
-
 import pytest
-
 from harita.building_reconstruction.curved_facade import VerticalProfileGenerator
 from harita.building_reconstruction.facade_generator import FacadeGenerator
 from harita.building_reconstruction.footprint_parser import Footprint
 from harita.building_reconstruction.procedural_generator import (
-    BuildingType,
     ProceduralBuildingGenerator,
 )
 from harita.core_engine.geometry_engine import Point2D, Polygon
@@ -59,7 +56,9 @@ class TestFloorPolygonsIdentity:
 
     def test_single_floor_no_crash(self, base_polygon):
         floors = VerticalProfileGenerator.floor_polygons(
-            base_polygon, floor_count=1, scale_at=lambda t: 0.5,
+            base_polygon,
+            floor_count=1,
+            scale_at=lambda t: 0.5,
         )
         assert len(floors) == 1
         # t=0 tek katlı binada -> scale_at(0.0) = 0.5 uygulanmalı.
@@ -74,7 +73,9 @@ class TestVerticalScale:
         # Yukarı doğru büzülen kule: t=0 (zemin) -> ölçek 1.0, t=1 (en
         # üst kat) -> ölçek 0.5.
         floors = VerticalProfileGenerator.floor_polygons(
-            base_polygon, floor_count=10, scale_at=lambda t: 1.0 - 0.5 * t,
+            base_polygon,
+            floor_count=10,
+            scale_at=lambda t: 1.0 - 0.5 * t,
         )
         base_w, base_h = _bbox(base_polygon)
         w0, h0 = _bbox(floors[0])
@@ -88,7 +89,9 @@ class TestVerticalScale:
 
     def test_rotation_twists_top_floor(self, base_polygon):
         floors = VerticalProfileGenerator.floor_polygons(
-            base_polygon, floor_count=4, rotation_deg_at=lambda t: 45.0 * t,
+            base_polygon,
+            floor_count=4,
+            rotation_deg_at=lambda t: 45.0 * t,
         )
         base_ring = base_polygon.closed_ring()[:-1]
         top_ring = floors[-1].closed_ring()[:-1]
@@ -105,7 +108,9 @@ class TestVerticalScale:
 
     def test_offset_leans_tower(self, base_polygon):
         floors = VerticalProfileGenerator.floor_polygons(
-            base_polygon, floor_count=3, offset_at=lambda t: Point2D(t * 3.0, 0.0),
+            base_polygon,
+            floor_count=3,
+            offset_at=lambda t: Point2D(t * 3.0, 0.0),
         )
         c0 = floors[0].centroid()
         c2 = floors[-1].centroid()
@@ -113,7 +118,9 @@ class TestVerticalScale:
 
     def test_edge_count_preserved(self, base_polygon):
         floors = VerticalProfileGenerator.floor_polygons(
-            base_polygon, floor_count=6, scale_at=lambda t: 1.0 - 0.3 * t,
+            base_polygon,
+            floor_count=6,
+            scale_at=lambda t: 1.0 - 0.3 * t,
             rotation_deg_at=lambda t: 20.0 * t,
         )
         base_edges = len(base_polygon.closed_ring()) - 1
@@ -126,28 +133,47 @@ class TestFacadeGeneratorFloorPolygons:
         floors = VerticalProfileGenerator.floor_polygons(base_polygon, floor_count=3)
         with pytest.raises(ValueError):
             FacadeGenerator.generate(
-                base_polygon, "apartman", base_z=0.0, floor_height=3.0,
-                floor_count=5, floor_polygons=floors,
+                base_polygon,
+                "apartman",
+                base_z=0.0,
+                floor_height=3.0,
+                floor_count=5,
+                floor_polygons=floors,
             )
 
     def test_none_is_backward_compatible(self, base_polygon):
         facade_old = FacadeGenerator.generate(
-            base_polygon, "apartman", base_z=0.0, floor_height=3.0,
-            floor_count=3, seed=42,
+            base_polygon,
+            "apartman",
+            base_z=0.0,
+            floor_height=3.0,
+            floor_count=3,
+            seed=42,
         )
         facade_new = FacadeGenerator.generate(
-            base_polygon, "apartman", base_z=0.0, floor_height=3.0,
-            floor_count=3, seed=42, floor_polygons=None,
+            base_polygon,
+            "apartman",
+            base_z=0.0,
+            floor_height=3.0,
+            floor_count=3,
+            seed=42,
+            floor_polygons=None,
         )
         assert facade_old.mesh.triangle_count() == facade_new.mesh.triangle_count()
 
     def test_tapering_facade_produces_smaller_top_footprint(self, base_polygon):
         floors = VerticalProfileGenerator.floor_polygons(
-            base_polygon, floor_count=4, scale_at=lambda t: 1.0 - 0.4 * t,
+            base_polygon,
+            floor_count=4,
+            scale_at=lambda t: 1.0 - 0.4 * t,
         )
         facade = FacadeGenerator.generate(
-            base_polygon, "apartman", base_z=0.0, floor_height=3.0,
-            floor_count=4, floor_polygons=floors,
+            base_polygon,
+            "apartman",
+            base_z=0.0,
+            floor_height=3.0,
+            floor_count=4,
+            floor_polygons=floors,
         )
         assert facade.mesh is not None
         assert facade.mesh.triangle_count() > 0
@@ -164,7 +190,9 @@ class TestProceduralBuildingGeneratorVerticalProfile:
     def test_tapering_tower_end_to_end(self, base_polygon):
         fp = Footprint(polygon=base_polygon, building_type="ofis", floor_count=8)
         building = ProceduralBuildingGenerator.generate(
-            fp, seed=7, vertical_scale_at=lambda t: 1.0 - 0.5 * t,
+            fp,
+            seed=7,
+            vertical_scale_at=lambda t: 1.0 - 0.5 * t,
         )
         assert building.facade.mesh is not None
         assert building.facade.mesh.triangle_count() > 0
@@ -181,7 +209,8 @@ class TestProceduralBuildingGeneratorVerticalProfile:
     def test_twisted_tower_end_to_end_no_crash(self, base_polygon):
         fp = Footprint(polygon=base_polygon, building_type="ofis", floor_count=6)
         building = ProceduralBuildingGenerator.generate(
-            fp, seed=3,
+            fp,
+            seed=3,
             vertical_scale_at=lambda t: 1.0 - 0.2 * t,
             vertical_rotation_deg_at=lambda t: 30.0 * t,
         )

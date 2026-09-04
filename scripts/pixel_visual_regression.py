@@ -22,6 +22,7 @@ Dürüst sınırlama: bu, tarayıcıdaki gerçek WebGL2 renderer'ın pikseli
 değildir — headless, stdlib-only bir yazılım rasterizer'ının pikselidir
 (bkz. `render_engine/software_rasterizer.py` docstring'i).
 """
+
 from __future__ import annotations
 
 import sys
@@ -31,37 +32,103 @@ ROOT = Path(__file__).resolve().parent.parent.parent  # repo kökü (harita/'nı
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.building_reconstruction import (
-    BuildingType, Footprint, ProceduralBuildingGenerator,
+    BuildingType,
+    Footprint,
+    ProceduralBuildingGenerator,
 )
+from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.render_engine.software_rasterizer import (
-    Camera, pixel_diff, rasterize_mesh, read_ppm, write_ppm,
+    pixel_diff,
+    rasterize_mesh,
+    read_ppm,
+    write_ppm,
 )
 
-BASELINE_DIR = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "visual_regression_pixels"
+BASELINE_DIR = (
+    Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "visual_regression_pixels"
+)
 
 # `scripts/visual_regression.py` ile birebir aynı demo set — iki test
 # aynı geometriyi farklı katmanlarda (yapısal vs. piksel) doğrular.
 _DEMO_CASES: list[tuple[str, Polygon, BuildingType, int, float]] = [
-    ("dikdortgen_apartman", Polygon([
-        Point2D(0, 0), Point2D(20, 0), Point2D(20, 15), Point2D(0, 15),
-    ]), BuildingType.APARTMAN, 5, 15.0),
-    ("l_sekli_ofis", Polygon([
-        Point2D(0, 0), Point2D(18, 0), Point2D(18, 8), Point2D(10, 8),
-        Point2D(10, 16), Point2D(0, 16),
-    ]), BuildingType.OFIS, 6, 21.0),
-    ("u_sekli_okul", Polygon([
-        Point2D(0, 0), Point2D(24, 0), Point2D(24, 10), Point2D(16, 10),
-        Point2D(16, 4), Point2D(8, 4), Point2D(8, 10), Point2D(0, 10),
-    ]), BuildingType.OKUL, 3, 10.5),
-    ("duzensiz_villa", Polygon([
-        Point2D(0, 0), Point2D(11, 2), Point2D(13, 9), Point2D(6, 12),
-        Point2D(-1, 7),
-    ]), BuildingType.VILLA, 2, 6.0),
-    ("kare_depo", Polygon([
-        Point2D(0, 0), Point2D(16, 0), Point2D(16, 16), Point2D(0, 16),
-    ]), BuildingType.DEPO, 1, 6.0),
+    (
+        "dikdortgen_apartman",
+        Polygon(
+            [
+                Point2D(0, 0),
+                Point2D(20, 0),
+                Point2D(20, 15),
+                Point2D(0, 15),
+            ]
+        ),
+        BuildingType.APARTMAN,
+        5,
+        15.0,
+    ),
+    (
+        "l_sekli_ofis",
+        Polygon(
+            [
+                Point2D(0, 0),
+                Point2D(18, 0),
+                Point2D(18, 8),
+                Point2D(10, 8),
+                Point2D(10, 16),
+                Point2D(0, 16),
+            ]
+        ),
+        BuildingType.OFIS,
+        6,
+        21.0,
+    ),
+    (
+        "u_sekli_okul",
+        Polygon(
+            [
+                Point2D(0, 0),
+                Point2D(24, 0),
+                Point2D(24, 10),
+                Point2D(16, 10),
+                Point2D(16, 4),
+                Point2D(8, 4),
+                Point2D(8, 10),
+                Point2D(0, 10),
+            ]
+        ),
+        BuildingType.OKUL,
+        3,
+        10.5,
+    ),
+    (
+        "duzensiz_villa",
+        Polygon(
+            [
+                Point2D(0, 0),
+                Point2D(11, 2),
+                Point2D(13, 9),
+                Point2D(6, 12),
+                Point2D(-1, 7),
+            ]
+        ),
+        BuildingType.VILLA,
+        2,
+        6.0,
+    ),
+    (
+        "kare_depo",
+        Polygon(
+            [
+                Point2D(0, 0),
+                Point2D(16, 0),
+                Point2D(16, 16),
+                Point2D(0, 16),
+            ]
+        ),
+        BuildingType.DEPO,
+        1,
+        6.0,
+    ),
 ]
 
 SEED = 4242
@@ -74,14 +141,16 @@ MAX_CHANNEL_DIFF_TOLERANCE = 12
 MAX_CHANGED_RATIO_TOLERANCE = 0.02
 
 
-def render_all() -> dict[str, "Image"]:  # noqa: F821 - Image sadece tip ipucu
+def render_all() -> dict[str, Image]:  # noqa: F821 - Image sadece tip ipucu
     from harita.render_engine.software_rasterizer import Image  # local import: tip netliği
 
     images: dict[str, Image] = {}
     for name, polygon, btype, floor_count, height_m in _DEMO_CASES:
         footprint = Footprint(
-            polygon=polygon, building_type=btype.value,
-            floor_count=floor_count, height_m=height_m,
+            polygon=polygon,
+            building_type=btype.value,
+            floor_count=floor_count,
+            height_m=height_m,
         )
         building = ProceduralBuildingGenerator.generate(footprint, building_type=btype, seed=SEED)
         mesh = building.full_mesh(include_interior=False)
@@ -104,7 +173,9 @@ def main() -> int:
     for name, img in images.items():
         baseline_path = BASELINE_DIR / f"{name}.ppm"
         if not baseline_path.exists():
-            problems.append(f"  [{name}] baseline PPM yok — yeni demo case, --update-baseline ile onaylayın")
+            problems.append(
+                f"  [{name}] baseline PPM yok — yeni demo case, --update-baseline ile onaylayın"
+            )
             continue
         baseline_img = read_ppm(str(baseline_path))
         try:
@@ -112,8 +183,9 @@ def main() -> int:
         except ValueError as exc:
             problems.append(f"  [{name}] {exc}")
             continue
-        if not diff.within_tolerance(max_diff=MAX_CHANNEL_DIFF_TOLERANCE,
-                                      max_ratio=MAX_CHANGED_RATIO_TOLERANCE):
+        if not diff.within_tolerance(
+            max_diff=MAX_CHANNEL_DIFF_TOLERANCE, max_ratio=MAX_CHANGED_RATIO_TOLERANCE
+        ):
             problems.append(
                 f"  [{name}] piksel regresyonu: max_channel_diff={diff.max_channel_diff}, "
                 f"changed_ratio={diff.changed_pixel_ratio:.4f} "
@@ -124,10 +196,14 @@ def main() -> int:
         print(f"PİKSEL GÖRSEL REGRESYON TESPİT EDİLDİ ({len(problems)} fark):")
         for p in problems:
             print(p)
-        print("\nBeklenen bir değişiklikse: python3 scripts/pixel_visual_regression.py --update-baseline")
+        print(
+            "\nBeklenen bir değişiklikse: python3 scripts/pixel_visual_regression.py --update-baseline"
+        )
         return 1
 
-    print(f"OK — {len(images)} demo case piksel baseline ile eşik dahilinde uyuşuyor ({BASELINE_DIR}).")
+    print(
+        f"OK — {len(images)} demo case piksel baseline ile eşik dahilinde uyuşuyor ({BASELINE_DIR})."
+    )
     return 0
 
 

@@ -62,7 +62,7 @@ def apply_curvature_refraction(horizontal_distance_m: float) -> float:
     katsayısı, R=Dünya yarıçapı. Sadece açıkça çağrıldığında uygulanır."""
 
     d = horizontal_distance_m
-    return (1.0 - _REFRACTION_COEFFICIENT) * (d ** 2) / (2.0 * _EARTH_RADIUS_M)
+    return (1.0 - _REFRACTION_COEFFICIENT) * (d**2) / (2.0 * _EARTH_RADIUS_M)
 
 
 def reduce_observation(
@@ -89,9 +89,13 @@ def reduce_observation(
     if horizontal_angle_gon is None:
         raise InsufficientDataError(f"{point_id}: yatay açı eksik — indirgeme yapılamaz.")
     if instrument_height_m is None:
-        raise InsufficientDataError(f"{point_id}: alet yüksekliği (HI) eksik — indirgeme yapılamaz.")
+        raise InsufficientDataError(
+            f"{point_id}: alet yüksekliği (HI) eksik — indirgeme yapılamaz."
+        )
     if target_height_m is None:
-        raise InsufficientDataError(f"{point_id}: hedef/prizma yüksekliği (HT) eksik — indirgeme yapılamaz.")
+        raise InsufficientDataError(
+            f"{point_id}: hedef/prizma yüksekliği (HT) eksik — indirgeme yapılamaz."
+        )
 
     zenith_rad = gon_to_radians(zenith_angle_gon)
     horizontal_distance = slope_distance_m * math.sin(zenith_rad)
@@ -117,7 +121,9 @@ def reduce_observation(
     )
 
 
-def accumulate_bearing(previous_bearing_gon: float, measured_angle_gon: float, angle_is_deflection: bool = False) -> float:
+def accumulate_bearing(
+    previous_bearing_gon: float, measured_angle_gon: float, angle_is_deflection: bool = False
+) -> float:
     """Yöney biriktirme (angle accumulation): bir önceki kenarın yöneyine
     ölçülen açı eklenerek yeni kenarın yöneyi hesaplanır.
 

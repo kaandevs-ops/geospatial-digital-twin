@@ -23,8 +23,6 @@ AI-katma-deger noktalari icin bkz. `docs/AI_INTEGRATION_MAP.md`.
 
 from __future__ import annotations
 
-from typing import Optional
-
 from .llm_providers import LLMCallError, LLMProvider, ProviderUnavailableError
 
 __all__ = ["narrate_facade_compliance", "narrate_room_compliance"]
@@ -56,13 +54,12 @@ def _fallback_room_summary(report) -> str:
         return "Tum odalar asgari alan/genislik gereksinimlerini karsiliyor."
     lines = ["Asagidaki odalarda yonetmelik uygunsuzlugu tespit edildi:"]
     lines.extend(
-        f"- oda #{issue.room_id} ({issue.room_type}): {issue.reason}"
-        for issue in report.issues
+        f"- oda #{issue.room_id} ({issue.room_type}): {issue.reason}" for issue in report.issues
     )
     return " ".join(lines)
 
 
-def _narrate(report, fallback_fn, provider: Optional[LLMProvider]) -> str:
+def _narrate(report, fallback_fn, provider: LLMProvider | None) -> str:
     fallback = fallback_fn(report)
     if provider is None:
         return fallback
@@ -74,7 +71,7 @@ def _narrate(report, fallback_fn, provider: Optional[LLMProvider]) -> str:
     return text or fallback
 
 
-def narrate_facade_compliance(report, provider: Optional[LLMProvider] = None) -> str:
+def narrate_facade_compliance(report, provider: LLMProvider | None = None) -> str:
     """`FacadeComplianceReport`'u dogal dilde kisa bir aciklamaya cevirir.
     `provider=None` (varsayilan) veya saglayici basarisiz olursa, sablon
     tabanli (LLM'siz) bir ozete sessizce duser - hicbir zaman istisna
@@ -82,7 +79,7 @@ def narrate_facade_compliance(report, provider: Optional[LLMProvider] = None) ->
     return _narrate(report, _fallback_facade_summary, provider)
 
 
-def narrate_room_compliance(report, provider: Optional[LLMProvider] = None) -> str:
+def narrate_room_compliance(report, provider: LLMProvider | None = None) -> str:
     """`RoomComplianceReport`'u dogal dilde kisa bir aciklamaya cevirir.
     Ayni sessiz-dusme davranisi icin bkz. `narrate_facade_compliance`."""
     return _narrate(report, _fallback_room_summary, provider)

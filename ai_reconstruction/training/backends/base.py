@@ -38,7 +38,7 @@ class TrainerBackend(Protocol):
 
     name: str
 
-    def fit(self, config: TrainingConfig) -> "TrainingResult":
+    def fit(self, config: TrainingConfig) -> TrainingResult:
         """Modeli eğitir (scratch ya da finetune, `config.mode`'a göre),
         `config.output_dir` altına checkpoint + metrics.json yazar,
         `config.export_onnx=True` ise ONNX'e de export eder."""
@@ -98,8 +98,7 @@ def _load_torch() -> TrainerBackend:
         from .torch_backend import TorchTrainerBackend
     except ImportError as exc:
         raise BackendUnavailable(
-            "PyTorch kurulu değil. Kurmak için: "
-            "pip install harita-modelleme[train-torch]"
+            "PyTorch kurulu değil. Kurmak için: pip install harita-modelleme[train-torch]"
         ) from exc
     return TorchTrainerBackend()
 
@@ -109,7 +108,6 @@ def _load_tf() -> TrainerBackend:
         from .tf_backend import TensorFlowTrainerBackend
     except ImportError as exc:
         raise BackendUnavailable(
-            "TensorFlow kurulu değil. Kurmak için: "
-            "pip install harita-modelleme[train-tensorflow]"
+            "TensorFlow kurulu değil. Kurmak için: pip install harita-modelleme[train-tensorflow]"
         ) from exc
     return TensorFlowTrainerBackend()

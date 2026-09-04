@@ -31,10 +31,10 @@ from datetime import datetime, timezone
 from ..core_engine.coordinate_systems import GeoPoint
 from ..mesh_engine import Mesh3D, NormalGenerator, Vertex3D
 
-
 # ======================================================================== #
 # Julian Day / Sidereal Time yardımcıları (Meeus, Böl. 7 ve 12)
 # ======================================================================== #
+
 
 def _julian_day(when_utc: datetime) -> float:
     """Meeus Böl. 7: Gregoryen takvimden Julian Day (JD) hesabı."""
@@ -59,7 +59,7 @@ def _greenwich_mean_sidereal_time_deg(jd: float, t: float) -> float:
         280.46061837
         + 360.98564736629 * (jd - 2451545.0)
         + 0.000387933 * t * t
-        - (t ** 3) / 38710000.0
+        - (t**3) / 38710000.0
     )
     return theta0 % 360.0
 
@@ -68,10 +68,11 @@ def _greenwich_mean_sidereal_time_deg(jd: float, t: float) -> float:
 # Solar Position (Meeus - Astronomical Algorithms, Böl. 25 + 12 + 13)
 # ======================================================================== #
 
+
 @dataclass(slots=True)
 class SolarPosition:
-    azimuth_deg: float     # 0=Kuzey, 90=Doğu, 180=Güney, 270=Batı
-    elevation_deg: float   # ufuk üstü açı (negatifse güneş ufkun altında)
+    azimuth_deg: float  # 0=Kuzey, 90=Doğu, 180=Güney, 270=Batı
+    elevation_deg: float  # ufuk üstü açı (negatifse güneş ufkun altında)
 
     @property
     def is_daylight(self) -> bool:
@@ -134,14 +135,11 @@ class SolarPositionCalculator:
 
         # Nütasyon/aberasyon düzeltmesi (basitleştirilmiş - Ω üzerinden)
         omega = 125.04 - 1934.136 * t
-        apparent_longitude = (
-            true_longitude - 0.00569 - 0.00478 * math.sin(math.radians(omega))
-        )
+        apparent_longitude = true_longitude - 0.00569 - 0.00478 * math.sin(math.radians(omega))
 
         # Ekliptik eğikliği (Böl. 22): ortalama + nütasyon düzeltmesi
         eps0_arcsec = (
-            23.0 * 3600.0 + 26.0 * 60.0 + 21.448
-            - 46.8150 * t - 0.00059 * t * t + 0.001813 * (t ** 3)
+            23.0 * 3600.0 + 26.0 * 60.0 + 21.448 - 46.8150 * t - 0.00059 * t * t + 0.001813 * (t**3)
         )
         eps0 = eps0_arcsec / 3600.0
         epsilon = eps0 + 0.00256 * math.cos(math.radians(omega))
@@ -149,9 +147,10 @@ class SolarPositionCalculator:
         lam_rad = math.radians(apparent_longitude)
         eps_rad = math.radians(epsilon)
 
-        right_ascension = math.degrees(
-            math.atan2(math.cos(eps_rad) * math.sin(lam_rad), math.cos(lam_rad))
-        ) % 360.0
+        right_ascension = (
+            math.degrees(math.atan2(math.cos(eps_rad) * math.sin(lam_rad), math.cos(lam_rad)))
+            % 360.0
+        )
         declination = math.degrees(math.asin(math.sin(eps_rad) * math.sin(lam_rad)))
 
         # -- Böl. 12/13: yıldız zamanı -> saat açısı -> ufuk koordinatları - #
@@ -186,6 +185,7 @@ class SolarPositionCalculator:
 # Sun / Moon
 # ======================================================================== #
 
+
 @dataclass(slots=True)
 class SunLight:
     """Roadmap: 'Sun'. Tek bir directional light kaynağı olarak modellenir;
@@ -196,8 +196,12 @@ class SunLight:
     position: SolarPosition = field(default_factory=lambda: SolarPosition(0.0, 45.0))
 
     @classmethod
-    def at(cls, location: GeoPoint, when_utc: datetime,
-           color: tuple[float, float, float] = (1.0, 0.98, 0.92)) -> "SunLight":
+    def at(
+        cls,
+        location: GeoPoint,
+        when_utc: datetime,
+        color: tuple[float, float, float] = (1.0, 0.98, 0.92),
+    ) -> SunLight:
         pos = SolarPositionCalculator.compute(location, when_utc)
         intensity = 120_000.0 * max(0.0, math.sin(math.radians(max(pos.elevation_deg, 0.0) + 5)))
         return cls(color=color, intensity_lux=intensity, position=pos)
@@ -223,6 +227,7 @@ class MoonLight:
 # HDR Sky
 # ======================================================================== #
 
+
 @dataclass(slots=True)
 class HDRSky:
     """Roadmap: 'HDR Sky'. Equirectangular HDR panorama referansı + basit
@@ -236,14 +241,13 @@ class HDRSky:
     def sample_direction(self, elevation_deg: float) -> tuple[float, float, float]:
         """HDRI dosyası yoksa: ufuk-zenit arası lineer renk enterpolasyonu."""
         t = max(0.0, min(1.0, elevation_deg / 90.0))
-        return tuple(
-            h + (z - h) * t for h, z in zip(self.horizon_color, self.zenith_color)
-        )  # type: ignore[return-value]
+        return tuple(h + (z - h) * t for h, z in zip(self.horizon_color, self.zenith_color))  # type: ignore[return-value]
 
 
 # ======================================================================== #
 # Dynamic Shadows (render-agnostic pass tanımı)
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class ShadowMapPass:
@@ -258,7 +262,7 @@ class ShadowMapPass:
     max_distance_m: float = 500.0
 
     @classmethod
-    def from_sun(cls, sun: SunLight, resolution: int = 2048) -> "ShadowMapPass":
+    def from_sun(cls, sun: SunLight, resolution: int = 2048) -> ShadowMapPass:
         return cls(light_direction=sun.direction(), resolution=resolution)
 
 
@@ -268,8 +272,12 @@ class ShadowCalculator:
     Engine'deki `ShadowAnalysis` bu sınıfı temel alır."""
 
     @staticmethod
-    def point_in_shadow(point: tuple[float, float, float], sun: SunLight,
-                         occluder_meshes: list[Mesh3D], max_distance: float = 500.0) -> bool:
+    def point_in_shadow(
+        point: tuple[float, float, float],
+        sun: SunLight,
+        occluder_meshes: list[Mesh3D],
+        max_distance: float = 500.0,
+    ) -> bool:
         """Möller–Trumbore ray-triangle intersection ile, noktadan güneşe
         doğru ışın atıp herhangi bir engelleyici üçgene çarpıp çarpmadığını
         kontrol eder."""
@@ -279,15 +287,20 @@ class ShadowCalculator:
         for mesh in occluder_meshes:
             for tri in mesh.triangles:
                 a, b, c = mesh.triangle_positions(tri)
-                hit = _ray_triangle_intersect(point, ray_dir, a.as_tuple(), b.as_tuple(), c.as_tuple())
+                hit = _ray_triangle_intersect(
+                    point, ray_dir, a.as_tuple(), b.as_tuple(), c.as_tuple()
+                )
                 if hit is not None and 1e-4 < hit < max_distance:
                     return True
         return False
 
 
 def _ray_triangle_intersect(
-    origin: tuple[float, float, float], direction: tuple[float, float, float],
-    v0: tuple[float, float, float], v1: tuple[float, float, float], v2: tuple[float, float, float],
+    origin: tuple[float, float, float],
+    direction: tuple[float, float, float],
+    v0: tuple[float, float, float],
+    v1: tuple[float, float, float],
+    v2: tuple[float, float, float],
 ) -> float | None:
     """Möller–Trumbore algoritması. Kesişim varsa ışın parametresi t (mesafe), yoksa None."""
     eps = 1e-9
@@ -322,6 +335,7 @@ def _dot3(a, b):
 # Ambient Lighting / GI approximation
 # ======================================================================== #
 
+
 @dataclass(slots=True)
 class AmbientLight:
     """Roadmap: 'Ambient Lighting'. Sabit/gökyüzü-tabanlı ambient katkı."""
@@ -330,7 +344,7 @@ class AmbientLight:
     intensity: float = 0.3
 
     @classmethod
-    def from_sky(cls, sky: HDRSky, intensity: float = 0.3) -> "AmbientLight":
+    def from_sky(cls, sky: HDRSky, intensity: float = 0.3) -> AmbientLight:
         avg = tuple((z + h) / 2.0 for z, h in zip(sky.zenith_color, sky.horizon_color))
         return cls(color=avg, intensity=intensity)  # type: ignore[arg-type]
 
@@ -342,7 +356,9 @@ class AmbientOcclusionBaker:
 
     @staticmethod
     def bake_vertex_ao(
-        mesh: Mesh3D, sample_count: int = 8, max_distance: float = 5.0,
+        mesh: Mesh3D,
+        sample_count: int = 8,
+        max_distance: float = 5.0,
         spatial_prune: bool = True,
     ) -> list[float]:
         """Her vertex için 0 (tamamen kapalı/gölgeli) - 1 (tamamen açık) arası
@@ -376,7 +392,8 @@ class AmbientOcclusionBaker:
             origin = (v.x + normal[0] * 1e-3, v.y + normal[1] * 1e-3, v.z + normal[2] * 1e-3)
             if spatial_prune:
                 candidates = [
-                    (pa, pb, pc) for (pa, pb, pc, centroid, radius) in tri_cache
+                    (pa, pb, pc)
+                    for (pa, pb, pc, centroid, radius) in tri_cache
                     if _dist3(origin, centroid) - radius <= max_distance
                 ]
             else:
@@ -399,7 +416,9 @@ class AmbientOcclusionBaker:
 
     @staticmethod
     def apply_vertex_ao(
-        mesh: Mesh3D, sample_count: int = 8, max_distance: float = 5.0,
+        mesh: Mesh3D,
+        sample_count: int = 8,
+        max_distance: float = 5.0,
     ) -> Mesh3D:
         """ROADMAP_V8 Faz 6.4: `bake_vertex_ao` sonucunu doğrudan mesh'in
         `Vertex3D.ao` alanına yazar (opt-in, yeni bir `clone()` üzerinde
@@ -413,14 +432,18 @@ class AmbientOcclusionBaker:
         if not result.vertices[0].normal:
             NormalGenerator.compute_face_averaged_normals(result)
         ao_values = AmbientOcclusionBaker.bake_vertex_ao(
-            result, sample_count=sample_count, max_distance=max_distance,
+            result,
+            sample_count=sample_count,
+            max_distance=max_distance,
         )
         for v, ao in zip(result.vertices, ao_values):
             v.ao = ao
         return result
 
 
-def _hemisphere_samples(normal: tuple[float, float, float], count: int) -> list[tuple[float, float, float]]:
+def _hemisphere_samples(
+    normal: tuple[float, float, float], count: int
+) -> list[tuple[float, float, float]]:
     """Normal etrafında basit, deterministik (Fibonacci-küre tabanlı)
     hemisphere örnekleme - rastgelelik gerektirmez, tekrarlanabilir."""
     samples = []
@@ -434,9 +457,7 @@ def _hemisphere_samples(normal: tuple[float, float, float], count: int) -> list[
         ref = (0.0, 0.0, 1.0) if abs(normal[2]) < 0.999 else (1.0, 0.0, 0.0)
         tangent = _normalize3(_cross3(ref, normal))
         bitangent = _cross3(normal, tangent)
-        world = tuple(
-            tangent[k] * x + bitangent[k] * y + normal[k] * z for k in range(3)
-        )
+        world = tuple(tangent[k] * x + bitangent[k] * y + normal[k] * z for k in range(3))
         samples.append(world)
     return samples
 
@@ -535,7 +556,9 @@ class SceneAOBaker:
 
     @staticmethod
     def bake_scene_ao(
-        meshes: list[Mesh3D], sample_count: int = 8, max_distance: float = 5.0,
+        meshes: list[Mesh3D],
+        sample_count: int = 8,
+        max_distance: float = 5.0,
         cell_size: float | None = None,
     ) -> list[list[float]]:
         """Her mesh için, o mesh'in vertex sırasına denk gelen bir AO
@@ -567,7 +590,9 @@ class SceneAOBaker:
                 normal = v.normal or (0.0, 0.0, 1.0)
                 samples = _hemisphere_samples(normal, sample_count)
                 origin = (
-                    v.x + normal[0] * 1e-3, v.y + normal[1] * 1e-3, v.z + normal[2] * 1e-3,
+                    v.x + normal[0] * 1e-3,
+                    v.y + normal[1] * 1e-3,
+                    v.z + normal[2] * 1e-3,
                 )
                 candidates = grid.query_near(origin, max_distance)
                 occluded = 0
@@ -586,7 +611,9 @@ class SceneAOBaker:
 
     @staticmethod
     def apply_scene_ao(
-        meshes: list[Mesh3D], sample_count: int = 8, max_distance: float = 5.0,
+        meshes: list[Mesh3D],
+        sample_count: int = 8,
+        max_distance: float = 5.0,
         cell_size: float | None = None,
     ) -> list[Mesh3D]:
         """`bake_scene_ao` sonucunu her mesh'in klonuna (`Vertex3D.ao`)
@@ -599,7 +626,10 @@ class SceneAOBaker:
             if clone.vertices and not clone.vertices[0].normal:
                 NormalGenerator.compute_face_averaged_normals(clone)
         ao_lists = SceneAOBaker.bake_scene_ao(
-            clones, sample_count=sample_count, max_distance=max_distance, cell_size=cell_size,
+            clones,
+            sample_count=sample_count,
+            max_distance=max_distance,
+            cell_size=cell_size,
         )
         for clone, ao_values in zip(clones, ao_lists):
             for v, ao in zip(clone.vertices, ao_values):

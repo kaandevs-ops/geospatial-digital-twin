@@ -34,8 +34,8 @@ import json
 import os
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Optional
 
 __all__ = [
     "AnthropicLLMBridge",
@@ -96,7 +96,7 @@ class AnthropicLLMBridge:
 
     def __init__(
         self,
-        config: Optional[AnthropicLLMBridgeConfig] = None,
+        config: AnthropicLLMBridgeConfig | None = None,
         *,
         raise_on_error: bool = False,
     ) -> None:
@@ -113,9 +113,7 @@ class AnthropicLLMBridge:
         api_key = os.environ.get(self._config.api_key_env)
         if not api_key:
             if self._raise_on_error:
-                raise LLMBridgeError(
-                    f"{self._config.api_key_env} ortam degiskeni tanimli degil."
-                )
+                raise LLMBridgeError(f"{self._config.api_key_env} ortam degiskeni tanimli degil.")
             return []
 
         payload = {
@@ -170,9 +168,7 @@ class AnthropicLLMBridge:
             parsed = json.loads(raw_text) if raw_text else None
         except json.JSONDecodeError as exc:
             if self._raise_on_error:
-                raise LLMBridgeError(
-                    f"LLM yaniti gecerli JSON degil: {raw_text[:200]!r}"
-                ) from exc
+                raise LLMBridgeError(f"LLM yaniti gecerli JSON degil: {raw_text[:200]!r}") from exc
             return []
 
         if not isinstance(parsed, list):

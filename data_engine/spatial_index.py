@@ -28,8 +28,9 @@ Bağımlılık: yalnızca stdlib.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
-from typing import Any, Callable, Generic, Iterable, TypeVar
+from collections.abc import Iterable
+from dataclasses import dataclass
+from typing import Any, Generic, TypeVar
 
 from ..mesh_engine import Mesh3D, Vertex3D
 
@@ -39,6 +40,7 @@ T = TypeVar("T")
 # ======================================================================== #
 # Sınırlayıcı kutular (Bounding Boxes)
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class AABB2D:
@@ -53,19 +55,23 @@ class AABB2D:
         if self.min_x > self.max_x or self.min_y > self.max_y:
             raise ValueError("AABB2D: min > max")
 
-    def intersects(self, other: "AABB2D") -> bool:
+    def intersects(self, other: AABB2D) -> bool:
         return not (
-            self.max_x < other.min_x or other.max_x < self.min_x or
-            self.max_y < other.min_y or other.max_y < self.min_y
+            self.max_x < other.min_x
+            or other.max_x < self.min_x
+            or self.max_y < other.min_y
+            or other.max_y < self.min_y
         )
 
     def contains_point(self, x: float, y: float) -> bool:
         return self.min_x <= x <= self.max_x and self.min_y <= y <= self.max_y
 
-    def contains(self, other: "AABB2D") -> bool:
+    def contains(self, other: AABB2D) -> bool:
         return (
-            self.min_x <= other.min_x and self.min_y <= other.min_y and
-            self.max_x >= other.max_x and self.max_y >= other.max_y
+            self.min_x <= other.min_x
+            and self.min_y <= other.min_y
+            and self.max_x >= other.max_x
+            and self.max_y >= other.max_y
         )
 
     def center(self) -> tuple[float, float]:
@@ -74,19 +80,21 @@ class AABB2D:
     def area(self) -> float:
         return (self.max_x - self.min_x) * (self.max_y - self.min_y)
 
-    def union(self, other: "AABB2D") -> "AABB2D":
+    def union(self, other: AABB2D) -> AABB2D:
         return AABB2D(
-            min(self.min_x, other.min_x), min(self.min_y, other.min_y),
-            max(self.max_x, other.max_x), max(self.max_y, other.max_y),
+            min(self.min_x, other.min_x),
+            min(self.min_y, other.min_y),
+            max(self.max_x, other.max_x),
+            max(self.max_y, other.max_y),
         )
 
-    def enlargement(self, other: "AABB2D") -> float:
+    def enlargement(self, other: AABB2D) -> float:
         """Bu kutuyu `other`'ı da kapsayacak şekilde büyütürsek alanın ne
         kadar artacağı (R-tree quadratic split / seçim sezgiselinde kullanılır)."""
         return self.union(other).area() - self.area()
 
     @staticmethod
-    def from_points(points: Iterable[tuple[float, float]]) -> "AABB2D":
+    def from_points(points: Iterable[tuple[float, float]]) -> AABB2D:
         xs, ys = zip(*points)
         return AABB2D(min(xs), min(ys), max(xs), max(ys))
 
@@ -106,18 +114,21 @@ class AABB3D:
         if self.min_x > self.max_x or self.min_y > self.max_y or self.min_z > self.max_z:
             raise ValueError("AABB3D: min > max")
 
-    def intersects(self, other: "AABB3D") -> bool:
+    def intersects(self, other: AABB3D) -> bool:
         return not (
-            self.max_x < other.min_x or other.max_x < self.min_x or
-            self.max_y < other.min_y or other.max_y < self.min_y or
-            self.max_z < other.min_z or other.max_z < self.min_z
+            self.max_x < other.min_x
+            or other.max_x < self.min_x
+            or self.max_y < other.min_y
+            or other.max_y < self.min_y
+            or self.max_z < other.min_z
+            or other.max_z < self.min_z
         )
 
     def contains_point(self, x: float, y: float, z: float) -> bool:
         return (
-            self.min_x <= x <= self.max_x and
-            self.min_y <= y <= self.max_y and
-            self.min_z <= z <= self.max_z
+            self.min_x <= x <= self.max_x
+            and self.min_y <= y <= self.max_y
+            and self.min_z <= z <= self.max_z
         )
 
     def center(self) -> tuple[float, float, float]:
@@ -127,26 +138,35 @@ class AABB3D:
             (self.min_z + self.max_z) / 2.0,
         )
 
-    def union(self, other: "AABB3D") -> "AABB3D":
+    def union(self, other: AABB3D) -> AABB3D:
         return AABB3D(
-            min(self.min_x, other.min_x), min(self.min_y, other.min_y), min(self.min_z, other.min_z),
-            max(self.max_x, other.max_x), max(self.max_y, other.max_y), max(self.max_z, other.max_z),
+            min(self.min_x, other.min_x),
+            min(self.min_y, other.min_y),
+            min(self.min_z, other.min_z),
+            max(self.max_x, other.max_x),
+            max(self.max_y, other.max_y),
+            max(self.max_z, other.max_z),
         )
 
     @staticmethod
-    def from_points(points: Iterable[tuple[float, float, float]]) -> "AABB3D":
+    def from_points(points: Iterable[tuple[float, float, float]]) -> AABB3D:
         xs, ys, zs = zip(*points)
         return AABB3D(min(xs), min(ys), min(zs), max(xs), max(ys), max(zs))
 
     @staticmethod
-    def from_triangle(a: Vertex3D, b: Vertex3D, c: Vertex3D) -> "AABB3D":
+    def from_triangle(a: Vertex3D, b: Vertex3D, c: Vertex3D) -> AABB3D:
         return AABB3D(
-            min(a.x, b.x, c.x), min(a.y, b.y, c.y), min(a.z, b.z, c.z),
-            max(a.x, b.x, c.x), max(a.y, b.y, c.y), max(a.z, b.z, c.z),
+            min(a.x, b.x, c.x),
+            min(a.y, b.y, c.y),
+            min(a.z, b.z, c.z),
+            max(a.x, b.x, c.x),
+            max(a.y, b.y, c.y),
+            max(a.z, b.z, c.z),
         )
 
-    def intersects_ray(self, origin: tuple[float, float, float],
-                        inv_dir: tuple[float, float, float]) -> bool:
+    def intersects_ray(
+        self, origin: tuple[float, float, float], inv_dir: tuple[float, float, float]
+    ) -> bool:
         """Slab yöntemi (Kay-Kajiya) ile AABB - ışın kesişim testi."""
         tmin, tmax = -math.inf, math.inf
         bounds = ((self.min_x, self.max_x), (self.min_y, self.max_y), (self.min_z, self.max_z))
@@ -169,6 +189,7 @@ class AABB3D:
 # QuadTree (2D)
 # ======================================================================== #
 
+
 @dataclass
 class _QuadEntry(Generic[T]):
     bounds: AABB2D
@@ -185,22 +206,24 @@ class QuadTree(Generic[T]):
     her ikisine de eklenir (klasik "loose quadtree" yaklaşımı).
     """
 
-    def __init__(self, boundary: AABB2D, capacity: int = 8, max_depth: int = 12, _depth: int = 0) -> None:
+    def __init__(
+        self, boundary: AABB2D, capacity: int = 8, max_depth: int = 12, _depth: int = 0
+    ) -> None:
         self.boundary = boundary
         self.capacity = capacity
         self.max_depth = max_depth
         self._depth = _depth
         self._entries: list[_QuadEntry[T]] = []
-        self._children: list["QuadTree[T]"] | None = None
+        self._children: list[QuadTree[T]] | None = None
 
     def _subdivide(self) -> None:
         cx, cy = self.boundary.center()
         b = self.boundary
         quads = [
-            AABB2D(b.min_x, cy, cx, b.max_y),   # NW
-            AABB2D(cx, cy, b.max_x, b.max_y),   # NE
-            AABB2D(b.min_x, b.min_y, cx, cy),   # SW
-            AABB2D(cx, b.min_y, b.max_x, cy),   # SE
+            AABB2D(b.min_x, cy, cx, b.max_y),  # NW
+            AABB2D(cx, cy, b.max_x, b.max_y),  # NE
+            AABB2D(b.min_x, b.min_y, cx, cy),  # SW
+            AABB2D(cx, b.min_y, b.max_x, cy),  # SE
         ]
         self._children = [
             QuadTree(q, self.capacity, self.max_depth, self._depth + 1) for q in quads
@@ -274,6 +297,7 @@ class QuadTree(Generic[T]):
 # Octree (3D)
 # ======================================================================== #
 
+
 @dataclass
 class _OctEntry(Generic[T]):
     bounds: AABB3D
@@ -287,13 +311,15 @@ class Octree(Generic[T]):
     terrain chunk'ları için kullanılır.
     """
 
-    def __init__(self, boundary: AABB3D, capacity: int = 8, max_depth: int = 10, _depth: int = 0) -> None:
+    def __init__(
+        self, boundary: AABB3D, capacity: int = 8, max_depth: int = 10, _depth: int = 0
+    ) -> None:
         self.boundary = boundary
         self.capacity = capacity
         self.max_depth = max_depth
         self._depth = _depth
         self._entries: list[_OctEntry[T]] = []
-        self._children: list["Octree[T]"] | None = None
+        self._children: list[Octree[T]] | None = None
 
     def _subdivide(self) -> None:
         cx, cy, cz = self.boundary.center()
@@ -302,8 +328,12 @@ class Octree(Generic[T]):
         ys = [(b.min_y, cy), (cy, b.max_y)]
         zs = [(b.min_z, cz), (cz, b.max_z)]
         self._children = [
-            Octree(AABB3D(xlo, ylo, zlo, xhi, yhi, zhi), self.capacity, self.max_depth, self._depth + 1)
-            for (xlo, xhi) in xs for (ylo, yhi) in ys for (zlo, zhi) in zs
+            Octree(
+                AABB3D(xlo, ylo, zlo, xhi, yhi, zhi), self.capacity, self.max_depth, self._depth + 1
+            )
+            for (xlo, xhi) in xs
+            for (ylo, yhi) in ys
+            for (zlo, zhi) in zs
         ]
 
     def insert(self, item: T, bounds: AABB3D) -> bool:
@@ -367,6 +397,7 @@ class Octree(Generic[T]):
 # KDTree (nD nokta indeksi - nearest neighbor)
 # ======================================================================== #
 
+
 class _KDNode:
     __slots__ = ("point", "data", "axis", "left", "right")
 
@@ -374,8 +405,8 @@ class _KDNode:
         self.point = point
         self.data = data
         self.axis = axis
-        self.left: "_KDNode | None" = None
-        self.right: "_KDNode | None" = None
+        self.left: _KDNode | None = None
+        self.right: _KDNode | None = None
 
 
 def _sq_dist(a: tuple[float, ...], b: tuple[float, ...]) -> float:
@@ -400,7 +431,7 @@ class KDTree:
         self._root = self._build(items, depth=0)
         self._size = len(points)
 
-    def _build(self, items: list[tuple[tuple[float, ...], Any]], depth: int) -> "_KDNode | None":
+    def _build(self, items: list[tuple[tuple[float, ...], Any]], depth: int) -> _KDNode | None:
         if not items:
             return None
         axis = depth % self.dims
@@ -409,7 +440,7 @@ class KDTree:
         point, data = items[mid]
         node = _KDNode(point, data, axis)
         node.left = self._build(items[:mid], depth + 1)
-        node.right = self._build(items[mid + 1:], depth + 1)
+        node.right = self._build(items[mid + 1 :], depth + 1)
         return node
 
     def __len__(self) -> int:
@@ -420,13 +451,17 @@ class KDTree:
         results = self.nearest_k(target, 1)
         return results[0] if results else None
 
-    def nearest_k(self, target: tuple[float, ...], k: int) -> list[tuple[tuple[float, ...], Any, float]]:
+    def nearest_k(
+        self, target: tuple[float, ...], k: int
+    ) -> list[tuple[tuple[float, ...], Any, float]]:
         """En yakın `k` noktayı, artan mesafeye göre sıralı döndürür."""
         if self._root is None or k <= 0:
             return []
-        best: list[tuple[float, tuple[float, ...], Any]] = []  # (dist, point, data), max-heap yerine liste (k küçük varsayımı)
+        best: list[
+            tuple[float, tuple[float, ...], Any]
+        ] = []  # (dist, point, data), max-heap yerine liste (k küçük varsayımı)
 
-        def visit(node: "_KDNode | None") -> None:
+        def visit(node: _KDNode | None) -> None:
             if node is None:
                 return
             d = _sq_dist(target, node.point)
@@ -449,12 +484,14 @@ class KDTree:
         visit(self._root)
         return [(p, dat, math.sqrt(d)) for d, p, dat in best]
 
-    def range_search(self, target: tuple[float, ...], radius: float) -> list[tuple[tuple[float, ...], Any, float]]:
+    def range_search(
+        self, target: tuple[float, ...], radius: float
+    ) -> list[tuple[tuple[float, ...], Any, float]]:
         """`radius` içindeki tüm noktaları döndürür (mesafeye göre sıralı)."""
         found: list[tuple[float, tuple[float, ...], Any]] = []
         r_sq = radius * radius
 
-        def visit(node: "_KDNode | None") -> None:
+        def visit(node: _KDNode | None) -> None:
             if node is None:
                 return
             d = _sq_dist(target, node.point)
@@ -476,6 +513,7 @@ class KDTree:
 # BVH (Mesh üçgenleri için Bounding Volume Hierarchy)
 # ======================================================================== #
 
+
 @dataclass(slots=True)
 class RayHit:
     triangle_index: int
@@ -488,14 +526,17 @@ class _BVHNode:
 
     def __init__(self, bounds: AABB3D) -> None:
         self.bounds = bounds
-        self.left: "_BVHNode | None" = None
-        self.right: "_BVHNode | None" = None
+        self.left: _BVHNode | None = None
+        self.right: _BVHNode | None = None
         self.triangle_indices: list[int] = []
 
 
 def _ray_triangle_intersect(
-    origin: tuple[float, float, float], direction: tuple[float, float, float],
-    a: Vertex3D, b: Vertex3D, c: Vertex3D,
+    origin: tuple[float, float, float],
+    direction: tuple[float, float, float],
+    a: Vertex3D,
+    b: Vertex3D,
+    c: Vertex3D,
 ) -> float | None:
     """Möller-Trumbore ray-triangle kesişim algoritması. Kesişim varsa `t`
     (origin + t*direction = kesişim noktası) döndürür, yoksa None."""
@@ -542,12 +583,10 @@ class BVH:
     def __init__(self, mesh: Mesh3D, leaf_size: int = 4) -> None:
         self.mesh = mesh
         self.leaf_size = leaf_size
-        tri_bounds = [
-            AABB3D.from_triangle(*mesh.triangle_positions(tri)) for tri in mesh.triangles
-        ]
+        tri_bounds = [AABB3D.from_triangle(*mesh.triangle_positions(tri)) for tri in mesh.triangles]
         self._root = self._build(list(range(len(mesh.triangles))), tri_bounds)
 
-    def _build(self, indices: list[int], tri_bounds: list[AABB3D]) -> "_BVHNode | None":
+    def _build(self, indices: list[int], tri_bounds: list[AABB3D]) -> _BVHNode | None:
         if not indices:
             return None
         bounds = tri_bounds[indices[0]]
@@ -560,12 +599,20 @@ class BVH:
             return node
 
         # en uzun ekseni bul, o eksendeki centroid medyanına göre böl
-        extents = (bounds.max_x - bounds.min_x, bounds.max_y - bounds.min_y, bounds.max_z - bounds.min_z)
+        extents = (
+            bounds.max_x - bounds.min_x,
+            bounds.max_y - bounds.min_y,
+            bounds.max_z - bounds.min_z,
+        )
         axis = extents.index(max(extents))
 
         def centroid_on_axis(i: int) -> float:
             b = tri_bounds[i]
-            centers = ((b.min_x + b.max_x) / 2.0, (b.min_y + b.max_y) / 2.0, (b.min_z + b.max_z) / 2.0)
+            centers = (
+                (b.min_x + b.max_x) / 2.0,
+                (b.min_y + b.max_y) / 2.0,
+                (b.min_z + b.max_z) / 2.0,
+            )
             return centers[axis]
 
         indices = sorted(indices, key=centroid_on_axis)
@@ -575,7 +622,9 @@ class BVH:
         return node
 
     def intersect_ray(
-        self, origin: tuple[float, float, float], direction: tuple[float, float, float],
+        self,
+        origin: tuple[float, float, float],
+        direction: tuple[float, float, float],
     ) -> RayHit | None:
         """Işını ağaçta gezerek en yakın (en küçük `t`) kesişimi bulur."""
         length = math.sqrt(sum(d * d for d in direction))
@@ -586,7 +635,7 @@ class BVH:
 
         best: RayHit | None = None
 
-        def visit(node: "_BVHNode | None") -> None:
+        def visit(node: _BVHNode | None) -> None:
             nonlocal best
             if node is None:
                 return
@@ -597,7 +646,11 @@ class BVH:
                     a, b, c = self.mesh.triangle_positions(self.mesh.triangles[ti])
                     t = _ray_triangle_intersect(origin, direction, a, b, c)
                     if t is not None and (best is None or t < best.t):
-                        point = (origin[0] + t * direction[0], origin[1] + t * direction[1], origin[2] + t * direction[2])
+                        point = (
+                            origin[0] + t * direction[0],
+                            origin[1] + t * direction[1],
+                            origin[2] + t * direction[2],
+                        )
                         best = RayHit(triangle_index=ti, t=t, point=point)
                 return
             visit(node.left)
@@ -610,7 +663,7 @@ class BVH:
         """`range_` ile kesişen üçgen indekslerini döndürür."""
         found: list[int] = []
 
-        def visit(node: "_BVHNode | None") -> None:
+        def visit(node: _BVHNode | None) -> None:
             if node is None or not node.bounds.intersects(range_):
                 return
             if node.triangle_indices:
@@ -633,6 +686,7 @@ class BVH:
 # RTree (Guttman, quadratic split)
 # ======================================================================== #
 
+
 class _RTreeNode:
     __slots__ = ("is_leaf", "entries", "bounds", "parent")
 
@@ -641,7 +695,7 @@ class _RTreeNode:
         # leaf: list[(AABB2D, item)] ; internal: list[(AABB2D, _RTreeNode)]
         self.entries: list[tuple[AABB2D, Any]] = []
         self.bounds: AABB2D | None = None
-        self.parent: "_RTreeNode | None" = None
+        self.parent: _RTreeNode | None = None
 
     def recompute_bounds(self) -> None:
         if not self.entries:
@@ -689,11 +743,11 @@ class RTree(Generic[T]):
         else:
             self._propagate_bounds(leaf)
 
-    def _choose_leaf(self, node: "_RTreeNode", bounds: AABB2D) -> "_RTreeNode":
+    def _choose_leaf(self, node: _RTreeNode, bounds: AABB2D) -> _RTreeNode:
         if node.is_leaf:
             return node
         # en az büyüme gerektiren çocuğu seç (Guttman: ChooseSubtree)
-        best_child: "_RTreeNode | None" = None
+        best_child: _RTreeNode | None = None
         best_enlargement = math.inf
         best_area = math.inf
         for eb, child in node.entries:
@@ -705,7 +759,7 @@ class RTree(Generic[T]):
         assert best_child is not None
         return self._choose_leaf(best_child, bounds)
 
-    def _propagate_bounds(self, node: "_RTreeNode") -> None:
+    def _propagate_bounds(self, node: _RTreeNode) -> None:
         """`node`'un MBR'ini üst düğümlerdeki karşılık gelen girişe yansıtır
         ve kök yönünde yukarı doğru ilerler. Yalnızca kökten `node`'a giden
         yol üzerinde çalışır (tüm ağacı değil) — O(log n) amortize maliyet.
@@ -718,7 +772,7 @@ class RTree(Generic[T]):
             child = parent
             parent = parent.parent
 
-    def _update_child_bounds(self, parent: "_RTreeNode", child: "_RTreeNode") -> None:
+    def _update_child_bounds(self, parent: _RTreeNode, child: _RTreeNode) -> None:
         """`parent.entries` içindeki `child`'a ait (bounds, child) girişini
         `child`'ın güncel MBR'iyle değiştirir. `parent.entries` boyutu her
         zaman `max_entries` ile sınırlı (sabit/küçük) olduğundan bu tarama
@@ -730,7 +784,7 @@ class RTree(Generic[T]):
                 return
         raise AssertionError("RTree: iç tutarlılık hatası - child parent.entries içinde yok")
 
-    def _split(self, node: "_RTreeNode") -> None:
+    def _split(self, node: _RTreeNode) -> None:
         group_a, group_b = self._quadratic_split(node.entries)
         node_a = _RTreeNode(node.is_leaf)
         node_a.entries = group_a
@@ -773,7 +827,8 @@ class RTree(Generic[T]):
             self._propagate_bounds(parent)
 
     def _quadratic_split(
-        self, entries: list[tuple[AABB2D, Any]],
+        self,
+        entries: list[tuple[AABB2D, Any]],
     ) -> tuple[list[tuple[AABB2D, Any]], list[tuple[AABB2D, Any]]]:
         """Guttman'ın Quadratic Split algoritması: en 'kötü çift'i (birlikte
         en büyük boşa alanı yaratan iki giriş) tohum olarak seçer, sonra
@@ -848,7 +903,7 @@ class RTree(Generic[T]):
         `search()` de aynen korunur; ikisi de aynı sonucu döndürür."""
         return self.search(range_)
 
-    def _search(self, node: "_RTreeNode", range_: AABB2D, found: list[T]) -> None:
+    def _search(self, node: _RTreeNode, range_: AABB2D, found: list[T]) -> None:
         for eb, child_or_item in node.entries:
             if not eb.intersects(range_):
                 continue

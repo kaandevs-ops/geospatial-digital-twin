@@ -14,6 +14,7 @@ bir `pip install` çalıştırmadan (bu ortamda/CI'da yavaş ve gereksiz),
 alt modüllerin `harita.` önekiyle bulunduğunu ve test/doküman/betik
 dizinlerinin dışarıda bırakıldığını — doğrudan doğrular.
 """
+
 from __future__ import annotations
 
 import runpy

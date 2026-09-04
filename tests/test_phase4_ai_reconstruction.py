@@ -5,20 +5,23 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from harita.core_engine.geometry_engine import Point2D, Polygon
+from harita.ai_reconstruction import (
+    AIBuildingAnalyzer,
+    AIEnvironmentGenerator,
+    AIInteriorLayout,
+    AIMaterialPredictor,
+    AIRoofPredictor,
+    ArchitecturalStyle,
+    ClimateZone,
+    EnvironmentObjectType,
+    HeuristicPredictor,
+    Predictor,
+    SurfaceClass,
+)
+from harita.building_reconstruction.facade_generator import FacadeMaterial
 from harita.building_reconstruction.footprint_parser import Footprint
 from harita.building_reconstruction.roof_generator import RoofType
-from harita.building_reconstruction.facade_generator import FacadeMaterial
-from harita.building_reconstruction.room_generator import RoomType
-
-from harita.ai_reconstruction import (
-    Predictor,
-    AIBuildingAnalyzer, ArchitecturalStyle, ClimateZone, HeuristicPredictor,
-    AIRoofPredictor, RoofPrediction,
-    AIInteriorLayout,
-    AIMaterialPredictor, SurfaceClass,
-    AIEnvironmentGenerator, EnvironmentObjectType,
-)
+from harita.core_engine.geometry_engine import Point2D, Polygon
 
 
 def _rect_polygon(w: float, d: float) -> Polygon:
@@ -29,6 +32,7 @@ def _rect_polygon(w: float, d: float) -> Polygon:
 # Predictor protocol
 # ------------------------------------------------------------------ #
 
+
 def test_heuristic_predictor_satisfies_predictor_protocol():
     predictor = HeuristicPredictor()
     assert isinstance(predictor, Predictor)
@@ -38,9 +42,11 @@ def test_heuristic_predictor_satisfies_predictor_protocol():
 # AIBuildingAnalyzer
 # ------------------------------------------------------------------ #
 
+
 def test_building_analyzer_uses_known_footprint_data():
-    fp = Footprint(polygon=_rect_polygon(20, 15), building_type="apartments",
-                    floor_count=6, height_m=18.0)
+    fp = Footprint(
+        polygon=_rect_polygon(20, 15), building_type="apartments", floor_count=6, height_m=18.0
+    )
     analysis = AIBuildingAnalyzer().analyze(fp)
     assert analysis.floor_count == 6
     assert analysis.height_m == 18.0
@@ -61,9 +67,13 @@ def test_building_analyzer_custom_predictor_injection():
     class FixedPredictor:
         def predict(self, features: dict) -> dict:
             return {
-                "height_m": 99.0, "floor_count": 33, "usage": "custom",
-                "architectural_style": "modern", "estimated_age_years": 1,
-                "facade_material": "metal", "confidence": 1.0,
+                "height_m": 99.0,
+                "floor_count": 33,
+                "usage": "custom",
+                "architectural_style": "modern",
+                "estimated_age_years": 1,
+                "facade_material": "metal",
+                "confidence": 1.0,
             }
 
     fp = Footprint(polygon=_rect_polygon(10, 10))
@@ -76,6 +86,7 @@ def test_building_analyzer_custom_predictor_injection():
 # ------------------------------------------------------------------ #
 # AIRoofPredictor
 # ------------------------------------------------------------------ #
+
 
 def test_roof_predictor_probabilities_sum_to_one():
     prediction = AIRoofPredictor().predict("apartments", ClimateZone.ILIMAN)
@@ -112,6 +123,7 @@ def test_climate_zone_for_latitude():
 # AIInteriorLayout
 # ------------------------------------------------------------------ #
 
+
 def test_interior_layout_variant_covers_full_area():
     poly = _rect_polygon(18, 14)
     variant = AIInteriorLayout(base_seed=1).generate_variant(poly, building_type="ofis", seed=5)
@@ -140,6 +152,7 @@ def test_interior_layout_best_variant_has_highest_diversity():
 # AIMaterialPredictor
 # ------------------------------------------------------------------ #
 
+
 def test_material_predictor_glass_for_office_windows():
     prediction = AIMaterialPredictor().predict(SurfaceClass.CAM, building_type="office")
     assert prediction.material == FacadeMaterial.CAM
@@ -147,7 +160,9 @@ def test_material_predictor_glass_for_office_windows():
 
 def test_material_predictor_roof_material_from_roof_type():
     prediction = AIMaterialPredictor().predict(
-        SurfaceClass.CATI, building_type="office", roof_type=RoofType.INDUSTRIAL,
+        SurfaceClass.CATI,
+        building_type="office",
+        roof_type=RoofType.INDUSTRIAL,
     )
     assert prediction.material == FacadeMaterial.METAL
     assert prediction.confidence > 0.5
@@ -162,12 +177,14 @@ def test_material_predictor_all_surfaces_covers_every_class():
 # AIEnvironmentGenerator
 # ------------------------------------------------------------------ #
 
+
 def test_environment_generator_objects_outside_footprint():
     poly = _rect_polygon(20, 15)
     generator = AIEnvironmentGenerator(seed=3)
     objects = generator.generate(poly, margin_m=20.0, object_types=[EnvironmentObjectType.AGAC])
     assert len(objects) > 0
     from harita.core_engine.geometry_engine import GeometryEngine
+
     for obj in objects:
         assert not GeometryEngine.point_in_polygon(obj.position, poly)
 

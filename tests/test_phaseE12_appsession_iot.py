@@ -18,6 +18,7 @@ Bu dosya şunu doğrular:
        VERİ ÜRETMEZ, yalnızca gelen gerçek son değeri döner
        (`is_live=True`). Broker/kütüphane yoksa bu senaryo atlanır.
 """
+
 from __future__ import annotations
 
 import socket
@@ -37,7 +38,10 @@ def _make_session_with_building(tmp_path):
     info = session.create_project("Proje", tmp_path / "p.hproj")
     pid = info["project_id"]
     b = session.add_building(
-        pid, [(0, 0), (10, 0), (10, 10), (0, 10)], floor_count=2, height_m=6.0,
+        pid,
+        [(0, 0), (10, 0), (10, 10), (0, 10)],
+        floor_count=2,
+        height_m=6.0,
     )
     return session, pid, b["key"]
 
@@ -111,8 +115,19 @@ def test_real_broker_end_to_end_if_available(tmp_path):
         assert before["floors"][0]["has_reading"] is False
 
         subprocess.run(
-            ["mosquitto_pub", "-h", "localhost", "-p", "1883",
-             "-t", f"{prefix}/floor/0/temp", "-m", "25.3"], check=True, timeout=5,
+            [
+                "mosquitto_pub",
+                "-h",
+                "localhost",
+                "-p",
+                "1883",
+                "-t",
+                f"{prefix}/floor/0/temp",
+                "-m",
+                "25.3",
+            ],
+            check=True,
+            timeout=5,
         )
         time.sleep(0.5)
 

@@ -28,7 +28,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 from ..terrain_engine import FlowAccumulation, HeightmapGrid
 
@@ -84,10 +83,12 @@ def compute_slope_grid(grid: HeightmapGrid) -> list[list[SlopeSample]]:
             dx = (right - left) / (2 * res) if 0 < col < grid.width - 1 else (right - left) / res
             dy = (down - up) / (2 * res) if 0 < row < grid.height - 1 else (down - up) / res
             slope_ratio = math.hypot(dx, dy)
-            row_out.append(SlopeSample(
-                slope_percent=slope_ratio * 100.0,
-                slope_degrees=math.degrees(math.atan(slope_ratio)),
-            ))
+            row_out.append(
+                SlopeSample(
+                    slope_percent=slope_ratio * 100.0,
+                    slope_degrees=math.degrees(math.atan(slope_ratio)),
+                )
+            )
         out.append(row_out)
     return out
 
@@ -100,7 +101,9 @@ def _landslide_subscore(slope_percent: float) -> float:
     return max(0.0, min(100.0, (slope_percent / 60.0) * 100.0))
 
 
-def _flood_subscore_from_accumulation(accumulation: float, max_accumulation: float, slope_percent: float) -> float:
+def _flood_subscore_from_accumulation(
+    accumulation: float, max_accumulation: float, slope_percent: float
+) -> float:
     if max_accumulation <= 0:
         return 0.0
     drainage_norm = min(1.0, accumulation / max_accumulation) * 100.0
@@ -113,7 +116,7 @@ def _flood_subscore_from_accumulation(accumulation: float, max_accumulation: flo
 @dataclass(frozen=True, slots=True)
 class TerrainHazardFactor:
     name: str
-    subscore_0_100: Optional[float]
+    subscore_0_100: float | None
     weight: float
     note: str
 
@@ -146,13 +149,14 @@ class TerrainHazardAnalyzer:
     hesaplamamak için (özellikle 512x512 üst sınırında maliyetli olabilir).
     """
 
-    def __init__(self, grid: HeightmapGrid, *, rainfall_mm_24h: Optional[float] = None):
+    def __init__(self, grid: HeightmapGrid, *, rainfall_mm_24h: float | None = None):
         self.grid = grid
         self.rainfall_mm_24h = rainfall_mm_24h
         self._slope = compute_slope_grid(grid)
         self._accumulation = FlowAccumulation.accumulate(grid)
         self._max_accumulation = max(
-            (v for row in self._accumulation for v in row), default=0.0,
+            (v for row in self._accumulation for v in row),
+            default=0.0,
         )
 
     def assess_cell(self, row: int, col: int) -> TerrainHazardReport:
@@ -170,12 +174,18 @@ class TerrainHazardAnalyzer:
             # (küçük ağırlıklı) bir çarpan faktör olarak eklenir.
             rain_sub = max(0.0, min(100.0, (self.rainfall_mm_24h / 100.0) * 100.0))
             landslide_factors.append(
-                TerrainHazardFactor("Son 24s yağış (zemin doygunluğu)", rain_sub, 0.15,
-                                     f"{self.rainfall_mm_24h:.1f} mm/24s")
+                TerrainHazardFactor(
+                    "Son 24s yağış (zemin doygunluğu)",
+                    rain_sub,
+                    0.15,
+                    f"{self.rainfall_mm_24h:.1f} mm/24s",
+                )
             )
         else:
             landslide_factors.append(
-                TerrainHazardFactor("Son 24s yağış (zemin doygunluğu)", None, 0.15, "yağış verisi verilmedi")
+                TerrainHazardFactor(
+                    "Son 24s yağış (zemin doygunluğu)", None, 0.15, "yağış verisi verilmedi"
+                )
             )
         l_weighted, l_weight_total = 0.0, 0.0
         for f_ in landslide_factors:
@@ -184,15 +194,23 @@ class TerrainHazardAnalyzer:
                 l_weight_total += f_.weight
         landslide_index = (l_weighted / l_weight_total) if l_weight_total > 0 else landslide_sub
 
-        flood_sub = _flood_subscore_from_accumulation(accumulation, self._max_accumulation, slope.slope_percent)
+        flood_sub = _flood_subscore_from_accumulation(
+            accumulation, self._max_accumulation, slope.slope_percent
+        )
         flood_factors = [
-            TerrainHazardFactor("Drenaj/akış birikimi", flood_sub, 0.7,
-                                 f"akümülasyon={accumulation:.1f} hücre (havza), düzlük çarpanı uygulanmış"),
+            TerrainHazardFactor(
+                "Drenaj/akış birikimi",
+                flood_sub,
+                0.7,
+                f"akümülasyon={accumulation:.1f} hücre (havza), düzlük çarpanı uygulanmış",
+            ),
         ]
         if self.rainfall_mm_24h is not None:
             rain_sub = max(0.0, min(100.0, (self.rainfall_mm_24h / 50.0) * 100.0))
             flood_factors.append(
-                TerrainHazardFactor("Son 24s yağış", rain_sub, 0.3, f"{self.rainfall_mm_24h:.1f} mm/24s")
+                TerrainHazardFactor(
+                    "Son 24s yağış", rain_sub, 0.3, f"{self.rainfall_mm_24h:.1f} mm/24s"
+                )
             )
         else:
             flood_factors.append(
@@ -206,13 +224,18 @@ class TerrainHazardAnalyzer:
         flood_index = (f_weighted / f_weight_total) if f_weight_total > 0 else flood_sub
 
         return TerrainHazardReport(
-            row=row, col=col,
-            x_m=col * self.grid.resolution_m, y_m=row * self.grid.resolution_m,
-            slope_percent=round(slope.slope_percent, 2), slope_degrees=round(slope.slope_degrees, 2),
+            row=row,
+            col=col,
+            x_m=col * self.grid.resolution_m,
+            y_m=row * self.grid.resolution_m,
+            slope_percent=round(slope.slope_percent, 2),
+            slope_degrees=round(slope.slope_degrees, 2),
             flow_accumulation=round(accumulation, 2),
-            landslide_index_0_100=round(landslide_index, 1), landslide_level=_level_from_index(landslide_index),
+            landslide_index_0_100=round(landslide_index, 1),
+            landslide_level=_level_from_index(landslide_index),
             landslide_factors=tuple(landslide_factors),
-            flood_index_0_100=round(flood_index, 1), flood_level=_level_from_index(flood_index),
+            flood_index_0_100=round(flood_index, 1),
+            flood_level=_level_from_index(flood_index),
             flood_factors=tuple(flood_factors),
         )
 
@@ -221,7 +244,9 @@ class TerrainHazardAnalyzer:
         row = round(y_m / self.grid.resolution_m)
         return self.assess_cell(row, col)
 
-    def top_risk_cells(self, *, kind: str = "landslide", limit: int = 20) -> list[TerrainHazardReport]:
+    def top_risk_cells(
+        self, *, kind: str = "landslide", limit: int = 20
+    ) -> list[TerrainHazardReport]:
         """En riskli `limit` hücreyi döner — mahalle/parsel bazlı rapor
         için ("bu bölgede en riskli N nokta") kullanışlı, tüm grid'i
         (512x512'ye kadar olabilir) tek tek istemciye göndermek yerine."""
@@ -232,7 +257,11 @@ class TerrainHazardAnalyzer:
             for row in range(self.grid.height)
             for col in range(self.grid.width)
         ]
-        key = (lambda r: r.landslide_index_0_100) if kind == "landslide" else (lambda r: r.flood_index_0_100)
+        key = (
+            (lambda r: r.landslide_index_0_100)
+            if kind == "landslide"
+            else (lambda r: r.flood_index_0_100)
+        )
         reports.sort(key=key, reverse=True)
         return reports[:limit]
 
@@ -242,7 +271,9 @@ class TerrainHazardAnalyzer:
         önce web arayüzünde genel bir gösterge için."""
         all_slopes = [s.slope_percent for row in self._slope for s in row]
         return {
-            "mean_slope_percent": round(sum(all_slopes) / len(all_slopes), 2) if all_slopes else 0.0,
+            "mean_slope_percent": round(sum(all_slopes) / len(all_slopes), 2)
+            if all_slopes
+            else 0.0,
             "max_slope_percent": round(max(all_slopes), 2) if all_slopes else 0.0,
             "max_flow_accumulation": round(self._max_accumulation, 2),
             "grid_width": self.grid.width,

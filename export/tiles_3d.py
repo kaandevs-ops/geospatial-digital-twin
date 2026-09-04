@@ -31,7 +31,6 @@ import json
 import struct
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from ..mesh_engine import Mesh3D
 from .geometry_3d import ExportResult, GLTFExporter
@@ -51,8 +50,9 @@ class BoundingBox3DTiles:
     half_z: tuple[float, float, float]
 
     @staticmethod
-    def from_aabb(min_pt: tuple[float, float, float],
-                  max_pt: tuple[float, float, float]) -> "BoundingBox3DTiles":
+    def from_aabb(
+        min_pt: tuple[float, float, float], max_pt: tuple[float, float, float]
+    ) -> BoundingBox3DTiles:
         cx = (min_pt[0] + max_pt[0]) / 2.0
         cy = (min_pt[1] + max_pt[1]) / 2.0
         cz = (min_pt[2] + max_pt[2]) / 2.0
@@ -61,18 +61,24 @@ class BoundingBox3DTiles:
         hz = max((max_pt[2] - min_pt[2]) / 2.0, 1e-6)
         return BoundingBox3DTiles(
             center=(cx, cy, cz),
-            half_x=(hx, 0.0, 0.0), half_y=(0.0, hy, 0.0), half_z=(0.0, 0.0, hz),
+            half_x=(hx, 0.0, 0.0),
+            half_y=(0.0, hy, 0.0),
+            half_z=(0.0, 0.0, hz),
         )
 
     def to_array(self) -> list[float]:
         return [
-            *self.center, *self.half_x, *self.half_y, *self.half_z,
+            *self.center,
+            *self.half_x,
+            *self.half_y,
+            *self.half_z,
         ]
 
-    def union(self, other: "BoundingBox3DTiles") -> "BoundingBox3DTiles":
+    def union(self, other: BoundingBox3DTiles) -> BoundingBox3DTiles:
         """İki box'ı kapsayan eksene-hizalı bir box üretir (basitleştirme:
         her iki box'ın köşe noktalarından yeni bir AABB çıkarılır)."""
-        def corners(b: "BoundingBox3DTiles") -> list[tuple[float, float, float]]:
+
+        def corners(b: BoundingBox3DTiles) -> list[tuple[float, float, float]]:
             cx, cy, cz = b.center
             hx, hy, hz = b.half_x[0], b.half_y[1], b.half_z[2]
             pts = []
@@ -117,9 +123,13 @@ def _build_b3dm(mesh: Mesh3D) -> bytes:
     total_len = header_len + len(ft_json) + len(glb)
     b3dm_header = struct.pack(
         "<4sIIIIII",
-        b"b3dm", 1, total_len,
-        len(ft_json), 0,  # feature table JSON/binary byte length
-        0, 0,             # batch table JSON/binary byte length
+        b"b3dm",
+        1,
+        total_len,
+        len(ft_json),
+        0,  # feature table JSON/binary byte length
+        0,
+        0,  # batch table JSON/binary byte length
     )
     return b3dm_header + ft_json + glb
 
@@ -141,9 +151,9 @@ class Tiles3DExporter:
     (grid-tabanlı üst-seviye gruplama, roadmap D8/streaming ile birleşir)."""
 
     @staticmethod
-    def _mesh_world_bounds(mesh: Mesh3D,
-                            translation: tuple[float, float, float]) -> tuple[
-            tuple[float, float, float], tuple[float, float, float]]:
+    def _mesh_world_bounds(
+        mesh: Mesh3D, translation: tuple[float, float, float]
+    ) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
         (mn_x, mn_y, mn_z), (mx_x, mx_y, mx_z) = mesh.bounding_box()
         tx, ty, tz = translation
         return (mn_x + tx, mn_y + ty, mn_z + tz), (mx_x + tx, mx_y + ty, mx_z + tz)
@@ -177,7 +187,7 @@ class Tiles3DExporter:
             raise ValueError("Scene boş — export edilecek mesh içeren node yok")
 
         children_json = []
-        root_box: Optional[BoundingBox3DTiles] = None
+        root_box: BoundingBox3DTiles | None = None
         total_bytes = 0
 
         for tile in tiles:
@@ -190,12 +200,14 @@ class Tiles3DExporter:
             box = BoundingBox3DTiles.from_aabb(tile.min_pt, tile.max_pt)
             root_box = box if root_box is None else root_box.union(box)
 
-            children_json.append({
-                "boundingVolume": {"box": box.to_array()},
-                "geometricError": 0.0,
-                "refine": "REPLACE",
-                "content": {"uri": f"{safe_name}.b3dm"},
-            })
+            children_json.append(
+                {
+                    "boundingVolume": {"box": box.to_array()},
+                    "geometricError": 0.0,
+                    "refine": "REPLACE",
+                    "content": {"uri": f"{safe_name}.b3dm"},
+                }
+            )
 
         assert root_box is not None
         tileset = {
@@ -217,8 +229,9 @@ class Tiles3DExporter:
 
         total_vertices = sum(t.mesh.vertex_count() for t in tiles)
         total_triangles = sum(t.mesh.triangle_count() for t in tiles)
-        return ExportResult(str(tileset_path), "3dtiles", total_bytes,
-                             total_vertices, total_triangles)
+        return ExportResult(
+            str(tileset_path), "3dtiles", total_bytes, total_vertices, total_triangles
+        )
 
     @staticmethod
     def validate_tileset(tileset: dict) -> None:
@@ -252,8 +265,8 @@ def read_b3dm_header(path: str) -> dict:
     data = Path(path).read_bytes()
     if len(data) < 28:
         raise TilesetValidationError("b3dm dosyası header için çok kısa")
-    magic, version, byte_length, ft_json_len, ft_bin_len, bt_json_len, bt_bin_len = (
-        struct.unpack("<4sIIIIII", data[:28])
+    magic, version, byte_length, ft_json_len, ft_bin_len, bt_json_len, bt_bin_len = struct.unpack(
+        "<4sIIIIII", data[:28]
     )
     if magic != b"b3dm":
         raise TilesetValidationError(f"geçersiz magic: {magic!r}")

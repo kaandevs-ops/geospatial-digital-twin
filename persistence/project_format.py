@@ -22,8 +22,8 @@ from __future__ import annotations
 
 import sqlite3
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 #: Güncel şema sürümü. Yeni alan/tablo eklenince artırılır ve
 #: `_MIGRATIONS` sözlüğüne (eski_surum -> yeni_surum) fonksiyonu eklenir.
@@ -69,7 +69,7 @@ class ProjectManifest:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, str]) -> "ProjectManifest":
+    def from_dict(cls, data: dict[str, str]) -> ProjectManifest:
         try:
             return cls(
                 name=data["name"],
@@ -93,9 +93,7 @@ def _migrate_0_to_1(conn: sqlite3.Connection) -> None:
     "meta tablosu yok" durumunu (bozuk/elle oluşturulmuş dosya) tolere
     etmek için var.
     """
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
-    )
+    conn.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
 
 
 #: (from_version -> to_version) : migrasyon fonksiyonu.
@@ -104,7 +102,9 @@ _MIGRATIONS: dict[tuple[int, int], Callable[[sqlite3.Connection], None]] = {
 }
 
 
-def migrate_schema(conn: sqlite3.Connection, from_version: int, to_version: int = FORMAT_VERSION) -> int:
+def migrate_schema(
+    conn: sqlite3.Connection, from_version: int, to_version: int = FORMAT_VERSION
+) -> int:
     """`conn` üzerindeki şemayı `from_version`'dan `to_version`'a taşır.
 
     Ardışık (n -> n+1) adımlarla ilerler; iki sürüm arasında tanımlı bir
@@ -113,17 +113,13 @@ def migrate_schema(conn: sqlite3.Connection, from_version: int, to_version: int 
     if from_version == to_version:
         return to_version
     if from_version > to_version:
-        raise MigrationError(
-            f"Geriye migrasyon desteklenmiyor: v{from_version} -> v{to_version}"
-        )
+        raise MigrationError(f"Geriye migrasyon desteklenmiyor: v{from_version} -> v{to_version}")
     current = from_version
     while current < to_version:
         step = (current, current + 1)
         migrator = _MIGRATIONS.get(step)
         if migrator is None:
-            raise MigrationError(
-                f"v{current} -> v{current + 1} için migrasyon adımı tanımlı değil"
-            )
+            raise MigrationError(f"v{current} -> v{current + 1} için migrasyon adımı tanımlı değil")
         migrator(conn)
         current += 1
     return current

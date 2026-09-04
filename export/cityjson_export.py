@@ -36,9 +36,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
-from ..core_engine.geometry_engine import Point2D, Polygon
+from ..core_engine.geometry_engine import Polygon
 from ..mesh_engine import Mesh3D
 from .geometry_3d import ExportResult
 
@@ -67,11 +67,11 @@ class CityBuilding:
     footprint: Polygon
     height: float
     ground_z: float = 0.0
-    roof_mesh: Optional[Mesh3D] = None
-    eave_height: Optional[float] = None
+    roof_mesh: Mesh3D | None = None
+    eave_height: float | None = None
     attributes: dict[str, Any] = field(default_factory=dict)
-    year_of_construction: Optional[int] = None
-    function: Optional[str] = None  # CityGML/CityJSON "function" kodu (serbest metin)
+    year_of_construction: int | None = None
+    function: str | None = None  # CityGML/CityJSON "function" kodu (serbest metin)
 
     def __post_init__(self) -> None:
         ring = self.footprint.closed_ring()
@@ -94,7 +94,7 @@ class CityModel:
     """Bir dizi `CityBuilding`'i tutan üst-seviye şehir modeli konteyneri."""
 
     buildings: list[CityBuilding] = field(default_factory=list)
-    crs_name: Optional[str] = None  # ör. "EPSG:32635" (UTM 35N) - opsiyonel
+    crs_name: str | None = None  # ör. "EPSG:32635" (UTM 35N) - opsiyonel
 
     def add(self, building: CityBuilding) -> None:
         self.buildings.append(building)
@@ -103,6 +103,7 @@ class CityModel:
 # ============================================================================ #
 # CityJSON
 # ============================================================================ #
+
 
 class CityJSONExporter:
     """CityJSON 1.1 (https://www.cityjson.org/specs/1.1.1/) yazıcı."""
@@ -175,8 +176,10 @@ class CityJSONExporter:
             for i in range(n):
                 a, b = i, (i + 1) % n
                 wall_face = [
-                    ground_ring[a], ground_ring[b],
-                    wall_top_ring[b], wall_top_ring[a],
+                    ground_ring[a],
+                    ground_ring[b],
+                    wall_top_ring[b],
+                    wall_top_ring[a],
                 ]
                 boundaries.append([wall_face])
                 semantics_values.append(2)

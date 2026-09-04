@@ -13,11 +13,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from harita.building_reconstruction import (
+    Footprint,
+    ProceduralBuildingGenerator,
+)
 from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.mesh_engine import MeshMerger
-from harita.building_reconstruction import (
-    Footprint, ProceduralBuildingGenerator,
-)
 
 
 def _rect_polygon(w: float, d: float) -> Polygon:
@@ -28,7 +29,10 @@ def _build(n_floors: int = 4, seed: int | None = 42):
     poly = _rect_polygon(10, 8)
     fp = Footprint(polygon=poly, height_m=None, floor_count=n_floors, building_type="apartman")
     return ProceduralBuildingGenerator.generate(
-        fp, floor_count=n_floors, seed=seed, generate_interior=True,
+        fp,
+        floor_count=n_floors,
+        seed=seed,
+        generate_interior=True,
     )
 
 

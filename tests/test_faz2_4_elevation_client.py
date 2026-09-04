@@ -4,6 +4,7 @@ Sandbox ağ erişimi api.open-elevation.com'a izin vermediği için testler
 `urllib.request.urlopen`'i mock'lar; şema-parse + HeightmapGrid dönüşümü +
 offline fallback mantığını doğrular.
 """
+
 from __future__ import annotations
 
 import io
@@ -11,8 +12,6 @@ import json
 from unittest.mock import patch
 
 import pytest
-
-from harita.core_engine.coordinate_systems import GeoPoint
 from harita.core_engine.gis_core.elevation_client import (
     ElevationClient,
     ElevationError,
@@ -81,7 +80,9 @@ def test_fetch_heightmap_grid_builds_correct_shape():
         return _FakeResponse(_fake_lookup_response(pts))
 
     with patch("urllib.request.urlopen", side_effect=_fake_urlopen):
-        grid = fetch_heightmap_grid(client, south=39.90, west=32.80, north=39.95, east=32.90, grid_size=4)
+        grid = fetch_heightmap_grid(
+            client, south=39.90, west=32.80, north=39.95, east=32.90, grid_size=4
+        )
 
     assert isinstance(grid, HeightmapGrid)
     assert grid.width == 4 and grid.height == 4
@@ -103,7 +104,9 @@ def test_fetch_terrain_or_flat_falls_back_when_network_unavailable():
 
     client = ElevationClient()
     with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("offline")):
-        grid, source = fetch_terrain_or_flat(client, south=39.9, west=32.8, north=39.95, east=32.9, grid_size=4)
+        grid, source = fetch_terrain_or_flat(
+            client, south=39.9, west=32.8, north=39.95, east=32.9, grid_size=4
+        )
 
     assert source == "flat-fallback"
     assert isinstance(grid, HeightmapGrid)
@@ -119,7 +122,9 @@ def test_fetch_terrain_or_flat_uses_network_result_when_available():
         return _FakeResponse(_fake_lookup_response(pts))
 
     with patch("urllib.request.urlopen", side_effect=_fake_urlopen):
-        grid, source = fetch_terrain_or_flat(client, south=39.9, west=32.8, north=39.95, east=32.9, grid_size=4)
+        grid, source = fetch_terrain_or_flat(
+            client, south=39.9, west=32.8, north=39.95, east=32.9, grid_size=4
+        )
 
     assert source == "open-elevation"
     assert grid.elevations[0][0] == pytest.approx(850.0)

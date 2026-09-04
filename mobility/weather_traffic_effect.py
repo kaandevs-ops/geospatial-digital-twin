@@ -20,6 +20,7 @@ Bu modül `mobility.traffic_simulation.IDMParams`'ı **değiştirmez**
 kaba eğilimlerinin (yağmurda fren mesafesi/tepki süresi artışı) basit bir
 yaklaşımıdır, kalibre edilmiş bir model değildir.
 """
+
 from __future__ import annotations
 
 from dataclasses import replace
@@ -90,7 +91,9 @@ def apply_weather_effect(
 
 
 def apply_weather_effect_to_all(
-    defaults: dict, sample: HourlyClimateSample, **kwargs,
+    defaults: dict,
+    sample: HourlyClimateSample,
+    **kwargs,
 ) -> dict:
     """`VEHICLE_IDM_DEFAULTS` tarzı bir `{VehicleType: IDMParams}`
     sözlüğünün tamamına hava etkisini uygular - yeni bir sözlük döner,

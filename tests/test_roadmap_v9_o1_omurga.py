@@ -16,7 +16,6 @@ from __future__ import annotations
 import math
 
 import pytest
-
 from harita.core_engine.geometry_engine import Point2D
 from harita.mobility.crowd_simulation import (
     EvacuationSimulator,
@@ -26,10 +25,10 @@ from harita.mobility.crowd_simulation import (
 from harita.mobility.simulation_recorder import AgentFrameState, SimulationRecorder
 from harita.simulation_core.city_clock import CityClock, ClockEventType
 
-
 # --------------------------------------------------------------------------- #
 # CityClock
 # --------------------------------------------------------------------------- #
+
 
 def test_city_clock_produces_expected_tick_count_at_1x():
     clock = CityClock(base_dt_s=0.1, speed_multiplier=1.0)
@@ -113,6 +112,7 @@ def test_city_clock_advance_ticks_is_realtime_independent():
 # SimulationRecorder
 # --------------------------------------------------------------------------- #
 
+
 def _dummy_agents():
     return spawn_random_agents(5, Point2D(0, 0), Point2D(5, 5), Point2D(20, 5), seed=7)
 
@@ -121,9 +121,9 @@ def test_recorder_maybe_record_respects_interval():
     recorder = SimulationRecorder(keyframe_interval_s=0.5)
     agents = _dummy_agents()
     recorder.maybe_record(0.0, agents)
-    recorder.maybe_record(0.1, agents)   # aralık dolmadı -> kaydedilmez
-    recorder.maybe_record(0.4, agents)   # hâlâ dolmadı
-    recorder.maybe_record(0.5, agents)   # doldu -> kaydedilir
+    recorder.maybe_record(0.1, agents)  # aralık dolmadı -> kaydedilmez
+    recorder.maybe_record(0.4, agents)  # hâlâ dolmadı
+    recorder.maybe_record(0.5, agents)  # doldu -> kaydedilir
     assert len(recorder.keyframes) == 2
     assert [kf.t for kf in recorder.keyframes] == [0.0, 0.5]
 
@@ -185,6 +185,7 @@ def test_recorder_reset_clears_state():
 # --------------------------------------------------------------------------- #
 # EvacuationSimulator + recorder entegrasyonu
 # --------------------------------------------------------------------------- #
+
 
 def test_evacuation_run_without_recorder_is_backward_compatible():
     agents = spawn_random_agents(5, Point2D(0, 0), Point2D(5, 5), Point2D(20, 5), seed=11)

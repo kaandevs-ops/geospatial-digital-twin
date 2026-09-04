@@ -94,17 +94,12 @@ class FootprintParser:
         props = feature.properties or {}
 
         building_type = (
-            props.get("building")
-            or props.get("building_type")
-            or props.get("amenity")
-            or None
+            props.get("building") or props.get("building_type") or props.get("amenity") or None
         )
         floor_count = FootprintParser._as_int(
             props.get("building:levels") or props.get("floor_count") or props.get("levels")
         )
-        height_m = FootprintParser._as_float(
-            props.get("height") or props.get("building:height")
-        )
+        height_m = FootprintParser._as_float(props.get("height") or props.get("building:height"))
         if height_m is None and floor_count:
             height_m = floor_count * 3.2  # ortalama kat yüksekliği varsayımı
 
@@ -177,10 +172,7 @@ class FootprintParser:
         olduğunu belirlemek için kullanılır (çatı şekli tahmininde önemli)."""
         angle = math.radians(FootprintParser.dominant_orientation(polygon))
         cos_a, sin_a = math.cos(-angle), math.sin(-angle)
-        rotated = [
-            (p.x * cos_a - p.y * sin_a, p.x * sin_a + p.y * cos_a)
-            for p in polygon.points
-        ]
+        rotated = [(p.x * cos_a - p.y * sin_a, p.x * sin_a + p.y * cos_a) for p in polygon.points]
         xs = [p[0] for p in rotated]
         ys = [p[1] for p in rotated]
         w = max(xs) - min(xs) or 1e-6
@@ -196,7 +188,7 @@ class FootprintParser:
         perimeter = polygon.perimeter()
         if perimeter <= 0:
             return 0.0
-        return (4.0 * math.pi * area) / (perimeter ** 2)
+        return (4.0 * math.pi * area) / (perimeter**2)
 
     @staticmethod
     def guess_roof_type(fp: Footprint) -> RoofTypeGuess:
@@ -235,7 +227,11 @@ class FootprintParser:
         Dejenere (<4 nokta) poligonlarda 0 döner.
         """
         ring = polygon.closed_ring()
-        pts = ring[:-1] if len(ring) > 1 and ring[0].x == ring[-1].x and ring[0].y == ring[-1].y else ring
+        pts = (
+            ring[:-1]
+            if len(ring) > 1 and ring[0].x == ring[-1].x and ring[0].y == ring[-1].y
+            else ring
+        )
         n = len(pts)
         if n < 4:
             return 0

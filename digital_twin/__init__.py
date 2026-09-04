@@ -27,12 +27,12 @@ import copy
 import json
 import time
 import uuid
-from dataclasses import dataclass, field, asdict
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from dataclasses import asdict, dataclass, field
+from typing import Any, Optional
 
-from ..mesh_engine import Mesh3D, Vertex3D
 from ..material_engine import PBRMaterial
-
+from ..mesh_engine import Mesh3D, Vertex3D
 
 # ======================================================================== #
 # Mesh3D / PBRMaterial için serialization yardımcıları
@@ -41,12 +41,12 @@ from ..material_engine import PBRMaterial
 # taşımıyor; roadmap ilkesi gereği mevcut modüller değiştirilmeden, bu
 # serileştirme mantığı burada (Phase 5 tarafında) sağlanır.
 
+
 def _mesh_to_dict(mesh: Mesh3D) -> dict:
     return {
         "name": mesh.name,
         "vertices": [
-            {"x": v.x, "y": v.y, "z": v.z, "normal": v.normal,
-             "tangent": v.tangent, "uv": v.uv}
+            {"x": v.x, "y": v.y, "z": v.z, "normal": v.normal, "tangent": v.tangent, "uv": v.uv}
             for v in mesh.vertices
         ],
         "triangles": [list(t) for t in mesh.triangles],
@@ -57,7 +57,9 @@ def _mesh_to_dict(mesh: Mesh3D) -> dict:
 def _mesh_from_dict(data: dict) -> Mesh3D:
     vertices = [
         Vertex3D(
-            x=v["x"], y=v["y"], z=v["z"],
+            x=v["x"],
+            y=v["y"],
+            z=v["z"],
             normal=tuple(v["normal"]) if v.get("normal") else None,
             tangent=tuple(v["tangent"]) if v.get("tangent") else None,
             uv=tuple(v["uv"]) if v.get("uv") else None,
@@ -66,8 +68,7 @@ def _mesh_from_dict(data: dict) -> Mesh3D:
     ]
     triangles = [tuple(t) for t in data.get("triangles", [])]
     uvs = [tuple(uv) for uv in data.get("uvs", [])]
-    return Mesh3D(vertices=vertices, triangles=triangles, uvs=uvs,
-                  name=data.get("name", "mesh"))
+    return Mesh3D(vertices=vertices, triangles=triangles, uvs=uvs, name=data.get("name", "mesh"))
 
 
 def _material_to_dict(mat: PBRMaterial) -> dict:
@@ -81,6 +82,7 @@ def _material_from_dict(data: dict) -> PBRMaterial:
 # ======================================================================== #
 # Yardımcı veri tipleri
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class TwinEvent:
@@ -100,7 +102,7 @@ class TwinEvent:
         }
 
     @staticmethod
-    def from_dict(data: dict) -> "TwinEvent":
+    def from_dict(data: dict) -> TwinEvent:
         return TwinEvent(
             timestamp=data["timestamp"],
             event_type=data["event_type"],
@@ -123,11 +125,11 @@ class SensorBinding:
     sensor_type: str
     target_ref: str  # örn. "floor:2" / "room:server_room_1" / "roof"
     unit: str = ""
-    last_value: Optional[float] = None
-    last_updated: Optional[float] = None
+    last_value: float | None = None
+    last_updated: float | None = None
     metadata: dict = field(default_factory=dict)
 
-    def update(self, value: float, timestamp: Optional[float] = None) -> None:
+    def update(self, value: float, timestamp: float | None = None) -> None:
         self.last_value = value
         self.last_updated = timestamp if timestamp is not None else time.time()
 
@@ -135,7 +137,7 @@ class SensorBinding:
         return asdict(self)
 
     @staticmethod
-    def from_dict(data: dict) -> "SensorBinding":
+    def from_dict(data: dict) -> SensorBinding:
         return SensorBinding(**data)
 
 
@@ -157,7 +159,7 @@ class Annotation:
         return d
 
     @staticmethod
-    def from_dict(data: dict) -> "Annotation":
+    def from_dict(data: dict) -> Annotation:
         d = dict(data)
         d["position"] = tuple(d.get("position", (0.0, 0.0, 0.0)))
         return Annotation(**d)
@@ -189,7 +191,7 @@ class Measurement:
         }
 
     @staticmethod
-    def from_dict(data: dict) -> "Measurement":
+    def from_dict(data: dict) -> Measurement:
         d = dict(data)
         d["points"] = [tuple(p) for p in d.get("points", [])]
         return Measurement(**d)
@@ -199,6 +201,7 @@ class Measurement:
 # DigitalTwin
 # ======================================================================== #
 
+
 @dataclass(slots=True)
 class DigitalTwin:
     """Roadmap Phase 5 - tek bir bina/nesne için tüm platform verisinin
@@ -206,36 +209,39 @@ class DigitalTwin:
     """
 
     id: str
-    geometry: Optional[Mesh3D] = None
+    geometry: Mesh3D | None = None
     metadata: dict = field(default_factory=dict)
-    materials: list = field(default_factory=list)          # list[PBRMaterial]
-    history: list = field(default_factory=list)             # list[TwinEvent]
+    materials: list = field(default_factory=list)  # list[PBRMaterial]
+    history: list = field(default_factory=list)  # list[TwinEvent]
     simulation_state: dict = field(default_factory=dict)
     ai_data: dict = field(default_factory=dict)
-    sensors: list = field(default_factory=list)             # list[SensorBinding]
-    annotations: list = field(default_factory=list)         # list[Annotation]
-    measurements: list = field(default_factory=list)        # list[Measurement]
-    layers: dict = field(default_factory=dict)              # katman adı -> görünür mü
+    sensors: list = field(default_factory=list)  # list[SensorBinding]
+    annotations: list = field(default_factory=list)  # list[Annotation]
+    measurements: list = field(default_factory=list)  # list[Measurement]
+    layers: dict = field(default_factory=dict)  # katman adı -> görünür mü
     version: int = 1
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
 
     # -- mutasyon API'leri (her biri history'e otomatik event yazar) ---- #
 
-    def log_event(self, event_type: str, payload: Optional[dict] = None,
-                   actor: str = "system") -> TwinEvent:
-        evt = TwinEvent(timestamp=time.time(), event_type=event_type,
-                         payload=payload or {}, actor=actor)
+    def log_event(
+        self, event_type: str, payload: dict | None = None, actor: str = "system"
+    ) -> TwinEvent:
+        evt = TwinEvent(
+            timestamp=time.time(), event_type=event_type, payload=payload or {}, actor=actor
+        )
         self.history.append(evt)
         self.updated_at = evt.timestamp
         return evt
 
     def set_geometry(self, mesh: Mesh3D, actor: str = "system") -> None:
         self.geometry = mesh
-        self.log_event("geometry_updated",
-                        {"vertex_count": len(mesh.vertices),
-                         "triangle_count": len(mesh.triangles)},
-                        actor)
+        self.log_event(
+            "geometry_updated",
+            {"vertex_count": len(mesh.vertices), "triangle_count": len(mesh.triangles)},
+            actor,
+        )
 
     def add_material(self, material: PBRMaterial, actor: str = "system") -> None:
         self.materials.append(material)
@@ -243,23 +249,26 @@ class DigitalTwin:
 
     def bind_sensor(self, sensor: SensorBinding, actor: str = "system") -> None:
         self.sensors.append(sensor)
-        self.log_event("sensor_bound",
-                        {"sensor_id": sensor.sensor_id, "target_ref": sensor.target_ref}, actor)
+        self.log_event(
+            "sensor_bound", {"sensor_id": sensor.sensor_id, "target_ref": sensor.target_ref}, actor
+        )
 
-    def update_sensor(self, sensor_id: str, value: float,
-                       timestamp: Optional[float] = None) -> bool:
+    def update_sensor(self, sensor_id: str, value: float, timestamp: float | None = None) -> bool:
         for s in self.sensors:
             if s.sensor_id == sensor_id:
                 s.update(value, timestamp)
-                self.log_event("sensor_value_updated",
-                                {"sensor_id": sensor_id, "value": value}, "sensor")
+                self.log_event(
+                    "sensor_value_updated", {"sensor_id": sensor_id, "value": value}, "sensor"
+                )
                 return True
         return False
 
-    def add_annotation(self, text: str, position: tuple, author: str = "user",
-                        category: str = "general") -> Annotation:
-        ann = Annotation(id=str(uuid.uuid4()), text=text, position=position,
-                          author=author, category=category)
+    def add_annotation(
+        self, text: str, position: tuple, author: str = "user", category: str = "general"
+    ) -> Annotation:
+        ann = Annotation(
+            id=str(uuid.uuid4()), text=text, position=position, author=author, category=category
+        )
         self.annotations.append(ann)
         self.log_event("annotation_added", {"annotation_id": ann.id, "text": text}, author)
         return ann
@@ -272,13 +281,21 @@ class DigitalTwin:
                 return True
         return False
 
-    def add_measurement(self, kind: str, value: float, unit: str,
-                         points: Optional[list] = None, label: str = "") -> Measurement:
-        m = Measurement(id=str(uuid.uuid4()), kind=kind, value=value, unit=unit,
-                         points=points or [], label=label)
+    def add_measurement(
+        self, kind: str, value: float, unit: str, points: list | None = None, label: str = ""
+    ) -> Measurement:
+        m = Measurement(
+            id=str(uuid.uuid4()),
+            kind=kind,
+            value=value,
+            unit=unit,
+            points=points or [],
+            label=label,
+        )
         self.measurements.append(m)
-        self.log_event("measurement_added",
-                        {"measurement_id": m.id, "kind": kind, "value": value}, "system")
+        self.log_event(
+            "measurement_added", {"measurement_id": m.id, "kind": kind, "value": value}, "system"
+        )
         return m
 
     def set_layer_visibility(self, layer_name: str, visible: bool) -> None:
@@ -289,7 +306,7 @@ class DigitalTwin:
         self.simulation_state[key] = value
         self.log_event("simulation_state_updated", {"key": key})
 
-    def update_ai_data(self, key: str, value: Any, confidence: Optional[float] = None) -> None:
+    def update_ai_data(self, key: str, value: Any, confidence: float | None = None) -> None:
         entry: dict = {"value": value}
         if confidence is not None:
             entry["confidence"] = confidence
@@ -338,7 +355,7 @@ class DigitalTwin:
         }
 
     @staticmethod
-    def from_dict(data: dict) -> "DigitalTwin":
+    def from_dict(data: dict) -> DigitalTwin:
         geometry = _mesh_from_dict(data["geometry"]) if data.get("geometry") else None
         materials = [_material_from_dict(m) for m in data.get("materials", [])]
         return DigitalTwin(
@@ -362,6 +379,7 @@ class DigitalTwin:
 # ======================================================================== #
 # TwinDiff - iki versiyon arasındaki farkı raporlar
 # ======================================================================== #
+
 
 @dataclass(slots=True)
 class TwinDiff:
@@ -390,8 +408,9 @@ def diff_twins(old: DigitalTwin, new: DigitalTwin) -> TwinDiff:
     if (old.geometry is None) != (new.geometry is None):
         changed.append("geometry")
     elif old.geometry is not None and new.geometry is not None:
-        if len(old.geometry.vertices) != len(new.geometry.vertices) or \
-           len(old.geometry.triangles) != len(new.geometry.triangles):
+        if len(old.geometry.vertices) != len(new.geometry.vertices) or len(
+            old.geometry.triangles
+        ) != len(new.geometry.triangles):
             changed.append("geometry")
 
     if len(old.materials) != len(new.materials):
@@ -416,6 +435,7 @@ def diff_twins(old: DigitalTwin, new: DigitalTwin) -> TwinDiff:
 # DigitalTwinRegistry - CRUD + versiyonlama
 # ======================================================================== #
 
+
 class DigitalTwinRegistry:
     """Tüm `DigitalTwin` nesnelerinin id bazlı deposu.
 
@@ -432,7 +452,7 @@ class DigitalTwinRegistry:
 
     # -- CRUD --------------------------------------------------------------- #
 
-    def create(self, twin_id: Optional[str] = None, **kwargs) -> DigitalTwin:
+    def create(self, twin_id: str | None = None, **kwargs) -> DigitalTwin:
         tid = twin_id or str(uuid.uuid4())
         if tid in self._twins:
             raise ValueError(f"DigitalTwin zaten mevcut: {tid}")
@@ -443,7 +463,7 @@ class DigitalTwinRegistry:
         self._notify("created", twin)
         return twin
 
-    def get(self, twin_id: str) -> Optional[DigitalTwin]:
+    def get(self, twin_id: str) -> DigitalTwin | None:
         """Kayıtlı twin'in bağımsız bir kopyasını döndürür (checkout).
 
         Registry'nin dahili durumunun, çağıranın elindeki nesneyi
@@ -499,7 +519,7 @@ class DigitalTwinRegistry:
         hariç, kronolojik sırayla döndürür."""
         return [copy.deepcopy(t) for t in self._snapshots.get(twin_id, [])]
 
-    def get_version(self, twin_id: str, version: int) -> Optional[DigitalTwin]:
+    def get_version(self, twin_id: str, version: int) -> DigitalTwin | None:
         current = self._twins.get(twin_id)
         if current is not None and current.version == version:
             return copy.deepcopy(current)
@@ -508,7 +528,7 @@ class DigitalTwinRegistry:
                 return copy.deepcopy(snap)
         return None
 
-    def rollback(self, twin_id: str, version: int) -> Optional[DigitalTwin]:
+    def rollback(self, twin_id: str, version: int) -> DigitalTwin | None:
         """Belirtilen versiyona geri döner (yeni bir versiyon olarak kaydeder,
         geçmişi silmez - append-only)."""
         target = self.get_version(twin_id, version)
@@ -518,7 +538,7 @@ class DigitalTwinRegistry:
         restored.log_event("rolled_back", {"to_version": version})
         return self.save(restored)
 
-    def diff(self, twin_id: str, version_a: int, version_b: int) -> Optional[TwinDiff]:
+    def diff(self, twin_id: str, version_a: int, version_b: int) -> TwinDiff | None:
         a = self.get_version(twin_id, version_a)
         b = self.get_version(twin_id, version_b)
         if a is None or b is None:
@@ -539,7 +559,8 @@ class DigitalTwinRegistry:
     def export_json(self) -> str:
         return json.dumps(
             {tid: t.to_dict() for tid, t in self._twins.items()},
-            ensure_ascii=False, indent=2,
+            ensure_ascii=False,
+            indent=2,
         )
 
     def import_json(self, data: str) -> None:
@@ -578,5 +599,6 @@ def __getattr__(name: str):
     }
     if name in hierarchy_names:
         from . import hierarchy as _hierarchy
+
         return getattr(_hierarchy, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -8,6 +8,7 @@ seviyesinde render"). `test_c3_osm_road_water_bridge.py`'deki mevcut
 testlerle aynı yardımcı fonksiyon desenini kullanır, ayrı dosyada tutulur
 (mevcut regresyon dosyasına dokunulmadı).
 """
+
 from __future__ import annotations
 
 import unittest

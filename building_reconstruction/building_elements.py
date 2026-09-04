@@ -19,12 +19,19 @@ from dataclasses import dataclass
 from enum import Enum
 
 from ..core_engine.geometry_engine import Point2D, Polygon
-from ..mesh_engine import Mesh3D, MeshBuilder, MeshMerger, NormalGenerator, Vertex3D, _ear_clip_triangulate
-
+from ..mesh_engine import (
+    Mesh3D,
+    MeshBuilder,
+    MeshMerger,
+    NormalGenerator,
+    Vertex3D,
+    _ear_clip_triangulate,
+)
 
 # ============================================================================ #
 # Roadmap V-yeni, Faz 1.3: Pencere / Kapı Tipolojisi
 # ============================================================================ #
+
 
 class WindowType(str, Enum):
     """Roadmap 1.3: 'Pencere tipolojisi: sabit, açılır, sürgülü, balkon kapısı'."""
@@ -64,6 +71,7 @@ DOOR_TYPE_DEFAULTS: dict[DoorType, dict[str, float]] = {
 # ============================================================================ #
 # Window Generator
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class WindowPlacement:
@@ -122,11 +130,16 @@ class WindowGenerator:
                 offset += rng.uniform(-jitter, jitter)
             offset = max(margin, min(wall_length - margin, offset))
             pos = Point2D(wall_start.x + dx * offset, wall_start.y + dy * offset)
-            placements.append(WindowPlacement(
-                position=pos, width=window_width, height=window_height,
-                sill_height=sill_height, wall_edge_index=wall_edge_index,
-                window_type=window_type,
-            ))
+            placements.append(
+                WindowPlacement(
+                    position=pos,
+                    width=window_width,
+                    height=window_height,
+                    sill_height=sill_height,
+                    wall_edge_index=wall_edge_index,
+                    window_type=window_type,
+                )
+            )
         return placements
 
     @staticmethod
@@ -143,10 +156,19 @@ class WindowGenerator:
         ring = polygon.closed_ring()
         result: list[WindowPlacement] = []
         for i, (a, b) in enumerate(zip(ring, ring[1:])):
-            result.extend(WindowGenerator.place_on_wall(
-                a, b, i, window_width, window_height, sill_height, spacing, seed=seed,
-                window_type=window_type,
-            ))
+            result.extend(
+                WindowGenerator.place_on_wall(
+                    a,
+                    b,
+                    i,
+                    window_width,
+                    window_height,
+                    sill_height,
+                    spacing,
+                    seed=seed,
+                    window_type=window_type,
+                )
+            )
         return result
 
     @staticmethod
@@ -176,8 +198,11 @@ class WindowGenerator:
         sill_ratio = WINDOW_TYPE_DEFAULTS[w_type]["sill_height_ratio"]
 
         windows = WindowGenerator.place_on_footprint(
-            polygon, window_width=width, window_height=height,
-            sill_height=floor_height * sill_ratio, spacing=2.5,
+            polygon,
+            window_width=width,
+            window_height=height,
+            sill_height=floor_height * sill_ratio,
+            spacing=2.5,
             seed=(None if seed is None else seed + floor_index),
             window_type=w_type,
         )
@@ -200,6 +225,7 @@ class WindowGenerator:
 # ============================================================================ #
 # Balcony Generator
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class Balcony:
@@ -228,16 +254,21 @@ class BalconyGenerator:
         for i, w in enumerate(windows):
             if i % every_nth != 0:
                 continue
-            balconies.append(Balcony(
-                position=w.position, width=w.width + 0.4, depth=depth,
-                wall_edge_index=w.wall_edge_index,
-            ))
+            balconies.append(
+                Balcony(
+                    position=w.position,
+                    width=w.width + 0.4,
+                    depth=depth,
+                    wall_edge_index=w.wall_edge_index,
+                )
+            )
         return balconies
 
 
 # ============================================================================ #
 # Stair Generator
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class Stair:
@@ -267,15 +298,20 @@ class StairGenerator:
         actual_step_height = floor_height / step_count
         run_length = step_count * step_depth
         return Stair(
-            position=position, width=width, run_length=run_length,
-            step_count=step_count, step_height=actual_step_height,
-            step_depth=step_depth, rotation_deg=rotation_deg,
+            position=position,
+            width=width,
+            run_length=run_length,
+            step_count=step_count,
+            step_height=actual_step_height,
+            step_depth=step_depth,
+            rotation_deg=rotation_deg,
         )
 
 
 # ============================================================================ #
 # Elevator Core
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class ElevatorCore:
@@ -301,8 +337,11 @@ class ElevatorCoreGenerator:
         overrun_m: float = 3.0,
     ) -> ElevatorCore:
         return ElevatorCore(
-            position=position, width=width, depth=depth,
-            shaft_bottom_z=base_z, shaft_top_z=base_z + total_building_height + overrun_m,
+            position=position,
+            width=width,
+            depth=depth,
+            shaft_bottom_z=base_z,
+            shaft_top_z=base_z + total_building_height + overrun_m,
             car_count=car_count,
         )
 
@@ -310,6 +349,7 @@ class ElevatorCoreGenerator:
 # ============================================================================ #
 # Corridor Generator
 # ============================================================================ #
+
 
 class CorridorGenerator:
     """Roadmap: 'Corridor Generator'. `RoomGenerator`'ın koridor-tipi
@@ -336,6 +376,7 @@ class CorridorGenerator:
 # Door Generator
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class Door:
     position: Point2D
@@ -352,7 +393,9 @@ class DoorGenerator:
 
     @staticmethod
     def exterior_entrance(
-        polygon: Polygon, width: float | None = None, door_type: DoorType = DoorType.ENTRANCE,
+        polygon: Polygon,
+        width: float | None = None,
+        door_type: DoorType = DoorType.ENTRANCE,
     ) -> Door:
         """En uzun dış duvar kenarının orta noktasına ana giriş kapısı
         yerleştirir. `door_type` ile yangın kapısı/garaj kapısı gibi diğer
@@ -370,13 +413,19 @@ class DoorGenerator:
         defaults = DOOR_TYPE_DEFAULTS[door_type]
         actual_width = width if width is not None else defaults["width"]
         return Door(
-            position=best_mid, width=actual_width, is_exterior=True, wall_edge_index=best_idx,
-            door_type=door_type, height=defaults["height"],
+            position=best_mid,
+            width=actual_width,
+            is_exterior=True,
+            wall_edge_index=best_idx,
+            door_type=door_type,
+            height=defaults["height"],
         )
 
     @staticmethod
     def secondary_exit(
-        polygon: Polygon, exclude_edge_index: int, width: float | None = None,
+        polygon: Polygon,
+        exclude_edge_index: int,
+        width: float | None = None,
         door_type: DoorType = DoorType.FIRE,
     ) -> Door:
         """Roadmap 1.3 + 2.3 (kaçış rotası) ön koşulu: ana girişten farklı
@@ -400,8 +449,12 @@ class DoorGenerator:
             a, b = ring[best_idx], ring[(best_idx + 1) % (len(ring) - 1)]
             best_mid = Point2D((a.x + b.x) / 2.0, (a.y + b.y) / 2.0)
         return Door(
-            position=best_mid, width=w, is_exterior=True, wall_edge_index=best_idx,
-            door_type=door_type, height=defaults["height"],
+            position=best_mid,
+            width=w,
+            is_exterior=True,
+            wall_edge_index=best_idx,
+            door_type=door_type,
+            height=defaults["height"],
         )
 
     @staticmethod
@@ -422,16 +475,22 @@ class DoorGenerator:
                 a_center = _polygon_center(room.polygon)
                 b_center = _polygon_center(neighbor.polygon)
                 mid = Point2D((a_center.x + b_center.x) / 2.0, (a_center.y + b_center.y) / 2.0)
-                doors.append(Door(
-                    position=mid, width=0.9, is_exterior=False,
-                    wall_edge_index=-1, connects_room_ids=key,
-                ))
+                doors.append(
+                    Door(
+                        position=mid,
+                        width=0.9,
+                        is_exterior=False,
+                        wall_edge_index=-1,
+                        connects_room_ids=key,
+                    )
+                )
         return doors
 
 
 # ============================================================================ #
 # Bay Window (çıkma) Generator - Roadmap 1.3
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class BayWindow:
@@ -471,12 +530,13 @@ class BayWindowGenerator:
 # Entrance Canopy (giriş sundurması) Generator - Roadmap 1.3
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class EntranceCanopy:
     """Ana giriş kapısının üzerine, duvardan dışa taşan yatay bir
     sundurma/saçak plakası."""
 
-    door: "Door"
+    door: Door
     width: float
     depth: float = 1.2
     thickness: float = 0.15
@@ -488,9 +548,11 @@ class EntranceCanopyGenerator:
     elemanları'."""
 
     @staticmethod
-    def for_entrance(door: "Door", extra_width: float = 0.6, depth: float = 1.2) -> EntranceCanopy:
+    def for_entrance(door: Door, extra_width: float = 0.6, depth: float = 1.2) -> EntranceCanopy:
         return EntranceCanopy(
-            door=door, width=door.width + extra_width, depth=depth,
+            door=door,
+            width=door.width + extra_width,
+            depth=depth,
             height_above_door=door.height + 0.2,
         )
 
@@ -505,6 +567,7 @@ def _polygon_center(polygon: Polygon) -> Point2D:
 # ROADMAP_V5 M2.2: "Kat tipi ayrışması ... çekme katın (setback floor)
 # footprint'inin üst kata göre otomatik içe ofsetlenmesi"
 # ============================================================================ #
+
 
 class SetbackFloorGenerator:
     """Çekme kat (setback floor) için footprint içe-ofsetleme.
@@ -564,6 +627,7 @@ class SetbackFloorGenerator:
 # ROADMAP_V5 — M2.2 (kalan madde): Cift Kabuk Cephe (Double-Skin Facade)
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class DoubleSkinFacade:
     """Bir binanin birincil (ic) cephesinin disina eklenen ikinci bir cam
@@ -609,7 +673,10 @@ class DoubleSkinFacadeGenerator:
 
     @staticmethod
     def _build_lofted_shell(
-        base_polygon: Polygon, zs: list[float], gaps: list[float], name: str,
+        base_polygon: Polygon,
+        zs: list[float],
+        gaps: list[float],
+        name: str,
     ) -> Mesh3D:
         """RFC_FAZ6_1 'Ilk asama': `zs`/`gaps` ayni uzunlukta bir dizi -
         her yukseklikte `base_polygon`'un `gaps[i]` kadar disa ofsetlenmis
@@ -645,11 +712,11 @@ class DoubleSkinFacadeGenerator:
 
         bottom_indices = list(range(n))
         cap_tris = _ear_clip_triangulate(rings[0], bottom_indices)
-        for (a, b, c) in cap_tris:
+        for a, b, c in cap_tris:
             triangles.append((a, c, b))
         top_base = (len(zs) - 1) * n
         cap_tris_top = _ear_clip_triangulate(rings[-1], bottom_indices)
-        for (a, b, c) in cap_tris_top:
+        for a, b, c in cap_tris_top:
             triangles.append((a + top_base, b + top_base, c + top_base))
 
         mesh = Mesh3D(vertices=vertices, triangles=triangles, name=name)
@@ -700,13 +767,19 @@ class DoubleSkinFacadeGenerator:
 
         if gap_profile is None:
             outer_mesh = MeshBuilder.extrude_polygon(
-                outer_polygon, base_z, total_height, name="double_skin_outer_glass",
+                outer_polygon,
+                base_z,
+                total_height,
+                name="double_skin_outer_glass",
             )
         else:
             zs = [base_z + idx * floor_height for idx in range(floor_count + 1)]
             gaps = [gap_profile(z - base_z) for z in zs]
             outer_mesh = DoubleSkinFacadeGenerator._build_lofted_shell(
-                polygon, zs, gaps, name="double_skin_outer_glass",
+                polygon,
+                zs,
+                gaps,
+                name="double_skin_outer_glass",
             )
 
         mesh_parts = [outer_mesh]
@@ -720,7 +793,8 @@ class DoubleSkinFacadeGenerator:
                 floor_ring = ring
             else:
                 floor_ring = DoubleSkinFacadeGenerator._offset_footprint_outward(
-                    polygon, gap_profile(z - base_z),
+                    polygon,
+                    gap_profile(z - base_z),
                 ).closed_ring()[:-1]
             for i in range(n_edges):
                 a, b = floor_ring[i], floor_ring[(i + 1) % n_edges]
@@ -730,8 +804,12 @@ class DoubleSkinFacadeGenerator:
                 mx, my = (a.x + b.x) / 2.0, (a.y + b.y) / 2.0
                 angle = math.atan2(b.y - a.y, b.x - a.x)
                 band = MeshBuilder.build_box(
-                    width=edge_len, depth=mullion_thickness * 2, height=mullion_thickness,
-                    center_x=mx, center_y=my, base_z=z - mullion_thickness / 2.0,
+                    width=edge_len,
+                    depth=mullion_thickness * 2,
+                    height=mullion_thickness,
+                    center_x=mx,
+                    center_y=my,
+                    base_z=z - mullion_thickness / 2.0,
                     name=f"mullion_band_f{floor_idx}_e{i}",
                 )
                 mesh_parts.append(_rotate_mesh_xy(band, angle, mx, my))
@@ -753,8 +831,12 @@ class DoubleSkinFacadeGenerator:
                     t = (k + 0.5) / n_fins_this_edge
                     fx, fy = a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t
                     fin = MeshBuilder.build_box(
-                        width=fin_thickness_m, depth=fin_depth_m, height=total_height,
-                        center_x=fx, center_y=fy, base_z=base_z,
+                        width=fin_thickness_m,
+                        depth=fin_depth_m,
+                        height=total_height,
+                        center_x=fx,
+                        center_y=fy,
+                        base_z=base_z,
                         name=f"shading_fin_e{i}_{k}",
                     )
                     fin_parts.append(_rotate_mesh_xy(fin, angle, fx, fy))
@@ -763,8 +845,10 @@ class DoubleSkinFacadeGenerator:
                 shading_fin_mesh = MeshMerger.merge(fin_parts, name="double_skin_fins")
 
         return DoubleSkinFacade(
-            outer_skin_mesh=outer_skin_mesh, shading_fin_mesh=shading_fin_mesh,
-            gap_m=gap_m, fin_count=fin_count,
+            outer_skin_mesh=outer_skin_mesh,
+            shading_fin_mesh=shading_fin_mesh,
+            gap_m=gap_m,
+            fin_count=fin_count,
         )
 
 
@@ -785,8 +869,16 @@ def _rotate_mesh_xy(mesh: Mesh3D, angle_rad: float, pivot_x: float, pivot_y: flo
             nrx = nx * cos_a - ny * sin_a
             nry = nx * sin_a + ny * cos_a
             new_normal = (nrx, nry, v.normal[2])
-        new_vertices.append(type(v)(
-            pivot_x + rx, pivot_y + ry, v.z,
-            normal=new_normal, tangent=v.tangent, uv=v.uv,
-        ))
-    return Mesh3D(vertices=new_vertices, triangles=list(mesh.triangles), uvs=list(mesh.uvs), name=mesh.name)
+        new_vertices.append(
+            type(v)(
+                pivot_x + rx,
+                pivot_y + ry,
+                v.z,
+                normal=new_normal,
+                tangent=v.tangent,
+                uv=v.uv,
+            )
+        )
+    return Mesh3D(
+        vertices=new_vertices, triangles=list(mesh.triangles), uvs=list(mesh.uvs), name=mesh.name
+    )

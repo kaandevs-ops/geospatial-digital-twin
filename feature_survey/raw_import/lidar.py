@@ -142,7 +142,9 @@ def read_las_header(path: str | Path) -> tuple[LasHeader, list[VariableLengthRec
         for _ in range(num_vlr):
             vlr_header = fh.read(54)
             if len(vlr_header) < 54:
-                raise MalformedRecordError(f"{path}: VLR header eksik/bozuk (dosya sonu erken geldi).")
+                raise MalformedRecordError(
+                    f"{path}: VLR header eksik/bozuk (dosya sonu erken geldi)."
+                )
             _reserved, user_id_raw, record_id, record_length, description_raw = struct.unpack(
                 "<H16sHH32s", vlr_header
             )
@@ -154,7 +156,9 @@ def read_las_header(path: str | Path) -> tuple[LasHeader, list[VariableLengthRec
                     user_id=user_id_raw.split(b"\x00", 1)[0].decode("ascii", errors="replace"),
                     record_id=record_id,
                     record_length=record_length,
-                    description=description_raw.split(b"\x00", 1)[0].decode("ascii", errors="replace"),
+                    description=description_raw.split(b"\x00", 1)[0].decode(
+                        "ascii", errors="replace"
+                    ),
                     data=data,
                 )
             )
@@ -184,7 +188,9 @@ def extract_crs_wkt(vlrs: list[VariableLengthRecord]) -> str:
         if vlr.user_id == "LASF_Projection" and vlr.record_id == _WKT_VLR_ID:
             return vlr.data.split(b"\x00", 1)[0].decode("utf-8", errors="replace")
 
-    geotiff_vlrs = [v for v in vlrs if v.user_id == "LASF_Projection" and v.record_id in _GEOTIFF_VLR_IDS]
+    geotiff_vlrs = [
+        v for v in vlrs if v.user_id == "LASF_Projection" and v.record_id in _GEOTIFF_VLR_IDS
+    ]
     if geotiff_vlrs:
         raise MissingCRSError(
             "Dosyada GeoTIFF anahtar VLR'leri var ama WKT metni yok — GeoTIFF anahtar "

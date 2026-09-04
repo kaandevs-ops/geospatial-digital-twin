@@ -5,18 +5,27 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from harita.building_reconstruction import (
+    BalconyGenerator,
+    BuildingType,
+    BuildingTypeRules,
+    DoorGenerator,
+    ElevatorCoreGenerator,
+    FacadeGenerator,
+    FacadeMaterial,
+    Footprint,
+    FootprintParser,
+    ProceduralBuildingGenerator,
+    RoofGenerator,
+    RoofType,
+    RoofTypeGuess,
+    RoomGenerator,
+    RoomType,
+    StairGenerator,
+    WindowGenerator,
+)
 from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.core_engine.gis_core import GeoFeature
-
-from harita.building_reconstruction import (
-    Footprint, FootprintParser, RoofTypeGuess,
-    RoofGenerator, RoofType,
-    FacadeGenerator, FacadeMaterial,
-    RoomGenerator, RoomType,
-    WindowGenerator, DoorGenerator, StairGenerator, ElevatorCoreGenerator,
-    BalconyGenerator, CorridorGenerator,
-    Building, BuildingType, BuildingTypeRules, ProceduralBuildingGenerator,
-)
 
 
 def _rect_polygon(w: float, d: float) -> Polygon:
@@ -26,6 +35,7 @@ def _rect_polygon(w: float, d: float) -> Polygon:
 # ------------------------------------------------------------------ #
 # Footprint Parser
 # ------------------------------------------------------------------ #
+
 
 def test_footprint_parser_from_geofeature():
     feature = GeoFeature(
@@ -59,6 +69,7 @@ def test_footprint_compactness_and_roof_guess_villa_like():
 # ------------------------------------------------------------------ #
 # Roof Generator
 # ------------------------------------------------------------------ #
+
 
 def test_roof_flat_generates_closed_prism():
     poly = _rect_polygon(10, 8)
@@ -118,6 +129,7 @@ def test_all_roof_types_produce_valid_mesh():
 # Facade Generator
 # ------------------------------------------------------------------ #
 
+
 def test_facade_generator_office_uses_glass():
     poly = _rect_polygon(15, 12)
     facade = FacadeGenerator.generate(poly, "ofis", base_z=0.0, floor_height=24.0, seed=1)
@@ -129,7 +141,10 @@ def test_facade_generator_office_uses_glass():
 def test_facade_material_override():
     poly = _rect_polygon(10, 10)
     facade = FacadeGenerator.generate(
-        poly, "villa", base_z=0.0, floor_height=6.0,
+        poly,
+        "villa",
+        base_z=0.0,
+        floor_height=6.0,
         material_override=FacadeMaterial.AHSAP,
     )
     assert facade.material == FacadeMaterial.AHSAP
@@ -139,6 +154,7 @@ def test_facade_material_override():
 # ------------------------------------------------------------------ #
 # Room Generator
 # ------------------------------------------------------------------ #
+
 
 def test_room_generator_covers_full_area():
     poly = _rect_polygon(20, 15)
@@ -172,6 +188,7 @@ def test_room_generator_adjacency_is_symmetric():
 # ------------------------------------------------------------------ #
 # Building Elements
 # ------------------------------------------------------------------ #
+
 
 def test_window_generator_symmetric_spacing():
     a, b = Point2D(0, 0), Point2D(20, 0)
@@ -215,6 +232,7 @@ def test_balcony_generator_skips_ground_floor():
 # Procedural Building Generator (uçtan uca)
 # ------------------------------------------------------------------ #
 
+
 def test_building_type_rules_registry_has_all_types():
     for bt in BuildingType:
         rule = BuildingTypeRules.get(bt)
@@ -225,7 +243,9 @@ def test_building_type_rules_registry_has_all_types():
 def test_procedural_generator_end_to_end_apartman():
     poly = _rect_polygon(18, 14)
     fp = Footprint(polygon=poly, building_type="apartments", floor_count=5, height_m=15.0)
-    building = ProceduralBuildingGenerator.generate(fp, building_type=BuildingType.APARTMAN, seed=11)
+    building = ProceduralBuildingGenerator.generate(
+        fp, building_type=BuildingType.APARTMAN, seed=11
+    )
 
     assert len(building.floors) == 5
     assert building.roof is not None

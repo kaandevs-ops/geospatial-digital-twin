@@ -60,7 +60,9 @@ class CommandIntent:
     raw_fragment: str = ""
 
     def __repr__(self) -> str:  # pragma: no cover - kolaylik icin
-        return f"CommandIntent({self.action.value}, target={self.target!r}, params={self.parameters})"
+        return (
+            f"CommandIntent({self.action.value}, target={self.target!r}, params={self.parameters})"
+        )
 
 
 @dataclass(slots=True)
@@ -73,4 +75,6 @@ class ParseResult:
 
     @property
     def ok(self) -> bool:
-        return len(self.intents) > 0 and not any(i.action is IntentAction.UNKNOWN for i in self.intents)
+        return len(self.intents) > 0 and not any(
+            i.action is IntentAction.UNKNOWN for i in self.intents
+        )

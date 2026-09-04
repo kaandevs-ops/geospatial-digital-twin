@@ -13,7 +13,7 @@ burada sadece "bu deltalarla kamera state'i nasıl değişir" mantığı var.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 
 Vec3 = tuple[float, float, float]
@@ -97,7 +97,9 @@ class CameraRig:
         self._cinematic_track: list[CinematicKeyframe] = []
 
     # -- Orbit --------------------------------------------------------- #
-    def orbit(self, delta_yaw_deg: float, delta_pitch_deg: float, delta_distance: float = 0.0) -> Camera:
+    def orbit(
+        self, delta_yaw_deg: float, delta_pitch_deg: float, delta_distance: float = 0.0
+    ) -> Camera:
         """Hedef nokta etrafında yörünge (azimuth/elevation küresel koordinat)."""
         offset = _sub(self.camera.position, self.camera.target)
         radius = max(0.01, _length(offset) + delta_distance)
@@ -107,7 +109,9 @@ class CameraRig:
         elevation = math.asin(clamp(offset[2] / max(_length(offset), 1e-9), -1.0, 1.0))
 
         azimuth += math.radians(delta_yaw_deg)
-        elevation = clamp(elevation + math.radians(delta_pitch_deg), -math.pi / 2 + 0.01, math.pi / 2 - 0.01)
+        elevation = clamp(
+            elevation + math.radians(delta_pitch_deg), -math.pi / 2 + 0.01, math.pi / 2 - 0.01
+        )
 
         new_offset = (
             radius * math.cos(elevation) * math.cos(azimuth),
@@ -118,10 +122,15 @@ class CameraRig:
         return self.camera
 
     # -- FPS ------------------------------------------------------------ #
-    def fps_move(self, forward_amount: float, strafe_amount: float, up_amount: float = 0.0) -> Camera:
+    def fps_move(
+        self, forward_amount: float, strafe_amount: float, up_amount: float = 0.0
+    ) -> Camera:
         fwd = self.camera.forward()
         right = self.camera.right()
-        delta = _add(_add(_scale(fwd, forward_amount), _scale(right, strafe_amount)), _scale(self.camera.up, up_amount))
+        delta = _add(
+            _add(_scale(fwd, forward_amount), _scale(right, strafe_amount)),
+            _scale(self.camera.up, up_amount),
+        )
         self.camera.position = _add(self.camera.position, delta)
         self.camera.target = _add(self.camera.target, delta)
         return self.camera
@@ -140,7 +149,13 @@ class CameraRig:
         return self.camera
 
     # -- Drone (altitude-hold + yaw/throttle) ---------------------------- #
-    def drone_move(self, forward_amount: float, strafe_amount: float, altitude_delta: float, yaw_delta_deg: float = 0.0) -> Camera:
+    def drone_move(
+        self,
+        forward_amount: float,
+        strafe_amount: float,
+        altitude_delta: float,
+        yaw_delta_deg: float = 0.0,
+    ) -> Camera:
         fwd_flat = _normalize((self.camera.forward()[0], self.camera.forward()[1], 0.0))
         right_flat = _normalize(_cross(fwd_flat, (0, 0, 1)))
         delta = _add(_scale(fwd_flat, forward_amount), _scale(right_flat, strafe_amount))
@@ -152,7 +167,14 @@ class CameraRig:
         return self.camera
 
     # -- Free Fly (tam 6DOF) ---------------------------------------------- #
-    def free_fly(self, forward_amount: float, strafe_amount: float, up_amount: float, yaw_delta_deg: float, pitch_delta_deg: float) -> Camera:
+    def free_fly(
+        self,
+        forward_amount: float,
+        strafe_amount: float,
+        up_amount: float,
+        yaw_delta_deg: float,
+        pitch_delta_deg: float,
+    ) -> Camera:
         self.fps_look(yaw_delta_deg, pitch_delta_deg)
         return self.fps_move(forward_amount, strafe_amount, up_amount)
 
@@ -166,11 +188,19 @@ class CameraRig:
             return self.camera
         if time_s <= track[0].time_s:
             kf = track[0]
-            self.camera.position, self.camera.target, self.camera.fov_deg = kf.position, kf.target, kf.fov_deg
+            self.camera.position, self.camera.target, self.camera.fov_deg = (
+                kf.position,
+                kf.target,
+                kf.fov_deg,
+            )
             return self.camera
         if time_s >= track[-1].time_s:
             kf = track[-1]
-            self.camera.position, self.camera.target, self.camera.fov_deg = kf.position, kf.target, kf.fov_deg
+            self.camera.position, self.camera.target, self.camera.fov_deg = (
+                kf.position,
+                kf.target,
+                kf.fov_deg,
+            )
             return self.camera
 
         for i in range(len(track) - 1):

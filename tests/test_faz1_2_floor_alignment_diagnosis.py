@@ -26,7 +26,6 @@ Bulgular (bu test dosyasının yazıldığı an itibarıyla, iki düzeltme sonra
 from __future__ import annotations
 
 import pytest
-
 from harita.building_reconstruction.footprint_parser import Footprint
 from harita.building_reconstruction.procedural_generator import (
     BuildingType,
@@ -53,7 +52,9 @@ class TestRealBuildingFloorAlignment:
         fp = _make_rect_footprint(12.0, 20.0, floor_count=8, total_height=24.0)
         building = ProceduralBuildingGenerator.generate(fp, building_type=BuildingType.APARTMAN)
         heights = [f.height_m for f in building.floors]
-        report = FloorAlignmentAnalyzer.check(heights, building.facade.floor_meshes, tolerance_m=0.005)
+        report = FloorAlignmentAnalyzer.check(
+            heights, building.facade.floor_meshes, tolerance_m=0.005
+        )
         assert report.max_z_error_m == pytest.approx(0.0, abs=1e-9)
 
     def test_wall_xy_alignment_is_within_tolerance(self):
@@ -63,7 +64,9 @@ class TestRealBuildingFloorAlignment:
         fp = _make_rect_footprint(12.0, 20.0, floor_count=8, total_height=24.0)
         building = ProceduralBuildingGenerator.generate(fp, building_type=BuildingType.APARTMAN)
         heights = [f.height_m for f in building.floors]
-        report = FloorAlignmentAnalyzer.check(heights, building.facade.floor_meshes, tolerance_m=0.005)
+        report = FloorAlignmentAnalyzer.check(
+            heights, building.facade.floor_meshes, tolerance_m=0.005
+        )
         assert report.within_tolerance is True
         assert report.max_wall_xy_error_m == pytest.approx(0.0, abs=1e-6)
 

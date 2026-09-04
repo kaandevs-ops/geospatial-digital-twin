@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import random
-
 import pytest
-
 from harita.feature_survey.qc.pointcloud_mesh_comparison import (
     ComparisonError,
     compare_pointcloud_to_mesh,

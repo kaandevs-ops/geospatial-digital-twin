@@ -6,6 +6,7 @@ ROADMAP_V7.md Faz C3 (3. dilim) — OSM kentsel mobilya köprüsü
 feature'ları -> `StreetFurnitureItem`, bilinmeyen kategorilerin sessizce
 atlanması, ve uçtan uca `generate_street_furniture_for_collection`.
 """
+
 from __future__ import annotations
 
 import unittest
@@ -31,8 +32,12 @@ def _point_feature(category_key: str, x=5.0, y=7.0):
 class TestDefaultCategoriesRegistered(unittest.TestCase):
     def test_all_furniture_categories_present_and_are_points(self) -> None:
         expected = {
-            "street_lamp", "power_pole", "waste_basket",
-            "bench", "bus_stop", "bus_station",
+            "street_lamp",
+            "power_pole",
+            "waste_basket",
+            "bench",
+            "bus_stop",
+            "bus_station",
         }
         self.assertTrue(expected.issubset(DEFAULT_CATEGORIES.keys()))
         for key in expected:

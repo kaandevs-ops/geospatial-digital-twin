@@ -16,6 +16,7 @@ yoktu. Bu dosya, eklenen `compute_with_real_climate()` /
 doğrular. Bu ortamın ağ erişimi `api.open-meteo.com`'u içermediği için (3)
 canlı olarak test edilir - gerçekten fırlaması beklenir.
 """
+
 from __future__ import annotations
 
 import sys
@@ -34,8 +35,12 @@ _NOON_SUMMER = datetime(2026, 7, 15, 11, 0, tzinfo=timezone.utc)
 
 def _sample(cloud_pct):
     return HourlyClimateSample(
-        time_iso=_NOON_SUMMER.isoformat(), temperature_c=25.0, cloud_cover_pct=cloud_pct,
-        shortwave_radiation_wm2=None, direct_radiation_wm2=None, diffuse_radiation_wm2=None,
+        time_iso=_NOON_SUMMER.isoformat(),
+        temperature_c=25.0,
+        cloud_cover_pct=cloud_pct,
+        shortwave_radiation_wm2=None,
+        direct_radiation_wm2=None,
+        diffuse_radiation_wm2=None,
     )
 
 
@@ -64,8 +69,10 @@ def test_missing_cloud_data_falls_back_to_clear_sky_explicitly():
 
 def test_cloud_cover_is_monotonic():
     sun = SolarPositionCalculator.compute(_ANKARA, _NOON_SUMMER)
-    vals = [RoofIrradiance.compute_with_real_climate(sun, _sample(p)).watts_per_m2
-            for p in (0.0, 25.0, 50.0, 75.0, 100.0)]
+    vals = [
+        RoofIrradiance.compute_with_real_climate(sun, _sample(p)).watts_per_m2
+        for p in (0.0, 25.0, 50.0, 75.0, 100.0)
+    ]
     assert vals == sorted(vals, reverse=True)
 
 
@@ -75,7 +82,9 @@ def test_daily_energy_with_real_climate_raises_cleanly_without_network():
     Roadmap ilkesi: sessizce clear-sky'a düşülmez, hata açıkça yükselir."""
     try:
         RoofIrradiance.daily_energy_kwh_per_m2_with_real_climate(
-            _ANKARA, _NOON_SUMMER, climate_client=OpenMeteoClient(timeout_s=3.0),
+            _ANKARA,
+            _NOON_SUMMER,
+            climate_client=OpenMeteoClient(timeout_s=3.0),
         )
         raise AssertionError(
             "Bu ortamda api.open-meteo.com'a erişim olmamalıydı; eğer bu satıra "

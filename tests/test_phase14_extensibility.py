@@ -1,52 +1,44 @@
 """Phase 14 (Extensibility) için birim testleri."""
 
-import sys
-import tempfile
 import os
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
-from harita.mesh_engine import Mesh3D, Vertex3D
 from harita.digital_twin import DigitalTwin
-
 from harita.extensibility import (
-    Event,
+    CLI,
+    SCHEMA_VERSION,
+    AutomationEngine,
+    AutomationRule,
     EventSystem,
     MacroRecorder,
-    AutomationRule,
-    AutomationEngine,
     ModuleManager,
     ModuleNotEnabledError,
-    ThemeSystem,
     Plugin,
-    PluginMeta,
-    FunctionPlugin,
     PluginDependencyError,
     PluginManager,
-    RestRouter,
+    PluginMeta,
+    ProjectFile,
     RestNotFoundError,
-    build_default_router,
+    RestRouter,
     ScriptAPI,
-    ScriptEngineUnavailable,
+    ThemeSystem,
+    UnknownSchemaVersionError,
     WebSocketRouter,
     WSConnection,
-    WSMessage,
     WSConnectionClosedError,
-    CLI,
-    ProjectFile,
-    ProjectFileError,
-    UnknownSchemaVersionError,
+    WSMessage,
+    build_default_router,
     migrate_project_file,
-    SCHEMA_VERSION,
 )
-
 
 # ============================================================ #
 # EventSystem
 # ============================================================ #
+
 
 def test_event_system_basic_pubsub():
     bus = EventSystem()
@@ -103,6 +95,7 @@ def test_event_system_bridge():
 # MacroSystem
 # ============================================================ #
 
+
 def test_macro_recorder_and_playback():
     calls = []
 
@@ -140,6 +133,7 @@ def test_automation_engine_event_triggered():
 # ModuleManager / ThemeSystem
 # ============================================================ #
 
+
 def test_module_manager_lazy_enable_disable():
     mgr = ModuleManager()
     assert mgr.is_enabled("mesh_engine")  # varsayılan modüller etkin kayıtlı gelir
@@ -169,6 +163,7 @@ def test_theme_system_switch():
 # ============================================================ #
 # PluginManager
 # ============================================================ #
+
 
 def test_plugin_register_enable_disable():
     manager = PluginManager()
@@ -256,6 +251,7 @@ def test_plugin_discover_directory(tmp_path):
 # RestRouter
 # ============================================================ #
 
+
 def test_rest_router_dispatch_get():
     router = RestRouter()
 
@@ -285,6 +281,7 @@ def test_build_default_router():
 # ScriptAPI
 # ============================================================ #
 
+
 def test_script_api_python_execution():
     api = ScriptAPI()
     result = api.run("python", "_result = 1 + 2")
@@ -304,6 +301,7 @@ def test_script_api_lua_unavailable_returns_error_result():
 # ============================================================ #
 # WebSocketRouter
 # ============================================================ #
+
 
 def test_websocket_router_dispatch_handler():
     router = WebSocketRouter()
@@ -351,6 +349,7 @@ def test_websocket_message_json_roundtrip():
 # ============================================================ #
 # ProjectFile / .harita format & migration
 # ============================================================ #
+
 
 def test_project_file_create_and_roundtrip():
     pf = ProjectFile.create(name="Test Şehri")
@@ -411,6 +410,7 @@ def test_project_file_unknown_schema_raises():
 # ============================================================ #
 # CLI
 # ============================================================ #
+
 
 def test_cli_project_new_and_info(tmp_path):
     cli = CLI()

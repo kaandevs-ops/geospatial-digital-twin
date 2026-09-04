@@ -61,9 +61,9 @@ EK-A AYLIK ISI DENGESİ YÖNTEMİ (`MonthlyBalanceAuditor`):
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Sequence
-
+from collections.abc import Sequence
+from dataclasses import dataclass
+from typing import Any
 
 #: RESMİ TS 825 (Nisan 1998, EK 1-C "Bölgelere göre tavsiye edilen U
 #: değerleri") tablosu — BİREBİR alınmıştır (kaynak: TSE TS 825 tam metni,
@@ -84,7 +84,10 @@ ZONE_MAX_U_VALUES: dict[int, dict[str, float]] = {
 #: Tipik (eski/yalıtımsız veya hafif yalıtımlı) mevcut bina U-değerleri —
 #: kullanıcı gerçek değerleri bilmiyorsa varsayılan olarak kullanılır.
 TYPICAL_EXISTING_U_VALUES: dict[str, float] = {
-    "duvar": 1.50, "pencere": 2.80, "cati": 1.20, "taban": 1.00,
+    "duvar": 1.50,
+    "pencere": 2.80,
+    "cati": 1.20,
+    "taban": 1.00,
 }
 
 #: Bölge başına ısıtma derece-günü (HDD, taban 19°C — TS 825'in konutlar
@@ -136,14 +139,18 @@ class EnvelopeAuditReport:
             "climate_zone": self.climate_zone,
             "components": [
                 {
-                    "name": c.name, "area_m2": round(c.area_m2, 1),
-                    "u_value_current": c.u_value_current, "u_value_limit": c.u_value_limit,
+                    "name": c.name,
+                    "area_m2": round(c.area_m2, 1),
+                    "u_value_current": c.u_value_current,
+                    "u_value_limit": c.u_value_limit,
                     "meets_limit": c.meets_limit,
                     "heat_loss_w_per_k": round(c.heat_loss_w_per_k, 1),
                 }
                 for c in self.components
             ],
-            "total_heat_loss_coefficient_w_per_k": round(self.total_heat_loss_coefficient_w_per_k, 1),
+            "total_heat_loss_coefficient_w_per_k": round(
+                self.total_heat_loss_coefficient_w_per_k, 1
+            ),
             "total_heat_loss_coefficient_limit_w_per_k": round(
                 self.total_heat_loss_coefficient_limit_w_per_k, 1
             ),
@@ -180,9 +187,7 @@ class EnvelopeAuditor:
         indoor_outdoor_delta_c: float = 20.0,
     ) -> EnvelopeAuditReport:
         if climate_zone not in ZONE_MAX_U_VALUES:
-            raise ValueError(
-                f"Geçersiz derece-gün bölgesi: {climate_zone} (1-4 arası olmalı)."
-            )
+            raise ValueError(f"Geçersiz derece-gün bölgesi: {climate_zone} (1-4 arası olmalı).")
         limits = ZONE_MAX_U_VALUES[climate_zone]
         net_wall_area = max(0.0, wall_area_m2 - window_area_m2)
 
@@ -193,10 +198,17 @@ class EnvelopeAuditor:
             "taban": u_floor if u_floor is not None else TYPICAL_EXISTING_U_VALUES["taban"],
         }
         areas = {
-            "duvar": net_wall_area, "pencere": window_area_m2,
-            "cati": roof_area_m2, "taban": floor_area_m2,
+            "duvar": net_wall_area,
+            "pencere": window_area_m2,
+            "cati": roof_area_m2,
+            "taban": floor_area_m2,
         }
-        labels = {"duvar": "Dış duvar", "pencere": "Pencere", "cati": "Çatı/tavan", "taban": "Taban/döşeme"}
+        labels = {
+            "duvar": "Dış duvar",
+            "pencere": "Pencere",
+            "cati": "Çatı/tavan",
+            "taban": "Taban/döşeme",
+        }
 
         components: list[EnvelopeComponentResult] = []
         total_h = 0.0
@@ -209,12 +221,16 @@ class EnvelopeAuditor:
             h_lim = u_lim * area
             total_h += h
             total_h_limit += h_lim
-            components.append(EnvelopeComponentResult(
-                name=labels[comp_key], area_m2=area,
-                u_value_current=u_cur, u_value_limit=u_lim,
-                meets_limit=u_cur <= u_lim + 1e-9,
-                heat_loss_w_per_k=h,
-            ))
+            components.append(
+                EnvelopeComponentResult(
+                    name=labels[comp_key],
+                    area_m2=area,
+                    u_value_current=u_cur,
+                    u_value_limit=u_lim,
+                    meets_limit=u_cur <= u_lim + 1e-9,
+                    heat_loss_w_per_k=h,
+                )
+            )
 
         is_compliant = all(c.meets_limit for c in components)
         excess_pct = 100.0 * (total_h - total_h_limit) / max(total_h_limit, 1e-6)
@@ -351,7 +367,7 @@ class MonthlyBalanceAuditor:
         if abs(gamma - 1.0) < 1e-6:
             # EN ISO 13790 Ek A: gamma -> 1 tekil noktası, limit değeri a/(a+1).
             return a / (a + 1.0)
-        return (1.0 - gamma ** a) / (1.0 - gamma ** (a + 1.0))
+        return (1.0 - gamma**a) / (1.0 - gamma ** (a + 1.0))
 
     @classmethod
     def audit(
@@ -367,7 +383,9 @@ class MonthlyBalanceAuditor:
         utilization_parameter_a: float = DEFAULT_UTILIZATION_FACTOR_PARAMETER_A,
     ) -> MonthlyBalanceReport:
         if len(monthly_mean_external_temp_c) != 12:
-            raise ValueError("monthly_mean_external_temp_c tam olarak 12 ay (Ocak..Aralık) içermelidir.")
+            raise ValueError(
+                "monthly_mean_external_temp_c tam olarak 12 ay (Ocak..Aralık) içermelidir."
+            )
         if len(monthly_solar_gain_kwh) != 12 or len(monthly_internal_gain_kwh) != 12:
             raise ValueError("Aylık kazanç dizileri tam olarak 12 ay içermelidir.")
 
@@ -395,13 +413,22 @@ class MonthlyBalanceAuditor:
             demand = max(0.0, total_loss - eta * total_gain)
             annual_demand += demand
 
-            results.append(MonthlyBalanceResult(
-                month=i + 1, mean_external_temp_c=te, heating_degree_hours=hdh,
-                transmission_loss_kwh=transmission_loss, ventilation_loss_kwh=ventilation_loss,
-                total_loss_kwh=total_loss, solar_gain_kwh=solar, internal_gain_kwh=internal,
-                total_gain_kwh=total_gain, gain_loss_ratio=ratio, utilization_factor=eta,
-                heating_demand_kwh=demand,
-            ))
+            results.append(
+                MonthlyBalanceResult(
+                    month=i + 1,
+                    mean_external_temp_c=te,
+                    heating_degree_hours=hdh,
+                    transmission_loss_kwh=transmission_loss,
+                    ventilation_loss_kwh=ventilation_loss,
+                    total_loss_kwh=total_loss,
+                    solar_gain_kwh=solar,
+                    internal_gain_kwh=internal,
+                    total_gain_kwh=total_gain,
+                    gain_loss_ratio=ratio,
+                    utilization_factor=eta,
+                    heating_demand_kwh=demand,
+                )
+            )
 
         return MonthlyBalanceReport(
             months=results,
@@ -428,9 +455,16 @@ class MonthlyBalanceAuditor:
 
 
 __all__ = [
-    "ZONE_MAX_U_VALUES", "TYPICAL_EXISTING_U_VALUES", "ZONE_DEGREE_DAYS",
-    "EnvelopeComponentResult", "EnvelopeAuditReport", "EnvelopeAuditor",
-    "MonthlyBalanceResult", "MonthlyBalanceReport", "MonthlyBalanceAuditor",
-    "VENTILATION_HEAT_CAPACITY_COEFFICIENT", "DEFAULT_AIR_CHANGES_PER_HOUR",
+    "ZONE_MAX_U_VALUES",
+    "TYPICAL_EXISTING_U_VALUES",
+    "ZONE_DEGREE_DAYS",
+    "EnvelopeComponentResult",
+    "EnvelopeAuditReport",
+    "EnvelopeAuditor",
+    "MonthlyBalanceResult",
+    "MonthlyBalanceReport",
+    "MonthlyBalanceAuditor",
+    "VENTILATION_HEAT_CAPACITY_COEFFICIENT",
+    "DEFAULT_AIR_CHANGES_PER_HOUR",
     "DEFAULT_UTILIZATION_FACTOR_PARAMETER_A",
 ]

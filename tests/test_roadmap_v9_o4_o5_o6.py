@@ -24,20 +24,19 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
+from harita.climate_data.open_meteo_client import ClimateNetworkError, HourlyClimateSample
 from harita.core_engine.geometry_engine import Point2D
 from harita.data_engine.spatial_index import AABB2D
 from harita.digital_twin.reality_feed import RealityFeed, RealityFeedConfig, RealityFeedRegion
 from harita.extensibility.city_events import (
-    CityEventType,
     HAZARD_PATTERN,
+    CityEventType,
     emit_city_event,
     subscribe_city_event,
 )
 from harita.extensibility.event_system import EventSystem
 from harita.hazard_data.afad_client import AFADEarthquake, HazardNetworkError
 from harita.hazard_data.usgs_client import USGSEarthquake
-from harita.climate_data.open_meteo_client import ClimateNetworkError, HourlyClimateSample
 from harita.performance.simulation_lod import (
     AgentSpatialHash,
     SimulationLODManager,
@@ -45,10 +44,10 @@ from harita.performance.simulation_lod import (
     build_aggregate_clusters,
 )
 
-
 # ========================================================================== #
 # O.4 — CityEventType
 # ========================================================================== #
+
 
 class TestCityEvents:
     def test_enum_values_are_plain_strings(self) -> None:
@@ -84,6 +83,7 @@ class TestCityEvents:
 # ========================================================================== #
 # O.5 — RealityFeed (sahte istemcilerle, ağ erişimi olmadan)
 # ========================================================================== #
+
 
 @dataclass
 class _FakeAfadClient:
@@ -122,16 +122,23 @@ def _make_afad_quake(event_id: str = "afad-1", magnitude: float = 5.4) -> AFADEa
     return AFADEarthquake(
         event_id=event_id,
         time_utc=datetime.now(timezone.utc),
-        latitude=39.9, longitude=32.8,
-        depth_km=7.0, magnitude=magnitude,
-        magnitude_type="Mw", location_name="Test Bölgesi",
+        latitude=39.9,
+        longitude=32.8,
+        depth_km=7.0,
+        magnitude=magnitude,
+        magnitude_type="Mw",
+        location_name="Test Bölgesi",
     )
 
 
 def _make_region() -> RealityFeedRegion:
     return RealityFeedRegion(
-        name="ankara_test", min_lat=39.0, max_lat=40.5,
-        min_lon=32.0, max_lon=33.5, min_magnitude=3.0,
+        name="ankara_test",
+        min_lat=39.0,
+        max_lat=40.5,
+        min_lon=32.0,
+        max_lon=33.5,
+        min_magnitude=3.0,
     )
 
 
@@ -158,9 +165,14 @@ class TestRealityFeed:
     def test_afad_failure_falls_back_to_usgs(self) -> None:
         bus = EventSystem()
         quake = USGSEarthquake(
-            event_id="usgs-1", time_utc=datetime.now(timezone.utc),
-            latitude=38.0, longitude=27.0, depth_km=10.0,
-            magnitude=4.8, magnitude_type="mb", place="Test",
+            event_id="usgs-1",
+            time_utc=datetime.now(timezone.utc),
+            latitude=38.0,
+            longitude=27.0,
+            depth_km=10.0,
+            magnitude=4.8,
+            magnitude_type="mb",
+            place="Test",
         )
         config = RealityFeedConfig(
             regions=[_make_region()],
@@ -195,7 +207,8 @@ class TestRealityFeed:
         bus = EventSystem()
         quake = _make_afad_quake(event_id="dup-1")
         config = RealityFeedConfig(
-            regions=[_make_region()], fetch_weather=False,
+            regions=[_make_region()],
+            fetch_weather=False,
             afad_client=_FakeAfadClient(quakes=[quake]),
             usgs_client=_FakeUsgsClient(quakes=[]),
         )
@@ -208,12 +221,16 @@ class TestRealityFeed:
     def test_weather_sample_emitted_when_enabled(self) -> None:
         bus = EventSystem()
         sample = HourlyClimateSample(
-            time_iso="2026-08-07T12:00", temperature_c=28.5,
-            cloud_cover_pct=10.0, shortwave_radiation_wm2=600.0,
-            direct_radiation_wm2=500.0, diffuse_radiation_wm2=100.0,
+            time_iso="2026-08-07T12:00",
+            temperature_c=28.5,
+            cloud_cover_pct=10.0,
+            shortwave_radiation_wm2=600.0,
+            direct_radiation_wm2=500.0,
+            diffuse_radiation_wm2=100.0,
         )
         config = RealityFeedConfig(
-            regions=[_make_region()], fetch_weather=True,
+            regions=[_make_region()],
+            fetch_weather=True,
             afad_client=_FakeAfadClient(quakes=[]),
             usgs_client=_FakeUsgsClient(quakes=[]),
             open_meteo_client=_FakeOpenMeteoClient(samples=[sample]),
@@ -227,7 +244,9 @@ class TestRealityFeed:
     def test_start_stop_background_thread(self) -> None:
         bus = EventSystem()
         config = RealityFeedConfig(
-            regions=[_make_region()], fetch_weather=False, poll_interval_s=0.05,
+            regions=[_make_region()],
+            fetch_weather=False,
+            poll_interval_s=0.05,
             afad_client=_FakeAfadClient(quakes=[]),
             usgs_client=_FakeUsgsClient(quakes=[]),
         )
@@ -235,6 +254,7 @@ class TestRealityFeed:
         feed.start()
         feed.start()  # ikinci start no-op olmalı, ikinci thread açmamalı
         import time
+
         time.sleep(0.15)
         feed.stop()
         assert feed._thread is None
@@ -243,6 +263,7 @@ class TestRealityFeed:
 # ========================================================================== #
 # O.6 — Simulation LOD
 # ========================================================================== #
+
 
 @dataclass
 class _FakeAgent:
@@ -295,17 +316,15 @@ class TestAgentSpatialHash:
     def test_query_radius_matches_brute_force(self) -> None:
         bounds = AABB2D(-500.0, -500.0, 500.0, 500.0)
         hash_ = AgentSpatialHash(bounds, capacity=4)
-        agents = [
-            _FakeAgent(i, Point2D(float(i), float(i)), Point2D(0.0, 0.0))
-            for i in range(30)
-        ]
+        agents = [_FakeAgent(i, Point2D(float(i), float(i)), Point2D(0.0, 0.0)) for i in range(30)]
         for a in agents:
             hash_.insert(a)
 
         center = (10.0, 10.0)
         radius = 5.0
         expected_ids = {
-            a.agent_id for a in agents
+            a.agent_id
+            for a in agents
             if math.hypot(a.position.x - center[0], a.position.y - center[1]) <= radius
         }
         found = hash_.query_radius(center, radius)

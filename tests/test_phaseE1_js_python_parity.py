@@ -16,16 +16,15 @@ değilse (ör. bazı minimal CI/offline ortamlarda) test `skip` edilir - bu,
 sessizce "başarılı" görünüp aslında hiçbir şey doğrulamayan bir teste
 dönüşmesini önlemek için açıkça işaretlenir.
 """
+
 from __future__ import annotations
 
 import json
-import math
 import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
-
 from harita.render_engine import compute_light_space_matrix
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -44,10 +43,12 @@ pytestmark = pytest.mark.skipif(
 
 def _run_js(light_dir: tuple[float, float, float], bounds) -> list[float]:
     (lx, ly, lz), (hx, hy, hz) = bounds
-    payload = json.dumps({
-        "lightDir": list(light_dir),
-        "bounds": {"lx": lx, "ly": ly, "lz": lz, "hx": hx, "hy": hy, "hz": hz},
-    })
+    payload = json.dumps(
+        {
+            "lightDir": list(light_dir),
+            "bounds": {"lx": lx, "ly": ly, "lz": lz, "hx": hx, "hy": hy, "hz": hz},
+        }
+    )
     proc = subprocess.run(
         [NODE_BIN, str(PARITY_SCRIPT)],
         input=payload,

@@ -35,8 +35,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
-from harita.core_engine.gis_core import GISParseError, GeoFeatureCollection, ShapefileParser
+from harita.core_engine.gis_core import GeoFeatureCollection, GISParseError, ShapefileParser
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "natural_earth_110m"
 
@@ -96,7 +95,9 @@ def _shapefile_stems() -> list[Path]:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(not FIXTURES.exists(), reason="Natural Earth fixture'ları bu ortamda indirilmemiş.")
+@pytest.mark.skipif(
+    not FIXTURES.exists(), reason="Natural Earth fixture'ları bu ortamda indirilmemiş."
+)
 def test_acceptance_criterion_100_plus_real_files_present():
     files = _all_fixture_files()
     assert len(files) >= 100, (
@@ -118,7 +119,9 @@ def test_at_least_20_complete_shapefile_layers_present():
 
 
 @pytest.mark.skipif(not FIXTURES.exists(), reason="fixture yok")
-@pytest.mark.parametrize("shp_path", _shapefile_stems() or [None], ids=lambda p: p.stem if p else "no-fixtures")
+@pytest.mark.parametrize(
+    "shp_path", _shapefile_stems() or [None], ids=lambda p: p.stem if p else "no-fixtures"
+)
 def test_each_real_shapefile_parses_without_silent_corruption(shp_path):
     if shp_path is None:
         pytest.skip("Fixture indirilmemiş.")
@@ -127,7 +130,9 @@ def test_each_real_shapefile_parses_without_silent_corruption(shp_path):
     assert isinstance(collection, GeoFeatureCollection)
     # "Sessizce yanlış veri" testi #1: en az bir feature üretilmeli (gerçek
     # Natural Earth katmanlarının hiçbiri boş değildir).
-    assert len(collection) > 0, f"{shp_path.name}: hiç feature üretilmedi (sessiz veri kaybı şüphesi)."
+    assert len(collection) > 0, (
+        f"{shp_path.name}: hiç feature üretilmedi (sessiz veri kaybı şüphesi)."
+    )
 
     expected_kind = _EXPECTED_GEOMETRY_KIND.get(shp_path.stem)
     if expected_kind is not None:

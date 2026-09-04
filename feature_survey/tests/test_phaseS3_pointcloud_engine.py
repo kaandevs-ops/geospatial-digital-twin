@@ -12,7 +12,6 @@ import math
 import random
 
 import pytest
-
 from harita.feature_survey.pointcloud_engine.ground_classification import (
     ASPRS_GROUND,
     GroundClassificationError,
@@ -21,14 +20,13 @@ from harita.feature_survey.pointcloud_engine.ground_classification import (
 from harita.feature_survey.pointcloud_engine.icp import ICPError, run_icp
 from harita.feature_survey.pointcloud_engine.quality_report import (
     QualityReportError,
-    build_quality_report,
     compute_density,
     compute_gaps,
     detect_noise_sor,
 )
 
-
 # --- ICP ---------------------------------------------------------------
+
 
 def _random_cloud(n: int, seed: int = 42) -> list[tuple[float, float, float]]:
     rng = random.Random(seed)
@@ -45,9 +43,7 @@ def test_icp_recovers_known_translation():
     assert result.converged
     aligned = result.apply(source)
     # Ortalama hizalama hatası çok küçük olmalı (gürültüsüz, saf öteleme)
-    mean_err = sum(
-        math.dist(a, t) for a, t in zip(aligned, target)
-    ) / len(aligned)
+    mean_err = sum(math.dist(a, t) for a, t in zip(aligned, target)) / len(aligned)
     assert mean_err < 1e-3
     assert result.final_rmse < 1e-3
 
@@ -68,6 +64,7 @@ def test_icp_requires_minimum_points():
 
 
 # --- Ground classification (PMF) with synthetic labeled dataset ---------
+
 
 def _synthetic_ground_and_building(seed: int = 1):
     """Düz bir zemin (Z~0, gürültülü) + üzerine oturan bir bina bloğu
@@ -121,6 +118,7 @@ def test_pmf_requires_minimum_points():
 
 
 # --- Quality report ------------------------------------------------------
+
 
 def test_density_report_on_regular_grid():
     # 10x10 m alan, 1m aralıklı ızgara -> 121 nokta, alan ~100 m^2 (hull),

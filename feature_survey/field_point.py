@@ -23,10 +23,10 @@ class FieldPoint:
     northing: float
     elevation: float
     code: FeatureCode
-    raw_code: str | None = None          # kod OTHER ise ham metin burada
+    raw_code: str | None = None  # kod OTHER ise ham metin burada
     description: str = ""
-    string_id: str | None = None         # aynı çizgiye/poligona ait noktaları gruplar (örn. "BLD01")
-    instrument: str = "unknown"          # "total_station" | "rtk_gnss" | "manual"
+    string_id: str | None = None  # aynı çizgiye/poligona ait noktaları gruplar (örn. "BLD01")
+    instrument: str = "unknown"  # "total_station" | "rtk_gnss" | "manual"
     timestamp: str | None = None
 
 

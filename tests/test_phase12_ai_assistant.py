@@ -5,16 +5,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from harita.core_engine.geometry_engine import Point2D, Polygon
-from harita.building_reconstruction.footprint_parser import Footprint
-from harita.building_reconstruction.procedural_generator import Building, BuildingType, Floor
-
 from harita.ai_assistant import (
     AssistantOrchestrator,
     CommandIntent,
     IntentAction,
     IntentParser,
 )
+from harita.building_reconstruction.footprint_parser import Footprint
+from harita.building_reconstruction.procedural_generator import Building, BuildingType, Floor
+from harita.core_engine.geometry_engine import Point2D, Polygon
 
 
 def _make_building():
@@ -28,6 +27,7 @@ def _make_building():
 # ============================================================================ #
 # intent_parser.py
 # ============================================================================ #
+
 
 class TestIntentParser:
     def test_add_floor_simple(self):
@@ -94,6 +94,7 @@ class TestIntentParser:
 # ============================================================================ #
 # orchestrator.py
 # ============================================================================ #
+
 
 class TestAssistantOrchestrator:
     def test_execute_add_floor(self):

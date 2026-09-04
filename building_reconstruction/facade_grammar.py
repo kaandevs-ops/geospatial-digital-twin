@@ -77,14 +77,55 @@ class FacadeGrammarRule:
 # (dar/sık pencereli konut vs. geniş/seyrek camlı ofis vb.) üretir, böylece
 # aynı algoritma farklı building_type'larda görsel olarak da farklılaşır.
 DEFAULT_GRAMMAR_RULES: dict[str, FacadeGrammarRule] = {
-    "apartman": FacadeGrammarRule(min_bay_width=2.4, max_bay_width=3.4, window_to_bay_ratio_min=0.50, window_to_bay_ratio_max=0.65),
-    "villa": FacadeGrammarRule(min_bay_width=2.0, max_bay_width=4.0, window_to_bay_ratio_min=0.40, window_to_bay_ratio_max=0.60),
-    "ofis": FacadeGrammarRule(min_bay_width=2.8, max_bay_width=4.5, window_to_bay_ratio_min=0.65, window_to_bay_ratio_max=0.85, window_height=2.2),
-    "avm": FacadeGrammarRule(min_bay_width=3.5, max_bay_width=6.0, window_to_bay_ratio_min=0.60, window_to_bay_ratio_max=0.80),
-    "okul": FacadeGrammarRule(min_bay_width=2.5, max_bay_width=3.5, window_to_bay_ratio_min=0.55, window_to_bay_ratio_max=0.70),
-    "hastane": FacadeGrammarRule(min_bay_width=2.5, max_bay_width=3.5, window_to_bay_ratio_min=0.45, window_to_bay_ratio_max=0.60),
-    "fabrika": FacadeGrammarRule(min_bay_width=4.0, max_bay_width=8.0, window_to_bay_ratio_min=0.30, window_to_bay_ratio_max=0.45),
-    "depo": FacadeGrammarRule(min_bay_width=5.0, max_bay_width=10.0, window_to_bay_ratio_min=0.10, window_to_bay_ratio_max=0.20),
+    "apartman": FacadeGrammarRule(
+        min_bay_width=2.4,
+        max_bay_width=3.4,
+        window_to_bay_ratio_min=0.50,
+        window_to_bay_ratio_max=0.65,
+    ),
+    "villa": FacadeGrammarRule(
+        min_bay_width=2.0,
+        max_bay_width=4.0,
+        window_to_bay_ratio_min=0.40,
+        window_to_bay_ratio_max=0.60,
+    ),
+    "ofis": FacadeGrammarRule(
+        min_bay_width=2.8,
+        max_bay_width=4.5,
+        window_to_bay_ratio_min=0.65,
+        window_to_bay_ratio_max=0.85,
+        window_height=2.2,
+    ),
+    "avm": FacadeGrammarRule(
+        min_bay_width=3.5,
+        max_bay_width=6.0,
+        window_to_bay_ratio_min=0.60,
+        window_to_bay_ratio_max=0.80,
+    ),
+    "okul": FacadeGrammarRule(
+        min_bay_width=2.5,
+        max_bay_width=3.5,
+        window_to_bay_ratio_min=0.55,
+        window_to_bay_ratio_max=0.70,
+    ),
+    "hastane": FacadeGrammarRule(
+        min_bay_width=2.5,
+        max_bay_width=3.5,
+        window_to_bay_ratio_min=0.45,
+        window_to_bay_ratio_max=0.60,
+    ),
+    "fabrika": FacadeGrammarRule(
+        min_bay_width=4.0,
+        max_bay_width=8.0,
+        window_to_bay_ratio_min=0.30,
+        window_to_bay_ratio_max=0.45,
+    ),
+    "depo": FacadeGrammarRule(
+        min_bay_width=5.0,
+        max_bay_width=10.0,
+        window_to_bay_ratio_min=0.10,
+        window_to_bay_ratio_max=0.20,
+    ),
     "_default": FacadeGrammarRule(),
 }
 
@@ -101,7 +142,9 @@ class ShapeGrammarFacadeGenerator:
 
     @staticmethod
     def _partition_into_bays(
-        wall_length: float, rule: FacadeGrammarRule, rng: random.Random,
+        wall_length: float,
+        rule: FacadeGrammarRule,
+        rng: random.Random,
     ) -> list[float]:
         """Duvar uzunluğunu, [min_bay_width, max_bay_width] aralığında
         rastgele genişlikte bay'lere böler (kısıt: toplamları tam olarak
@@ -142,7 +185,9 @@ class ShapeGrammarFacadeGenerator:
         seed: int | None = None,
     ) -> list[WindowPlacement]:
         wall_length = wall_start.distance_to(wall_end)
-        corner_margin = rule.corner_margin_window_widths * rule.min_bay_width * rule.window_to_bay_ratio_min
+        corner_margin = (
+            rule.corner_margin_window_widths * rule.min_bay_width * rule.window_to_bay_ratio_min
+        )
         usable_length = wall_length - 2 * corner_margin
         if usable_length <= rule.min_bay_width:
             return []
@@ -199,13 +244,13 @@ class ShapeGrammarFacadeGenerator:
             # Her kenara farklı ama deterministik bir alt-seed - kenarlar
             # arası da çeşitlilik olsun (hepsi birebir aynı olmasın).
             edge_seed = None if seed is None else rng_seed_base * 1000 + i
-            result.extend(
-                ShapeGrammarFacadeGenerator.place_on_wall(a, b, i, rule, seed=edge_seed)
-            )
+            result.extend(ShapeGrammarFacadeGenerator.place_on_wall(a, b, i, rule, seed=edge_seed))
         return result
 
     @staticmethod
-    def rhythm_diversity_score(placements_a: list[WindowPlacement], placements_b: list[WindowPlacement]) -> float:
+    def rhythm_diversity_score(
+        placements_a: list[WindowPlacement], placements_b: list[WindowPlacement]
+    ) -> float:
         """M2.3 kabul kriteri ölçümü: iki farklı seed ile üretilen cephe
         arasındaki pencere-genişliği dağılımı farkını (0=aynı, 1=tamamen
         farklı - basit normalize edilmiş ortalama mutlak fark) sayısal
@@ -218,7 +263,9 @@ class ShapeGrammarFacadeGenerator:
         n = min(len(widths_a), len(widths_b))
         if n == 0:
             return 1.0
-        diffs = [abs(widths_a[i] - widths_b[i]) / max(widths_a[i], widths_b[i], 1e-9) for i in range(n)]
+        diffs = [
+            abs(widths_a[i] - widths_b[i]) / max(widths_a[i], widths_b[i], 1e-9) for i in range(n)
+        ]
         count_diff = abs(len(widths_a) - len(widths_b)) / max(len(widths_a), len(widths_b))
         return min(1.0, (sum(diffs) / n) * 0.7 + count_diff * 0.3)
 

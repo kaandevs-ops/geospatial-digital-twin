@@ -60,6 +60,7 @@ karıştırılır - istatistiklerde "neden render edilmiyor" sorusu üç yönlü
 dürüstçe ayırt edilebilir kalır). `performance.culling.OcclusionCulling`
 (Faz 13) **değiştirilmedi**, yalnızca tüketildi.
 """
+
 from __future__ import annotations
 
 import base64
@@ -170,7 +171,11 @@ def build_impostor_texture(template_key: str, size: int = 8) -> TextureMap:
         return max(0, min(255, int(round(v * 255))))
 
     dark = (_clamp255(r * 0.65), _clamp255(g * 0.65), _clamp255(b * 0.65))
-    light = (_clamp255(min(1.0, r * 1.15)), _clamp255(min(1.0, g * 1.15)), _clamp255(min(1.0, b * 1.15)))
+    light = (
+        _clamp255(min(1.0, r * 1.15)),
+        _clamp255(min(1.0, g * 1.15)),
+        _clamp255(min(1.0, b * 1.15)),
+    )
 
     pixels = bytearray(size * size * 3)
     cell = max(1, size // 4)
@@ -179,7 +184,7 @@ def build_impostor_texture(template_key: str, size: int = 8) -> TextureMap:
             checker = ((x // cell) + (y // cell)) % 2 == 0
             color = light if checker else dark
             idx = (y * size + x) * 3
-            pixels[idx:idx + 3] = bytes(color)
+            pixels[idx : idx + 3] = bytes(color)
     return TextureMap(width=size, height=size, channels=3, pixels=bytes(pixels))
 
 
@@ -203,7 +208,7 @@ def decode_impostor_texture_data_uri(data_uri: str) -> TextureMap:
     prefix = "data:harita-texture-v1;base64,"
     if not data_uri.startswith(prefix):
         raise ValueError("decode_impostor_texture_data_uri: beklenmeyen şema/önek.")
-    payload = json.loads(base64.b64decode(data_uri[len(prefix):]).decode("ascii"))
+    payload = json.loads(base64.b64decode(data_uri[len(prefix) :]).decode("ascii"))
     return TextureMapCodec.decode(payload)
 
 
@@ -267,8 +272,10 @@ def build_cross_billboard_impostor(base_mesh: Mesh3D, name_suffix: str = "_impos
         Vertex3D(cx, cy - half_w, z1, uv=(0.0, 1.0)),
     ]
     triangles: list[Triangle] = [
-        (0, 1, 2), (0, 2, 3),  # Quad A (2 uzgen)
-        (4, 5, 6), (4, 6, 7),  # Quad B (2 uzgen)
+        (0, 1, 2),
+        (0, 2, 3),  # Quad A (2 uzgen)
+        (4, 5, 6),
+        (4, 6, 7),  # Quad B (2 uzgen)
     ]
     return Mesh3D(vertices=verts, triangles=triangles, name=f"{base_mesh.name}{name_suffix}")
 
@@ -302,8 +309,12 @@ def _instance_world_aabb(base_mesh: Mesh3D, transform: InstanceTransform) -> AAB
     if z1 == z0:
         z1 = z0 + max(0.5, scale)
     return AABB3D(
-        min_x=tx - half_diag, min_y=ty - half_diag, min_z=z0,
-        max_x=tx + half_diag, max_y=ty + half_diag, max_z=z1,
+        min_x=tx - half_diag,
+        min_y=ty - half_diag,
+        min_z=z0,
+        max_x=tx + half_diag,
+        max_y=ty + half_diag,
+        max_z=z1,
     )
 
 
@@ -346,7 +357,10 @@ DEFAULT_MIN_OCCLUDER_FOOTPRINT_M2 = 4.0
 
 
 def _passes_occluder_size_filter(
-    aabb: AABB3D, *, min_height_m: float, min_footprint_m2: float,
+    aabb: AABB3D,
+    *,
+    min_height_m: float,
+    min_footprint_m2: float,
 ) -> bool:
     height = aabb.max_z - aabb.min_z
     footprint = (aabb.max_x - aabb.min_x) * (aabb.max_y - aabb.min_y)
@@ -392,7 +406,9 @@ def occluder_aabbs_from_scene(
             if aabb is None:
                 continue
             if _passes_occluder_size_filter(
-                aabb, min_height_m=min_height_m, min_footprint_m2=min_footprint_m2,
+                aabb,
+                min_height_m=min_height_m,
+                min_footprint_m2=min_footprint_m2,
             ):
                 result.append(aabb)
     return result

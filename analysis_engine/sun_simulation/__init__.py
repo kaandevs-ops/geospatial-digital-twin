@@ -17,11 +17,11 @@ import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
+from ...climate_data import ClimateError, HourlyClimateSample, OpenMeteoClient
 from ...core_engine.coordinate_systems import GeoPoint
 from ...core_engine.geometry_engine import Point2D, Polygon
-from ...mesh_engine import Mesh3D
 from ...lighting import SolarPosition, SolarPositionCalculator, SunLight
-from ...climate_data import ClimateError, HourlyClimateSample, OpenMeteoClient
+from ...mesh_engine import Mesh3D
 
 # Yeniden dışa aktarım - Phase 6 kullanıcıları `sun_simulation` içinden de
 # erişebilsin (tek import noktası kolaylığı).
@@ -40,6 +40,7 @@ __all__ = [
 # ============================================================================ #
 # Seasonal Sun Path (Saat / Tarih / Mevsim / Solar Angle)
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class SunPathSample:
@@ -60,7 +61,9 @@ class SeasonalSunPath:
     }
 
     @staticmethod
-    def sample_day(location: GeoPoint, date: datetime, step_minutes: int = 30) -> list[SunPathSample]:
+    def sample_day(
+        location: GeoPoint, date: datetime, step_minutes: int = 30
+    ) -> list[SunPathSample]:
         samples: list[SunPathSample] = []
         day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
         steps = (24 * 60) // step_minutes
@@ -71,7 +74,9 @@ class SeasonalSunPath:
         return samples
 
     @staticmethod
-    def sample_seasons(location: GeoPoint, year: int, hour_utc: int = 12) -> dict[str, SolarPosition]:
+    def sample_seasons(
+        location: GeoPoint, year: int, hour_utc: int = 12
+    ) -> dict[str, SolarPosition]:
         result: dict[str, SolarPosition] = {}
         for season, (month, day) in SeasonalSunPath.SEASON_REPRESENTATIVE_MONTHS_DAYS.items():
             when = datetime(year, month, day, hour_utc, tzinfo=timezone.utc)
@@ -94,6 +99,7 @@ class SeasonalSunPath:
 # Solar Exposure
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class SolarExposureResult:
     point: tuple[float, float, float]
@@ -113,8 +119,13 @@ class SolarExposure:
     güneşe maruz kaldığı süreyi (engelleyici mesh'lere göre) hesaplar."""
 
     @staticmethod
-    def compute(point: tuple[float, float, float], location: GeoPoint, date: datetime,
-                occluders: list[Mesh3D], step_minutes: int = 30) -> SolarExposureResult:
+    def compute(
+        point: tuple[float, float, float],
+        location: GeoPoint,
+        date: datetime,
+        occluders: list[Mesh3D],
+        step_minutes: int = 30,
+    ) -> SolarExposureResult:
         # Döngüsel import'tan kaçınmak için lazy import (visibility -> lighting
         # zaten import ediyor; sun_simulation -> visibility burada tek yönlü).
         from ..visibility import ShadowAnalysis
@@ -144,6 +155,7 @@ class SolarExposure:
 # ============================================================================ #
 # Roof Irradiance
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class IrradianceResult:
@@ -208,8 +220,9 @@ class RoofIrradiance:
         return 1.0 / max(denom, 1e-6)
 
     @classmethod
-    def compute(cls, sun: SolarPosition, roof_tilt_deg: float = 0.0,
-                roof_azimuth_deg: float = 180.0) -> IrradianceResult:
+    def compute(
+        cls, sun: SolarPosition, roof_tilt_deg: float = 0.0, roof_azimuth_deg: float = 180.0
+    ) -> IrradianceResult:
         if not sun.is_daylight:
             return IrradianceResult(0.0, sun.elevation_deg, 90.0)
 
@@ -255,13 +268,21 @@ class RoofIrradiance:
         ground_reflected_component = global_horizontal * cls.GROUND_ALBEDO * ground_view_factor
 
         watts = beam_component + diffuse_component + ground_reflected_component
-        return IrradianceResult(watts_per_m2=watts, sun_elevation_deg=sun.elevation_deg,
-                                 incidence_angle_deg=incidence_deg)
+        return IrradianceResult(
+            watts_per_m2=watts,
+            sun_elevation_deg=sun.elevation_deg,
+            incidence_angle_deg=incidence_deg,
+        )
 
     @classmethod
-    def daily_energy_kwh_per_m2(cls, location: GeoPoint, date: datetime,
-                                 roof_tilt_deg: float = 0.0, roof_azimuth_deg: float = 180.0,
-                                 step_minutes: int = 30) -> float:
+    def daily_energy_kwh_per_m2(
+        cls,
+        location: GeoPoint,
+        date: datetime,
+        roof_tilt_deg: float = 0.0,
+        roof_azimuth_deg: float = 180.0,
+        step_minutes: int = 30,
+    ) -> float:
         """Bir günlük toplam enerji (kWh/m^2) - roadmap'in 'çatı solar
         potansiyeli' değerlendirmesinin sayısal temeli.
 
@@ -293,8 +314,11 @@ class RoofIrradiance:
 
     @classmethod
     def compute_with_real_climate(
-        cls, sun: SolarPosition, climate_sample: HourlyClimateSample,
-        roof_tilt_deg: float = 0.0, roof_azimuth_deg: float = 180.0,
+        cls,
+        sun: SolarPosition,
+        climate_sample: HourlyClimateSample,
+        roof_tilt_deg: float = 0.0,
+        roof_azimuth_deg: float = 180.0,
     ) -> IrradianceResult:
         """`compute()`'un clear-sky çıktısını, Open-Meteo'dan gelen GERÇEK
         bulutluluk (`climate_sample.cloud_cover_pct`) ile Kasten-Czeplak
@@ -313,9 +337,13 @@ class RoofIrradiance:
 
     @classmethod
     def daily_energy_kwh_per_m2_with_real_climate(
-        cls, location: GeoPoint, date: datetime,
-        roof_tilt_deg: float = 0.0, roof_azimuth_deg: float = 180.0,
-        step_minutes: int = 60, climate_client: OpenMeteoClient | None = None,
+        cls,
+        location: GeoPoint,
+        date: datetime,
+        roof_tilt_deg: float = 0.0,
+        roof_azimuth_deg: float = 180.0,
+        step_minutes: int = 60,
+        climate_client: OpenMeteoClient | None = None,
     ) -> dict:
         """`daily_energy_kwh_per_m2`'nin GERÇEK bulutluluk verisiyle
         düzeltilmiş hali. `climate_data.OpenMeteoClient` üzerinden o gün
@@ -340,8 +368,10 @@ class RoofIrradiance:
         use_archive = (today - day_start.date()).days > 92
 
         samples = client.fetch_hourly(
-            latitude=location.lat, longitude=location.lon,
-            start_date=day_start.date(), end_date=day_start.date(),
+            latitude=location.lat,
+            longitude=location.lon,
+            start_date=day_start.date(),
+            end_date=day_start.date(),
             use_archive=use_archive,
         )
         by_hour: dict[int, HourlyClimateSample] = {}
@@ -390,6 +420,7 @@ class RoofIrradiance:
 # Shadow Projection
 # ============================================================================ #
 
+
 class ShadowProjection:
     """Roadmap: 'Shadow Projection'. Bir bina ayak izini (footprint), belirli
     bir güneş yönü için zemine (z=ground_z) izdüşürerek gölge poligonunu
@@ -397,8 +428,9 @@ class ShadowProjection:
     + zemine projeksiyon yaklaşımı)."""
 
     @staticmethod
-    def project_footprint(footprint: Polygon, building_height_m: float,
-                           sun: SolarPosition, ground_z: float = 0.0) -> Polygon | None:
+    def project_footprint(
+        footprint: Polygon, building_height_m: float, sun: SolarPosition, ground_z: float = 0.0
+    ) -> Polygon | None:
         if not sun.is_daylight:
             return None  # gece - gölge tanımsız (tam karanlık)
 
@@ -417,5 +449,6 @@ class ShadowProjection:
         projected = [Point2D(p.x - shift_x, p.y - shift_y) for p in footprint.points]
 
         from ...core_engine.geometry_engine import GeometryEngine
+
         all_points = shadow_points + projected
         return GeometryEngine.convex_hull(all_points)

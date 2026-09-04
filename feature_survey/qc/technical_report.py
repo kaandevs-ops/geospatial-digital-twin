@@ -19,7 +19,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-from ..codes import FeatureCode
 from ..field_point import FieldSurveySession
 from .survey_quality_report import SurveyQualityReport
 

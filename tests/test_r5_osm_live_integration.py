@@ -22,7 +22,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.core_engine.coordinate_systems import GeoPoint
 from harita.core_engine.gis_core.osm_client import (
     DEFAULT_USER_AGENT,
@@ -35,11 +34,11 @@ from harita.core_engine.gis_core.osm_client import (
     project_to_local_meters,
 )
 
-
 # ---------------------------------------------------------------------------
 # Gerçek Overpass şemasına uygun sabit (fixture) yanıt - bir kare bina +
 # çatısız/bozuk (yalnızca 2 node'lu) bir way (geçersiz veri simülasyonu).
 # ---------------------------------------------------------------------------
+
 
 def _fixture_overpass_response() -> dict:
     return {
@@ -51,7 +50,8 @@ def _fixture_overpass_response() -> dict:
             {"type": "node", "id": 3, "lat": 41.0086, "lon": 28.9790},
             {"type": "node", "id": 4, "lat": 41.0086, "lon": 28.9784},
             {
-                "type": "way", "id": 1001,
+                "type": "way",
+                "id": 1001,
                 "nodes": [1, 2, 3, 4, 1],
                 "tags": {"building": "yes", "building:levels": "6", "name": "Test Bina"},
             },
@@ -59,13 +59,15 @@ def _fixture_overpass_response() -> dict:
             {"type": "node", "id": 5, "lat": 41.01, "lon": 28.98},
             {"type": "node", "id": 6, "lat": 41.0101, "lon": 28.9801},
             {
-                "type": "way", "id": 1002,
+                "type": "way",
+                "id": 1002,
                 "nodes": [5, 6],
                 "tags": {"building": "yes"},
             },
             # building tag'i olmayan bir way - bina değil, dahil edilmemeli.
             {
-                "type": "way", "id": 1003,
+                "type": "way",
+                "id": 1003,
                 "nodes": [1, 2, 3, 4, 1],
                 "tags": {"highway": "residential"},
             },
@@ -178,6 +180,7 @@ class TestOfflineParsingAndProjection:
         # Roadmap A3'ün geometrik geçerlilik kabul kriteriyle aynı desende:
         # üretilen binanın mesh'i manifold olmalı.
         from harita.mesh_engine import MeshRepair
+
         assert MeshRepair.is_manifold(building.full_mesh())
 
     def test_network_error_is_explicit_not_silent(self):
@@ -188,6 +191,7 @@ class TestOfflineParsingAndProjection:
 
         def _always_fail(bbox):
             raise OverpassNetworkError("simüle edilmiş ağ hatası")
+
         client.fetch_raw = _always_fail  # type: ignore[method-assign]
 
         with pytest.raises(OverpassNetworkError):
@@ -236,5 +240,6 @@ class TestLiveOverpassIntegration:
         assert len(result.buildings) > 0
         # Üretilen binaların hepsi geometrik olarak geçerli olmalı.
         from harita.mesh_engine import MeshRepair
+
         for building in result.buildings:
             assert MeshRepair.is_manifold(building.full_mesh())

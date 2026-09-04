@@ -23,22 +23,25 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.core_engine.geometry_engine import Point2D
-from harita.mobility.pathfinding import NavGraph
 from harita.mobility.crowd_simulation import (
-    Agent, AgentBehavior, EvacuationSimulator, SocialForceModel,
+    Agent,
+    AgentBehavior,
+    EvacuationSimulator,
+    SocialForceModel,
     spawn_random_agents,
 )
 from harita.mobility.crowd_simulation.behavior_rules import (
-    CongestionAwareRouter, close_exit_and_seek_alternative,
+    CongestionAwareRouter,
+    close_exit_and_seek_alternative,
     refresh_congestion_aware_routes,
 )
-
+from harita.mobility.pathfinding import NavGraph
 
 # ----------------------------------------------------------------------- #
 # NavGraph mutable edge weight altyapısı
 # ----------------------------------------------------------------------- #
+
 
 def _simple_graph() -> NavGraph:
     g = NavGraph()
@@ -86,11 +89,15 @@ def test_navgraph_update_edge_cost_unknown_node_raises():
 # AgentBehavior genişlemesi
 # ----------------------------------------------------------------------- #
 
-@pytest.mark.parametrize("tag", [
-    AgentBehavior.AVOID_CROWDED_EXIT,
-    AgentBehavior.AVOID_SMOKE,
-    AgentBehavior.SEEK_ALTERNATIVE_EXIT,
-])
+
+@pytest.mark.parametrize(
+    "tag",
+    [
+        AgentBehavior.AVOID_CROWDED_EXIT,
+        AgentBehavior.AVOID_SMOKE,
+        AgentBehavior.SEEK_ALTERNATIVE_EXIT,
+    ],
+)
 def test_new_behavior_tags_do_not_break_speed_multiplier(tag):
     normal = Agent(agent_id=0, position=Point2D(0, 0), goal=Point2D(1, 0))
     tagged = Agent(agent_id=1, position=Point2D(0, 0), goal=Point2D(1, 0), behavior=tag)
@@ -102,10 +109,18 @@ def test_new_behavior_tags_do_not_trigger_panic_repulsion_multiplier():
     """`SocialForceModel._agent_repulsion` yalnızca PANIC için özel
     çarpan uygular - yeni etiketler bunu tetiklememeli (adım çökmemeli)."""
     agents = [
-        Agent(agent_id=0, position=Point2D(0, 0), goal=Point2D(5, 0),
-              behavior=AgentBehavior.AVOID_CROWDED_EXIT),
-        Agent(agent_id=1, position=Point2D(0.3, 0), goal=Point2D(5, 0),
-              behavior=AgentBehavior.SEEK_ALTERNATIVE_EXIT),
+        Agent(
+            agent_id=0,
+            position=Point2D(0, 0),
+            goal=Point2D(5, 0),
+            behavior=AgentBehavior.AVOID_CROWDED_EXIT,
+        ),
+        Agent(
+            agent_id=1,
+            position=Point2D(0.3, 0),
+            goal=Point2D(5, 0),
+            behavior=AgentBehavior.SEEK_ALTERNATIVE_EXIT,
+        ),
     ]
     model = SocialForceModel()
     model.step(agents, dt=0.1)  # exception fırlatmamalı
@@ -114,6 +129,7 @@ def test_new_behavior_tags_do_not_trigger_panic_repulsion_multiplier():
 # ----------------------------------------------------------------------- #
 # CongestionAwareRouter
 # ----------------------------------------------------------------------- #
+
 
 def _exit_graph() -> NavGraph:
     g = NavGraph()
@@ -135,8 +151,9 @@ def test_congestion_router_captures_baseline_on_init():
 def test_congestion_router_penalizes_crowded_exit_more():
     g = _exit_graph()
     router = CongestionAwareRouter(graph=g, cell_size=1.0, congestion_coefficient=1.0)
-    crowd_near_b = spawn_random_agents(40, Point2D(19.5, 0), Point2D(20.5, 1),
-                                         Point2D(0, 0), seed=1)
+    crowd_near_b = spawn_random_agents(
+        40, Point2D(19.5, 0), Point2D(20.5, 1), Point2D(0, 0), seed=1
+    )
     router.apply_density_penalty(crowd_near_b)
     assert g.edge_cost("start", "exitB") > g.edge_cost("start", "exitA")
 
@@ -146,8 +163,9 @@ def test_congestion_router_penalty_is_not_cumulative_across_refreshes():
     katlanıp sonsuza gitmemeli."""
     g = _exit_graph()
     router = CongestionAwareRouter(graph=g, cell_size=1.0, congestion_coefficient=1.0)
-    crowd_near_b = spawn_random_agents(40, Point2D(19.5, 0), Point2D(20.5, 1),
-                                         Point2D(0, 0), seed=1)
+    crowd_near_b = spawn_random_agents(
+        40, Point2D(19.5, 0), Point2D(20.5, 1), Point2D(0, 0), seed=1
+    )
     router.apply_density_penalty(crowd_near_b)
     first_cost = g.edge_cost("start", "exitB")
     router.apply_density_penalty(crowd_near_b)  # aynı yoğunlukla tekrar
@@ -169,6 +187,7 @@ def test_congestion_router_reset_restores_baseline():
 # ----------------------------------------------------------------------- #
 # refresh_congestion_aware_routes — uçtan uca kalabalık-kaçınma
 # ----------------------------------------------------------------------- #
+
 
 def test_refresh_congestion_aware_routes_steers_agents_to_emptier_exit():
     g = _exit_graph()
@@ -195,7 +214,11 @@ def test_refresh_congestion_aware_routes_no_tag_when_disabled():
         return "start"
 
     refresh_congestion_aware_routes(
-        agents, router, ["exitA", "exitB"], node_of_agent, tag_avoiding_agents=False,
+        agents,
+        router,
+        ["exitA", "exitB"],
+        node_of_agent,
+        tag_avoiding_agents=False,
     )
     assert all(agent.behavior == AgentBehavior.NORMAL for agent in agents)
 
@@ -203,6 +226,7 @@ def test_refresh_congestion_aware_routes_no_tag_when_disabled():
 # ----------------------------------------------------------------------- #
 # close_exit_and_seek_alternative
 # ----------------------------------------------------------------------- #
+
 
 def test_close_exit_and_seek_alternative_reroutes_and_tags():
     g = _exit_graph()
@@ -212,7 +236,8 @@ def test_close_exit_and_seek_alternative_reroutes_and_tags():
         return "start"
 
     close_exit_and_seek_alternative(
-        agents, g,
+        agents,
+        g,
         closed_exit_edges=[("start", "exitA")],
         remaining_exits=["exitB"],
         node_of_agent=node_of_agent,
@@ -229,6 +254,7 @@ def test_close_exit_and_seek_alternative_reroutes_and_tags():
 # ----------------------------------------------------------------------- #
 # EvacuationSimulator.run(on_step=...) — periyodik kanca
 # ----------------------------------------------------------------------- #
+
 
 def test_evacuation_simulator_on_step_called_each_tick():
     agents = [Agent(agent_id=0, position=Point2D(0, 0), goal=Point2D(3, 0))]
@@ -269,7 +295,9 @@ def test_evacuation_simulator_on_step_periodic_congestion_reroute_integration():
 
     def on_step(elapsed, current_agents):
         if elapsed - state["last_reroute"] >= 1.0:
-            refresh_congestion_aware_routes(current_agents, router, ["exitA", "exitB"], node_of_agent)
+            refresh_congestion_aware_routes(
+                current_agents, router, ["exitA", "exitB"], node_of_agent
+            )
             state["last_reroute"] = elapsed
 
     sim = EvacuationSimulator(SocialForceModel())

@@ -30,15 +30,16 @@ harici bağımlılık yok) - testlerde bu, roadmap'in "ağ gerektirmeyen test"
 ilkesiyle tutarlı olarak sahte (fake) bir `opener` ile değiştirilir
 (bkz. `tests/test_c5_offline_tile_cache.py`).
 """
+
 from __future__ import annotations
 
 import json
 import math
 import time
 import urllib.request
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Iterable
 
 #: A4'ün "kaba" politeness sınırı: tek bir indirme çağrısında en fazla bu
 #: kadar tile istenir (kullanıcı yanlışlıkla dünya çapında bir bbox +
@@ -56,11 +57,12 @@ TileKey = tuple[int, int, int]  # (z, x, y)
 # Slippy-map tile matematiği (OSM Wiki referans formülü)
 # ============================================================================ #
 
+
 def deg2tile(lat_deg: float, lon_deg: float, zoom: int) -> tuple[int, int]:
     """Enlem/boylam (WGS84) -> `(x, y)` tile indeksi (belirli bir `zoom`
     seviyesinde). Standart Web Mercator slippy-map formülü."""
     lat_rad = math.radians(lat_deg)
-    n = 2.0 ** zoom
+    n = 2.0**zoom
     x = int((lon_deg + 180.0) / 360.0 * n)
     y = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
     x = max(0, min(int(n) - 1, x))
@@ -71,7 +73,7 @@ def deg2tile(lat_deg: float, lon_deg: float, zoom: int) -> tuple[int, int]:
 def tile2deg(x: int, y: int, zoom: int) -> tuple[float, float]:
     """`(x, y, zoom)` tile indeksi -> tile'ın kuzeybatı köşesinin
     enlem/boylamı (ters formül, `deg2tile`'ın tersine eşleneni)."""
-    n = 2.0 ** zoom
+    n = 2.0**zoom
     lon_deg = x / n * 360.0 - 180.0
     lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * y / n)))
     lat_deg = math.degrees(lat_rad)
@@ -124,6 +126,7 @@ def tiles_for_bbox_zoom_range(
 # Diskteki tile depolama - basit `tiles/{z}/{x}/{y}.<ext>` yapısı
 # ============================================================================ #
 
+
 class TileCache:
     """`cache_dir` altında `tiles/{z}/{x}/{y}.<ext>` yapısında ham tile
     byte'larını okuyup yazan ince bir depolama katmanı - A4'ün "yerel bir
@@ -155,7 +158,9 @@ class TileCache:
         return sum(1 for _ in (self.cache_dir / "tiles").rglob(f"*.{self.extension}"))
 
     def total_bytes(self) -> int:
-        return sum(p.stat().st_size for p in (self.cache_dir / "tiles").rglob(f"*.{self.extension}"))
+        return sum(
+            p.stat().st_size for p in (self.cache_dir / "tiles").rglob(f"*.{self.extension}")
+        )
 
     # -- manifest (indirilen bölgelerin defteri, A4 "offline paket") ---- #
 
@@ -208,7 +213,9 @@ class TileCache:
 Fetcher = Callable[[str], bytes]
 
 
-def _default_fetcher(url: str, timeout: float = 10.0, user_agent: str = DEFAULT_USER_AGENT) -> bytes:
+def _default_fetcher(
+    url: str, timeout: float = 10.0, user_agent: str = DEFAULT_USER_AGENT
+) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": user_agent})
     with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 - kullanıcı tarafından verilen tile sunucusu
         return response.read()

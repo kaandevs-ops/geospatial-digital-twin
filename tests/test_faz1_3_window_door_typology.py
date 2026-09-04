@@ -8,16 +8,22 @@ Kapsam:
 - Cephe ritmi algoritması (`place_facade_rhythm`) - YENİ.
 - Balkon/çıkma/giriş sundurması gerçek 3D mesh üretimi - YENİ.
 """
+
 from __future__ import annotations
 
 import math
 
-from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.building_reconstruction.building_elements import (
-    WindowType, DoorType, WINDOW_TYPE_DEFAULTS, DOOR_TYPE_DEFAULTS,
-    WindowGenerator, DoorGenerator,
-    BayWindowGenerator, EntranceCanopyGenerator,
+    DOOR_TYPE_DEFAULTS,
+    WINDOW_TYPE_DEFAULTS,
+    BayWindowGenerator,
+    DoorGenerator,
+    DoorType,
+    EntranceCanopyGenerator,
+    WindowGenerator,
+    WindowType,
 )
+from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.mesh_engine import FacadeElementMeshBuilder
 
 
@@ -68,7 +74,10 @@ class TestDoorTypology:
     def test_garage_door_is_wide(self):
         door = DoorGenerator.exterior_entrance(_rect(), door_type=DoorType.GARAGE)
         assert door.width == DOOR_TYPE_DEFAULTS[DoorType.GARAGE]["width"]
-        assert DOOR_TYPE_DEFAULTS[DoorType.GARAGE]["width"] > DOOR_TYPE_DEFAULTS[DoorType.ENTRANCE]["width"]
+        assert (
+            DOOR_TYPE_DEFAULTS[DoorType.GARAGE]["width"]
+            > DOOR_TYPE_DEFAULTS[DoorType.ENTRANCE]["width"]
+        )
 
 
 class TestFacadeRhythm:
@@ -84,7 +93,11 @@ class TestFacadeRhythm:
     def test_balcony_door_inserted_on_request(self):
         poly = _rect()
         windows = WindowGenerator.place_facade_rhythm(
-            poly, floor_index=2, floor_height=3.0, seed=5, has_balcony_door=True,
+            poly,
+            floor_index=2,
+            floor_height=3.0,
+            seed=5,
+            has_balcony_door=True,
         )
         balcony_doors = [w for w in windows if w.window_type == WindowType.BALCONY_DOOR]
         assert len(balcony_doors) == 1
@@ -106,7 +119,11 @@ class TestBayWindowGenerator:
     def test_balcony_doors_excluded_from_bay_windows(self):
         poly = _rect()
         windows = WindowGenerator.place_facade_rhythm(
-            poly, floor_index=2, floor_height=3.0, seed=3, has_balcony_door=True,
+            poly,
+            floor_index=2,
+            floor_height=3.0,
+            seed=3,
+            has_balcony_door=True,
         )
         bays = BayWindowGenerator.place_on_windows(windows, every_nth=1)
         assert all(b.window.window_type != WindowType.BALCONY_DOOR for b in bays)
@@ -133,39 +150,65 @@ class TestFacadeGeneratorIntegration:
 
     def test_default_generate_has_no_extra_elements(self):
         from harita.building_reconstruction import FacadeGenerator
+
         f = FacadeGenerator.generate(self._poly(), "apartman", 0.0, 3.0, floor_count=3)
         assert f.balconies == []
         assert f.bay_windows == []
 
     def test_add_balconies_produces_geometry_above_ground_floor(self):
         from harita.building_reconstruction import FacadeGenerator
+
         f = FacadeGenerator.generate(
-            self._poly(), "apartman", 0.0, 3.0, floor_count=4, add_balconies=True,
+            self._poly(),
+            "apartman",
+            0.0,
+            3.0,
+            floor_count=4,
+            add_balconies=True,
         )
         assert f.balconies
         assert f.mesh.triangle_count() > 0
 
     def test_add_bay_windows_produces_geometry(self):
         from harita.building_reconstruction import FacadeGenerator
+
         f = FacadeGenerator.generate(
-            self._poly(), "apartman", 0.0, 3.0, floor_count=2, add_bay_windows=True,
+            self._poly(),
+            "apartman",
+            0.0,
+            3.0,
+            floor_count=2,
+            add_bay_windows=True,
             bay_window_every_nth=1,
         )
         assert f.bay_windows
 
     def test_add_entrance_canopy_increases_mesh_triangle_count(self):
         from harita.building_reconstruction import FacadeGenerator
+
         base = FacadeGenerator.generate(self._poly(), "apartman", 0.0, 3.0, floor_count=2)
         with_canopy = FacadeGenerator.generate(
-            self._poly(), "apartman", 0.0, 3.0, floor_count=2, add_entrance_canopy=True,
+            self._poly(),
+            "apartman",
+            0.0,
+            3.0,
+            floor_count=2,
+            add_entrance_canopy=True,
         )
         assert with_canopy.mesh.triangle_count() > base.mesh.triangle_count()
 
     def test_all_elements_together_regression_safe(self):
         from harita.building_reconstruction import FacadeGenerator
+
         f = FacadeGenerator.generate(
-            self._poly(), "apartman", 0.0, 3.0, floor_count=5,
-            add_balconies=True, add_bay_windows=True, add_entrance_canopy=True,
+            self._poly(),
+            "apartman",
+            0.0,
+            3.0,
+            floor_count=5,
+            add_balconies=True,
+            add_bay_windows=True,
+            add_entrance_canopy=True,
         )
         assert f.mesh.triangle_count() > 0
         assert len(f.doors) == 1
@@ -174,7 +217,13 @@ class TestFacadeGeneratorIntegration:
         a, b = Point2D(0, 0), Point2D(12, 0)
         pos = Point2D(6, 0)
         mesh = FacadeElementMeshBuilder.build_balcony(
-            a, b, pos, width=1.6, depth=1.2, base_z=3.0, railing_height=1.0,
+            a,
+            b,
+            pos,
+            width=1.6,
+            depth=1.2,
+            base_z=3.0,
+            railing_height=1.0,
         )
         assert mesh.triangle_count() > 0
         ys = [v.y for v in mesh.vertices]
@@ -186,7 +235,13 @@ class TestFacadeGeneratorIntegration:
         a, b = Point2D(0, 0), Point2D(12, 0)
         pos = Point2D(6, 0)
         mesh = FacadeElementMeshBuilder.build_bay_window(
-            a, b, pos, side_width=1.6, protrusion=0.6, base_z=3.0, height=1.4,
+            a,
+            b,
+            pos,
+            side_width=1.6,
+            protrusion=0.6,
+            base_z=3.0,
+            height=1.4,
         )
         assert mesh.triangle_count() > 0
         ys = [v.y for v in mesh.vertices]
@@ -196,7 +251,13 @@ class TestFacadeGeneratorIntegration:
         a, b = Point2D(0, 0), Point2D(12, 0)
         pos = Point2D(6, 0)
         mesh = FacadeElementMeshBuilder.build_entrance_canopy(
-            a, b, pos, width=1.8, depth=1.2, base_z=2.3, bracket_count=2,
+            a,
+            b,
+            pos,
+            width=1.8,
+            depth=1.2,
+            base_z=2.3,
+            bracket_count=2,
         )
         assert mesh.triangle_count() > 0
         zs = [v.z for v in mesh.vertices]

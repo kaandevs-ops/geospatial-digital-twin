@@ -17,6 +17,7 @@ Kullanım::
     python3 scripts/verify_roadmap_sync.py             # tam kontrol (testleri çalıştırır)
     python3 scripts/verify_roadmap_sync.py --skip-pytest  # yalnızca dosya varlığı
 """
+
 from __future__ import annotations
 
 import re
@@ -59,7 +60,7 @@ def _line_context(text: str, ref: str) -> str:
     end = text.find("\n", idx)
     # bir önceki satırı da dahil et (bağlam için)
     prev_start = text.rfind("\n", 0, start) if start != -1 else -1
-    return text[max(prev_start, 0):end if end != -1 else len(text)]
+    return text[max(prev_start, 0) : end if end != -1 else len(text)]
 
 
 def main() -> int:

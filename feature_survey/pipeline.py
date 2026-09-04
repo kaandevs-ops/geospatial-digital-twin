@@ -42,10 +42,10 @@ class PhotogrammetryResult:
     çıktı özeti — hangi motor kullanılırsa kullanılsın aynı şekle sahiptir,
     böylece `bridge.py` motor-agnostik kalır."""
 
-    point_cloud_path: Path | None      # .las/.laz/.ply çıktısı (varsa)
-    mesh_path: Path | None             # texture'lı mesh (.obj/.glb) (varsa)
-    orthomosaic_path: Path | None      # WebODM'e özgü, opsiyonel
-    engine: str                        # "webodm" | "meshroom"
+    point_cloud_path: Path | None  # .las/.laz/.ply çıktısı (varsa)
+    mesh_path: Path | None  # texture'lı mesh (.obj/.glb) (varsa)
+    orthomosaic_path: Path | None  # WebODM'e özgü, opsiyonel
+    engine: str  # "webodm" | "meshroom"
     raw_metadata: dict = field(default_factory=dict)
 
 
@@ -99,7 +99,9 @@ class WebODMPipeline:
             return False
 
     @staticmethod
-    def _build_multipart(fields: dict[str, str], files: list[tuple[str, Path]]) -> tuple[bytes, str]:
+    def _build_multipart(
+        fields: dict[str, str], files: list[tuple[str, Path]]
+    ) -> tuple[bytes, str]:
         """Stdlib-only multipart/form-data gövdesi üretir (ek paket yok —
         proje genelindeki stdlib-only ilkesiyle tutarlı)."""
         boundary = uuid.uuid4().hex
@@ -109,7 +111,7 @@ class WebODMPipeline:
                 (
                     f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n'
                     f"{value}\r\n"
-                ).encode("utf-8")
+                ).encode()
             )
         for field_name, path in files:
             ctype = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
@@ -117,11 +119,11 @@ class WebODMPipeline:
                 (
                     f'--{boundary}\r\nContent-Disposition: form-data; name="{field_name}"; '
                     f'filename="{path.name}"\r\nContent-Type: {ctype}\r\n\r\n'
-                ).encode("utf-8")
+                ).encode()
             )
             parts.append(path.read_bytes())
             parts.append(b"\r\n")
-        parts.append(f"--{boundary}--\r\n".encode("utf-8"))
+        parts.append(f"--{boundary}--\r\n".encode())
         body = b"".join(parts)
         return body, f"multipart/form-data; boundary={boundary}"
 
@@ -264,16 +266,12 @@ class MeshroomPipeline:
 
         cmd = [self.binary, "--input", str(image_dir), "--output", str(output_dir)]
         try:
-            proc = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=timeout, check=False
-            )
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
         except FileNotFoundError as exc:
             raise ExternalToolNotAvailableError(str(exc)) from exc
 
         if proc.returncode != 0:
-            raise RuntimeError(
-                f"meshroom_batch başarısız (kod {proc.returncode}):\n{proc.stderr}"
-            )
+            raise RuntimeError(f"meshroom_batch başarısız (kod {proc.returncode}):\n{proc.stderr}")
 
         mesh_candidates = list(output_dir.rglob("*.obj"))
         cloud_candidates = list(output_dir.rglob("*.ply")) + list(output_dir.rglob("*.las"))

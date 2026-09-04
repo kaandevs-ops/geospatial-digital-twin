@@ -49,13 +49,12 @@ Faktörler (ağırlıklı toplam, her biri 0-100 alt skor):
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 DISCLAIMER = (
     "ÖN DEĞERLENDİRME NİTELİĞİNDEDİR — FEMA P-154 / TBDY 2018 Ek-2 "
-    "\"hızlı görsel tarama\" yönteminin YAPISINA dayanır. YUKSEK/COK_YUKSEK "
+    '"hızlı görsel tarama" yönteminin YAPISINA dayanır. YUKSEK/COK_YUKSEK '
     "sismisitede RESMİ FEMA P-154 3. Baskı HIGH seismicity form değerleri "
     "kullanılır (rapor is_official=True ile işaretler); DUSUK/ORTA "
     "sismisitede henüz doğrulanmamış TEMSİLİ katsayılar kullanılır "
@@ -96,7 +95,7 @@ _SOIL_SUBSCORE = {
 @dataclass(frozen=True, slots=True)
 class BuildingRiskFactor:
     name: str
-    subscore_0_100: Optional[float]
+    subscore_0_100: float | None
     weight: float
     note: str
 
@@ -113,7 +112,11 @@ class BuildingRiskReport:
             f"Risk indeksi: {self.risk_index_0_100:.1f}/100 ({self.risk_level.value})",
         ]
         for f_ in self.factors:
-            sub = "veri yok (skora dahil edilmedi)" if f_.subscore_0_100 is None else f"{f_.subscore_0_100:.1f}/100"
+            sub = (
+                "veri yok (skora dahil edilmedi)"
+                if f_.subscore_0_100 is None
+                else f"{f_.subscore_0_100:.1f}/100"
+            )
             lines.append(f"  - {f_.name} (ağırlık {f_.weight:.2f}): {sub} — {f_.note}")
         lines.append(self.disclaimer)
         return lines
@@ -124,7 +127,7 @@ def _pga_subscore(pga_g: float) -> float:
     return max(0.0, min(100.0, (pga_g / 0.60) * 100.0))
 
 
-def _construction_year_subscore(year: Optional[int]) -> Optional[float]:
+def _construction_year_subscore(year: int | None) -> float | None:
     if year is None:
         return None
     if year < 1999:
@@ -136,7 +139,7 @@ def _construction_year_subscore(year: Optional[int]) -> Optional[float]:
     return 15.0  # 2018/2019 Türkiye Bina Deprem Yönetmeliği sonrası
 
 
-def _floor_count_subscore(floor_count: Optional[int]) -> Optional[float]:
+def _floor_count_subscore(floor_count: int | None) -> float | None:
     if floor_count is None:
         return None
     if floor_count <= 4:
@@ -148,7 +151,7 @@ def _floor_count_subscore(floor_count: Optional[int]) -> Optional[float]:
     return 85.0
 
 
-def _slenderness_subscore(slenderness_ratio: Optional[float]) -> Optional[float]:
+def _slenderness_subscore(slenderness_ratio: float | None) -> float | None:
     if slenderness_ratio is None:
         return None
     # roadmap'in structural_validation modülündeki varsayılan limit ~4.0
@@ -161,11 +164,11 @@ class BasicBuildingType(str, Enum):
     projenin `procedural_generator.BuildingType` ile eşleşen basit bir
     alt küme kullanılır)."""
 
-    BETONARME_CERCEVE = "betonarme_cerceve"      # FEMA benzeri: C1
-    BETONARME_PERDELI = "betonarme_perdeli"       # FEMA benzeri: C2
-    YIGMA = "yigma"                                # FEMA benzeri: URM/RM
-    CELIK_CERCEVE = "celik_cerceve"                # FEMA benzeri: S1/S3
-    AHSAP = "ahsap"                                # FEMA benzeri: W1
+    BETONARME_CERCEVE = "betonarme_cerceve"  # FEMA benzeri: C1
+    BETONARME_PERDELI = "betonarme_perdeli"  # FEMA benzeri: C2
+    YIGMA = "yigma"  # FEMA benzeri: URM/RM
+    CELIK_CERCEVE = "celik_cerceve"  # FEMA benzeri: S1/S3
+    AHSAP = "ahsap"  # FEMA benzeri: W1
 
 
 class SeismicityLevel(str, Enum):
@@ -206,43 +209,55 @@ def _seismicity_from_pga(pga_g: float) -> SeismicityLevel:
 #: YUKSEK/COK_YUKSEK ise resmi HIGH formuna eşlenir. `_basic_score_for`
 #: hangi kaynağın kullanıldığını (`is_official`) açıkça döndürür.
 FEMA_P154_BASIC_SCORE_HIGH: dict[BasicBuildingType, float] = {
-    BasicBuildingType.AHSAP: 3.6,               # W1 — Light wood frame
-    BasicBuildingType.CELIK_CERCEVE: 2.1,       # S1 — Steel moment frame
-    BasicBuildingType.BETONARME_PERDELI: 2.0,   # C2 — Concrete shear wall
-    BasicBuildingType.BETONARME_CERCEVE: 1.5,   # C1 — Concrete moment frame
-    BasicBuildingType.YIGMA: 1.0,               # URM — Unreinforced masonry
+    BasicBuildingType.AHSAP: 3.6,  # W1 — Light wood frame
+    BasicBuildingType.CELIK_CERCEVE: 2.1,  # S1 — Steel moment frame
+    BasicBuildingType.BETONARME_PERDELI: 2.0,  # C2 — Concrete shear wall
+    BasicBuildingType.BETONARME_CERCEVE: 1.5,  # C1 — Concrete moment frame
+    BasicBuildingType.YIGMA: 1.0,  # URM — Unreinforced masonry
 }
 
 #: Resmi FEMA P-154 HIGH seismicity form modifier satırları — aynı 5 bina
 #: tipi (W1/S1/C2/C1/URM) için, aynı kaynak formdan. `None` = formda "NA".
 FEMA_P154_SEVERE_VERTICAL_IRR_HIGH: dict[BasicBuildingType, float] = {
-    BasicBuildingType.AHSAP: -1.2, BasicBuildingType.CELIK_CERCEVE: -1.0,
-    BasicBuildingType.BETONARME_PERDELI: -1.0, BasicBuildingType.BETONARME_CERCEVE: -0.9,
+    BasicBuildingType.AHSAP: -1.2,
+    BasicBuildingType.CELIK_CERCEVE: -1.0,
+    BasicBuildingType.BETONARME_PERDELI: -1.0,
+    BasicBuildingType.BETONARME_CERCEVE: -0.9,
     BasicBuildingType.YIGMA: -0.7,
 }
 FEMA_P154_PLAN_IRR_HIGH: dict[BasicBuildingType, float] = {
-    BasicBuildingType.AHSAP: -1.1, BasicBuildingType.CELIK_CERCEVE: -0.8,
-    BasicBuildingType.BETONARME_PERDELI: -0.8, BasicBuildingType.BETONARME_CERCEVE: -0.6,
+    BasicBuildingType.AHSAP: -1.1,
+    BasicBuildingType.CELIK_CERCEVE: -0.8,
+    BasicBuildingType.BETONARME_PERDELI: -0.8,
+    BasicBuildingType.BETONARME_CERCEVE: -0.6,
     BasicBuildingType.YIGMA: -0.4,
 }
 FEMA_P154_PRE_CODE_HIGH: dict[BasicBuildingType, float] = {
-    BasicBuildingType.AHSAP: -1.1, BasicBuildingType.CELIK_CERCEVE: -0.6,
-    BasicBuildingType.BETONARME_PERDELI: -0.7, BasicBuildingType.BETONARME_CERCEVE: -0.4,
+    BasicBuildingType.AHSAP: -1.1,
+    BasicBuildingType.CELIK_CERCEVE: -0.6,
+    BasicBuildingType.BETONARME_PERDELI: -0.7,
+    BasicBuildingType.BETONARME_CERCEVE: -0.4,
     BasicBuildingType.YIGMA: 0.0,
 }
-FEMA_P154_POST_BENCHMARK_HIGH: dict[BasicBuildingType, Optional[float]] = {
-    BasicBuildingType.AHSAP: 1.6, BasicBuildingType.CELIK_CERCEVE: 1.4,
-    BasicBuildingType.BETONARME_PERDELI: 2.1, BasicBuildingType.BETONARME_CERCEVE: 1.9,
+FEMA_P154_POST_BENCHMARK_HIGH: dict[BasicBuildingType, float | None] = {
+    BasicBuildingType.AHSAP: 1.6,
+    BasicBuildingType.CELIK_CERCEVE: 1.4,
+    BasicBuildingType.BETONARME_PERDELI: 2.1,
+    BasicBuildingType.BETONARME_CERCEVE: 1.9,
     BasicBuildingType.YIGMA: None,  # NA formda
 }
 FEMA_P154_SOIL_AB_HIGH: dict[BasicBuildingType, float] = {
-    BasicBuildingType.AHSAP: 0.1, BasicBuildingType.CELIK_CERCEVE: 0.4,
-    BasicBuildingType.BETONARME_PERDELI: 0.5, BasicBuildingType.BETONARME_CERCEVE: 0.4,
+    BasicBuildingType.AHSAP: 0.1,
+    BasicBuildingType.CELIK_CERCEVE: 0.4,
+    BasicBuildingType.BETONARME_PERDELI: 0.5,
+    BasicBuildingType.BETONARME_CERCEVE: 0.4,
     BasicBuildingType.YIGMA: 0.3,
 }
 FEMA_P154_SOIL_E_1_3_HIGH: dict[BasicBuildingType, float] = {
-    BasicBuildingType.AHSAP: 0.2, BasicBuildingType.CELIK_CERCEVE: -0.2,
-    BasicBuildingType.BETONARME_PERDELI: 0.0, BasicBuildingType.BETONARME_CERCEVE: 0.0,
+    BasicBuildingType.AHSAP: 0.2,
+    BasicBuildingType.CELIK_CERCEVE: -0.2,
+    BasicBuildingType.BETONARME_PERDELI: 0.0,
+    BasicBuildingType.BETONARME_CERCEVE: 0.0,
     BasicBuildingType.YIGMA: -0.2,
 }
 
@@ -258,7 +273,9 @@ TEMSILI_TEMEL_SKORLAR: dict[BasicBuildingType, dict[SeismicityLevel, float]] = {
 }
 
 
-def _basic_score_for(building_type: BasicBuildingType, seismicity: SeismicityLevel) -> tuple[float, bool]:
+def _basic_score_for(
+    building_type: BasicBuildingType, seismicity: SeismicityLevel
+) -> tuple[float, bool]:
     """(skor, is_official) döndürür. is_official=True ise skor
     FEMA_P154_BASIC_SCORE_HIGH'tan (resmi form), False ise
     TEMSILI_TEMEL_SKORLAR'dan (kalibrasyon gerektiren temsili değer)."""
@@ -294,8 +311,11 @@ class RVSReport:
     disclaimer: str = DISCLAIMER
 
     def summary_lines(self) -> list[str]:
-        kaynak = ("RESMİ FEMA P-154 3. Baskı HIGH seismicity formu"
-                  if self.is_official else "TEMSİLİ (kalibrasyon gerektirir)")
+        kaynak = (
+            "RESMİ FEMA P-154 3. Baskı HIGH seismicity formu"
+            if self.is_official
+            else "TEMSİLİ (kalibrasyon gerektirir)"
+        )
         lines = [
             f"RVS temel skor ({self.building_type.value}, {self.seismicity_level.value} sismisite, "
             f"kaynak: {kaynak}): {self.basic_score:.2f}",
@@ -308,7 +328,7 @@ class RVSReport:
             "SONUÇ: Detaylı değerlendirme ÖNERİLİR (eşik altı)."
             if self.detailed_evaluation_recommended
             else "SONUÇ: Eşiğin üzerinde — yine de bu bir ön-tarama sonucudur, "
-                 "kesin güvenlik onayı değildir."
+            "kesin güvenlik onayı değildir."
         )
         lines.append(self.disclaimer)
         return lines
@@ -350,111 +370,158 @@ def rapid_visual_screening(
         # yüzden vertical_irregularity/soft_story_suspected bayrakları
         # aynı resmi "Severe Vertical Irregularity" satırına eşlenir.
         if vertical_irregularity or soft_story_suspected:
-            modifiers.append(ScoreModifier(
-                "Düşey düzensizlik (Severe Vertical Irregularity, VL1)",
-                FEMA_P154_SEVERE_VERTICAL_IRR_HIGH[building_type],
-                "RESMİ FEMA P-154 3. Baskı HIGH seismicity form değeri.",
-            ))
+            modifiers.append(
+                ScoreModifier(
+                    "Düşey düzensizlik (Severe Vertical Irregularity, VL1)",
+                    FEMA_P154_SEVERE_VERTICAL_IRR_HIGH[building_type],
+                    "RESMİ FEMA P-154 3. Baskı HIGH seismicity form değeri.",
+                )
+            )
         if plan_irregularity:
-            modifiers.append(ScoreModifier(
-                "Plan düzensizliği (Plan Irregularity, PL1)",
-                FEMA_P154_PLAN_IRR_HIGH[building_type],
-                "RESMİ FEMA P-154 3. Baskı HIGH seismicity form değeri.",
-            ))
+            modifiers.append(
+                ScoreModifier(
+                    "Plan düzensizliği (Plan Irregularity, PL1)",
+                    FEMA_P154_PLAN_IRR_HIGH[building_type],
+                    "RESMİ FEMA P-154 3. Baskı HIGH seismicity form değeri.",
+                )
+            )
         if short_column_risk:
             # Resmi formda ayrı bir "kısa kolon" satırı yok — bu gözlem
             # Level-1 formunda Plan/Vertical düzensizlik kapsamına girer;
             # burada dürüstçe TEMSİLİ bir ek düzeltme olarak işaretlenir.
-            modifiers.append(ScoreModifier(
-                "Kısa kolon riski (kısmi dolgu duvar/bant pencere)", -0.4,
-                "TEMSİLİ — resmi formda ayrı bir satırı yok, mühendislik "
-                "literatüründeki genel etkiye dayanır (kalibrasyon gerektirir).",
-            ))
+            modifiers.append(
+                ScoreModifier(
+                    "Kısa kolon riski (kısmi dolgu duvar/bant pencere)",
+                    -0.4,
+                    "TEMSİLİ — resmi formda ayrı bir satırı yok, mühendislik "
+                    "literatüründeki genel etkiye dayanır (kalibrasyon gerektirir).",
+                )
+            )
         if pounding_risk:
-            modifiers.append(ScoreModifier(
-                "Bitişik nizam çarpışma (pounding) riski", -0.3,
-                "TEMSİLİ — resmi Level-1 formunda pounding ayrı bir sayısal "
-                "modifier değil, doğrudan 'Detaylı Değerlendirme' tetikleyicisidir "
-                "(FEMA P-155 §2.14); burada nicel etki temsili olarak modellenmiştir.",
-            ))
+            modifiers.append(
+                ScoreModifier(
+                    "Bitişik nizam çarpışma (pounding) riski",
+                    -0.3,
+                    "TEMSİLİ — resmi Level-1 formunda pounding ayrı bir sayısal "
+                    "modifier değil, doğrudan 'Detaylı Değerlendirme' tetikleyicisidir "
+                    "(FEMA P-155 §2.14); burada nicel etki temsili olarak modellenmiştir.",
+                )
+            )
         if pre_1999_construction:
-            modifiers.append(ScoreModifier(
-                "Pre-Code (1999 öncesi yönetmelik)",
-                FEMA_P154_PRE_CODE_HIGH[building_type],
-                "RESMİ FEMA P-154 3. Baskı HIGH seismicity form değeri.",
-            ))
+            modifiers.append(
+                ScoreModifier(
+                    "Pre-Code (1999 öncesi yönetmelik)",
+                    FEMA_P154_PRE_CODE_HIGH[building_type],
+                    "RESMİ FEMA P-154 3. Baskı HIGH seismicity form değeri.",
+                )
+            )
         if post_2019_construction and FEMA_P154_POST_BENCHMARK_HIGH[building_type] is not None:
-            modifiers.append(ScoreModifier(
-                "Post-Benchmark (2019 sonrası TBDY 2018 dönemi)",
-                FEMA_P154_POST_BENCHMARK_HIGH[building_type],
-                "RESMİ FEMA P-154 3. Baskı HIGH seismicity form değeri.",
-            ))
+            modifiers.append(
+                ScoreModifier(
+                    "Post-Benchmark (2019 sonrası TBDY 2018 dönemi)",
+                    FEMA_P154_POST_BENCHMARK_HIGH[building_type],
+                    "RESMİ FEMA P-154 3. Baskı HIGH seismicity form değeri.",
+                )
+            )
         if soil_type is SoilType.ROCK or soil_type is SoilType.STIFF_SOIL:
-            modifiers.append(ScoreModifier(
-                f"Zemin tipi ({soil_type.value}, FEMA Soil A/B karşılığı)",
-                FEMA_P154_SOIL_AB_HIGH[building_type],
-                "RESMİ FEMA P-154 3. Baskı HIGH seismicity form değeri.",
-            ))
+            modifiers.append(
+                ScoreModifier(
+                    f"Zemin tipi ({soil_type.value}, FEMA Soil A/B karşılığı)",
+                    FEMA_P154_SOIL_AB_HIGH[building_type],
+                    "RESMİ FEMA P-154 3. Baskı HIGH seismicity form değeri.",
+                )
+            )
         elif soil_type is SoilType.VERY_SOFT_SOIL:
-            modifiers.append(ScoreModifier(
-                f"Zemin tipi ({soil_type.value}, FEMA Soil E karşılığı)",
-                FEMA_P154_SOIL_E_1_3_HIGH[building_type],
-                "RESMİ FEMA P-154 3. Baskı HIGH seismicity form değeri (Soil E, 1-3 kat).",
-            ))
+            modifiers.append(
+                ScoreModifier(
+                    f"Zemin tipi ({soil_type.value}, FEMA Soil E karşılığı)",
+                    FEMA_P154_SOIL_E_1_3_HIGH[building_type],
+                    "RESMİ FEMA P-154 3. Baskı HIGH seismicity form değeri (Soil E, 1-3 kat).",
+                )
+            )
         elif soil_type is SoilType.SOFT_SOIL:
-            modifiers.append(ScoreModifier(
-                f"Zemin tipi ({soil_type.value})", -0.3,
-                "TEMSİLİ — resmi form Soil C/D'yi temel (Soil Type CD) kabul eder, "
-                "ayrı bir sayısal modifier vermez; burada A/B ile E arası ara değer kullanılmıştır.",
-            ))
+            modifiers.append(
+                ScoreModifier(
+                    f"Zemin tipi ({soil_type.value})",
+                    -0.3,
+                    "TEMSİLİ — resmi form Soil C/D'yi temel (Soil Type CD) kabul eder, "
+                    "ayrı bir sayısal modifier vermez; burada A/B ile E arası ara değer kullanılmıştır.",
+                )
+            )
     else:
         # DUSUK/ORTA sismisite — resmi tablo henüz doğrulanmadı, dürüstçe
         # temsili katsayılar kullanılır (bkz. modül docstring'i).
         if vertical_irregularity:
-            modifiers.append(ScoreModifier(
-                "Düşey düzensizlik (yumuşak/zayıf kat, kütle düzensizliği)", -0.9,
-                "TEMSİLİ — FEMA P-154'te en ağır negatif düzeltmelerden biri, "
-                "TBDY B1/B2 düzensizlikleriyle eşdeğer kavram (kalibrasyon gerektirir).",
-            ))
+            modifiers.append(
+                ScoreModifier(
+                    "Düşey düzensizlik (yumuşak/zayıf kat, kütle düzensizliği)",
+                    -0.9,
+                    "TEMSİLİ — FEMA P-154'te en ağır negatif düzeltmelerden biri, "
+                    "TBDY B1/B2 düzensizlikleriyle eşdeğer kavram (kalibrasyon gerektirir).",
+                )
+            )
         if soft_story_suspected:
-            modifiers.append(ScoreModifier(
-                "Yumuşak/zayıf kat şüphesi (örn. zemin kat dükkan/açık cephe)", -0.5,
-                "TEMSİLİ — sahada doğrulanmalı, TBDY B2 düzensizliği ile örtüşür.",
-            ))
+            modifiers.append(
+                ScoreModifier(
+                    "Yumuşak/zayıf kat şüphesi (örn. zemin kat dükkan/açık cephe)",
+                    -0.5,
+                    "TEMSİLİ — sahada doğrulanmalı, TBDY B2 düzensizliği ile örtüşür.",
+                )
+            )
         if plan_irregularity:
-            modifiers.append(ScoreModifier(
-                "Plan düzensizliği (L/U/T biçimi, burulma potansiyeli)", -0.4,
-                "TEMSİLİ — TBDY A1 (burulma düzensizliği) ile örtüşen görsel gösterge.",
-            ))
+            modifiers.append(
+                ScoreModifier(
+                    "Plan düzensizliği (L/U/T biçimi, burulma potansiyeli)",
+                    -0.4,
+                    "TEMSİLİ — TBDY A1 (burulma düzensizliği) ile örtüşen görsel gösterge.",
+                )
+            )
         if short_column_risk:
-            modifiers.append(ScoreModifier(
-                "Kısa kolon riski (kısmi dolgu duvar/bant pencere)", -0.4,
-                "TEMSİLİ — kısa kolon etkisi, deprem hasarlarında sık görülen bir mekanizmadır.",
-            ))
+            modifiers.append(
+                ScoreModifier(
+                    "Kısa kolon riski (kısmi dolgu duvar/bant pencere)",
+                    -0.4,
+                    "TEMSİLİ — kısa kolon etkisi, deprem hasarlarında sık görülen bir mekanizmadır.",
+                )
+            )
         if pounding_risk:
-            modifiers.append(ScoreModifier(
-                "Bitişik nizam çarpışma (pounding) riski", -0.3,
-                "TEMSİLİ — komşu bina ile dilatasyon derzi yetersiz/yok ise geçerli.",
-            ))
+            modifiers.append(
+                ScoreModifier(
+                    "Bitişik nizam çarpışma (pounding) riski",
+                    -0.3,
+                    "TEMSİLİ — komşu bina ile dilatasyon derzi yetersiz/yok ise geçerli.",
+                )
+            )
         if pre_1999_construction:
-            modifiers.append(ScoreModifier(
-                "1999 öncesi yönetmelik (pre-code)", -0.6,
-                "TEMSİLİ — 1999 Marmara depremi öncesi yönetmelik dönemi.",
-            ))
+            modifiers.append(
+                ScoreModifier(
+                    "1999 öncesi yönetmelik (pre-code)",
+                    -0.6,
+                    "TEMSİLİ — 1999 Marmara depremi öncesi yönetmelik dönemi.",
+                )
+            )
         if post_2019_construction:
-            modifiers.append(ScoreModifier(
-                "2019 sonrası TBDY 2018 dönemi (post-benchmark)", +0.4,
-                "TEMSİLİ — güncel Türkiye Bina Deprem Yönetmeliği dönemi.",
-            ))
+            modifiers.append(
+                ScoreModifier(
+                    "2019 sonrası TBDY 2018 dönemi (post-benchmark)",
+                    +0.4,
+                    "TEMSİLİ — güncel Türkiye Bina Deprem Yönetmeliği dönemi.",
+                )
+            )
         soil_modifier_map = {
-            SoilType.VERY_SOFT_SOIL: -0.5, SoilType.SOFT_SOIL: -0.3,
-            SoilType.STIFF_SOIL: 0.0, SoilType.ROCK: +0.2,
+            SoilType.VERY_SOFT_SOIL: -0.5,
+            SoilType.SOFT_SOIL: -0.3,
+            SoilType.STIFF_SOIL: 0.0,
+            SoilType.ROCK: +0.2,
         }
         if soil_type in soil_modifier_map and soil_type is not SoilType.UNKNOWN:
-            modifiers.append(ScoreModifier(
-                f"Zemin tipi ({soil_type.value})", soil_modifier_map[soil_type],
-                "TEMSİLİ — zemin büyütmesi (site amplification) etkisi, jeoteknik veriyle doğrulanmalı.",
-            ))
+            modifiers.append(
+                ScoreModifier(
+                    f"Zemin tipi ({soil_type.value})",
+                    soil_modifier_map[soil_type],
+                    "TEMSİLİ — zemin büyütmesi (site amplification) etkisi, jeoteknik veriyle doğrulanmalı.",
+                )
+            )
 
     final_score = basic + sum(m.delta for m in modifiers)
     return RVSReport(
@@ -482,9 +549,9 @@ def _risk_level_from_index(index: float) -> RiskLevel:
 def score_building_risk(
     *,
     pga_g: float,
-    construction_year: Optional[int] = None,
-    floor_count: Optional[int] = None,
-    slenderness_ratio: Optional[float] = None,
+    construction_year: int | None = None,
+    floor_count: int | None = None,
+    slenderness_ratio: float | None = None,
     soil_type: SoilType = SoilType.UNKNOWN,
 ) -> BuildingRiskReport:
     """Roadmap Faz 2.3'ün tarif ettiği "basit risk indeksi"ni hesaplar.
@@ -494,18 +561,37 @@ def score_building_risk(
     "veri yok" olarak raporlanır ve ağırlığı normalize edilirken düşülür.
     """
     candidates = [
-        BuildingRiskFactor("Bölgesel PGA", _pga_subscore(pga_g), 0.40,
-                            f"pga={pga_g:.2f}g"),
-        BuildingRiskFactor("Yapım yılı / yönetmelik dönemi",
-                            _construction_year_subscore(construction_year), 0.25,
-                            "1999/2007/2018 yönetmelik eşikleri" if construction_year is not None else "yapım yılı verilmedi"),
-        BuildingRiskFactor("Kat sayısı", _floor_count_subscore(floor_count), 0.15,
-                            "yükseklik arttıkça deprem kuvveti/burulma riski artar" if floor_count is not None else "kat sayısı verilmedi"),
-        BuildingRiskFactor("Narinlik oranı (structural_validation)",
-                            _slenderness_subscore(slenderness_ratio), 0.10,
-                            "structural_validation.validate_building raporundan" if slenderness_ratio is not None else "narinlik oranı verilmedi"),
-        BuildingRiskFactor("Zemin tipi", _SOIL_SUBSCORE[soil_type], 0.10,
-                            "jeoteknik veri yok" if soil_type is SoilType.UNKNOWN else f"zemin={soil_type.value}"),
+        BuildingRiskFactor("Bölgesel PGA", _pga_subscore(pga_g), 0.40, f"pga={pga_g:.2f}g"),
+        BuildingRiskFactor(
+            "Yapım yılı / yönetmelik dönemi",
+            _construction_year_subscore(construction_year),
+            0.25,
+            "1999/2007/2018 yönetmelik eşikleri"
+            if construction_year is not None
+            else "yapım yılı verilmedi",
+        ),
+        BuildingRiskFactor(
+            "Kat sayısı",
+            _floor_count_subscore(floor_count),
+            0.15,
+            "yükseklik arttıkça deprem kuvveti/burulma riski artar"
+            if floor_count is not None
+            else "kat sayısı verilmedi",
+        ),
+        BuildingRiskFactor(
+            "Narinlik oranı (structural_validation)",
+            _slenderness_subscore(slenderness_ratio),
+            0.10,
+            "structural_validation.validate_building raporundan"
+            if slenderness_ratio is not None
+            else "narinlik oranı verilmedi",
+        ),
+        BuildingRiskFactor(
+            "Zemin tipi",
+            _SOIL_SUBSCORE[soil_type],
+            0.10,
+            "jeoteknik veri yok" if soil_type is SoilType.UNKNOWN else f"zemin={soil_type.value}",
+        ),
     ]
 
     weighted_sum = 0.0

@@ -23,13 +23,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from harita.editor.gizmo import Ray, TranslateGizmo, RotateGizmo, ScaleGizmo
-from harita.editor.object_editor import SceneNode, Vec3
 from harita.editor.commands import UndoRedoStack
+from harita.editor.gizmo import Ray, RotateGizmo, ScaleGizmo, TranslateGizmo
 from harita.editor.input_bindings import (
-    GizmoInputSession, GizmoMode, KeyBindingRegistry,
-    MouseDownEvent, MouseMoveEvent, MouseUpEvent,
+    GizmoInputSession,
+    GizmoMode,
+    KeyBindingRegistry,
+    MouseDownEvent,
+    MouseMoveEvent,
+    MouseUpEvent,
 )
+from harita.editor.object_editor import SceneNode, Vec3
 
 
 def _make_node(position: Vec3 = Vec3(0.0, 0.0, 0.0)) -> SceneNode:
@@ -47,23 +51,20 @@ def _looking_down_ray(x: float, y: float, z: float = 20.0) -> Ray:
 # 1) Saf gizmo matematiği
 # ============================================================================ #
 
+
 class TestGizmoMath:
     def test_translate_axis_drag_delta_along_x(self):
         origin = (0.0, 0.0, 0.0)
         r1 = _looking_down_ray(x=5.0, y=0.0)
         r2 = _looking_down_ray(x=10.0, y=0.0)
-        assert math.isclose(
-            TranslateGizmo.axis_drag_delta(origin, "x", r1, r2), 5.0, abs_tol=1e-9
-        )
+        assert math.isclose(TranslateGizmo.axis_drag_delta(origin, "x", r1, r2), 5.0, abs_tol=1e-9)
 
     def test_translate_axis_drag_ignores_orthogonal_movement(self):
         # y ekseninde hareket, x ekseni sürüklemesini etkilememeli.
         origin = (0.0, 0.0, 0.0)
         r1 = _looking_down_ray(x=5.0, y=0.0)
         r2 = _looking_down_ray(x=5.0, y=100.0)
-        assert math.isclose(
-            TranslateGizmo.axis_drag_delta(origin, "x", r1, r2), 0.0, abs_tol=1e-9
-        )
+        assert math.isclose(TranslateGizmo.axis_drag_delta(origin, "x", r1, r2), 0.0, abs_tol=1e-9)
 
     def test_rotate_axis_drag_angle_90_degrees(self):
         origin = (0.0, 0.0, 0.0)
@@ -76,14 +77,13 @@ class TestGizmoMath:
         origin = (0.0, 0.0, 0.0)
         r1 = _looking_down_ray(x=5.0, y=0.0)
         r2 = _looking_down_ray(x=10.0, y=0.0)
-        assert math.isclose(
-            ScaleGizmo.axis_drag_factor(origin, "x", r1, r2), 2.0, abs_tol=1e-9
-        )
+        assert math.isclose(ScaleGizmo.axis_drag_factor(origin, "x", r1, r2), 2.0, abs_tol=1e-9)
 
 
 # ============================================================================ #
 # 2) GizmoInputSession: A8 kabul kriteri
 # ============================================================================ #
+
 
 class TestGizmoInputSessionTranslate:
     def test_mouse_down_drag_5_units_on_x_moves_object_correctly(self):
@@ -196,12 +196,14 @@ class TestGizmoInputSessionRotateScale:
 # 3) KeyBindingRegistry
 # ============================================================================ #
 
+
 class TestKeyBindingRegistry:
     def test_default_bindings_g_r_s_switch_mode(self):
         modes_set = []
         undo_stack = UndoRedoStack()
         registry = KeyBindingRegistry.default_bindings(
-            set_mode=lambda m: modes_set.append(m), undo_stack=undo_stack,
+            set_mode=lambda m: modes_set.append(m),
+            undo_stack=undo_stack,
         )
         assert registry.dispatch("g") is True
         assert registry.dispatch("r") is True
@@ -216,7 +218,9 @@ class TestKeyBindingRegistry:
         session.on_mouse_move(MouseMoveEvent(ray=_looking_down_ray(x=5.0, y=0.0)))
         session.on_mouse_up(MouseUpEvent())
 
-        registry = KeyBindingRegistry.default_bindings(set_mode=lambda m: None, undo_stack=undo_stack)
+        registry = KeyBindingRegistry.default_bindings(
+            set_mode=lambda m: None, undo_stack=undo_stack
+        )
         assert registry.dispatch("ctrl+z") is True
         assert node.position.x == 0.0
         assert registry.dispatch("ctrl+y") is True
@@ -224,5 +228,7 @@ class TestKeyBindingRegistry:
 
     def test_unbound_key_returns_false(self):
         undo_stack = UndoRedoStack()
-        registry = KeyBindingRegistry.default_bindings(set_mode=lambda m: None, undo_stack=undo_stack)
+        registry = KeyBindingRegistry.default_bindings(
+            set_mode=lambda m: None, undo_stack=undo_stack
+        )
         assert registry.dispatch("f12") is False

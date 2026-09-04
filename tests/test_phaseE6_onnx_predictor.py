@@ -54,15 +54,9 @@ def _build_synthetic_height_roof_model(path: str) -> None:
     gerektirmez, yalnızca ONNX Runtime çıkarım yolunun (gerçek graph
     execution) uçtan uca çalıştığını kanıtlamak için tasarlanmıştır.
     """
-    input_tensor = helper.make_tensor_value_info(
-        "image", TensorProto.FLOAT, list(IMG_SHAPE)
-    )
-    height_out = helper.make_tensor_value_info(
-        "height", TensorProto.FLOAT, [1, 1]
-    )
-    roof_out = helper.make_tensor_value_info(
-        "roof_logits", TensorProto.FLOAT, [1, N_ROOF_CLASSES]
-    )
+    input_tensor = helper.make_tensor_value_info("image", TensorProto.FLOAT, list(IMG_SHAPE))
+    height_out = helper.make_tensor_value_info("height", TensorProto.FLOAT, [1, 1])
+    roof_out = helper.make_tensor_value_info("roof_logits", TensorProto.FLOAT, [1, N_ROOF_CLASSES])
 
     # height = mean(image) * 30.0 + 3.0
     mean_node = helper.make_node("ReduceMean", ["image"], ["mean_all"], keepdims=1)
@@ -71,28 +65,27 @@ def _build_synthetic_height_roof_model(path: str) -> None:
     scale_node = helper.make_node("Mul", ["mean_all", "scale"], ["scaled"])
     bias_node = helper.make_node("Add", ["scaled", "bias"], ["height_pre"])
     reshape_h_init = helper.make_tensor("height_shape", TensorProto.INT64, [2], [1, 1])
-    reshape_h_node = helper.make_node(
-        "Reshape", ["height_pre", "height_shape"], ["height"]
-    )
+    reshape_h_node = helper.make_node("Reshape", ["height_pre", "height_shape"], ["height"])
 
     # roof_logits = flatten(mean-pooled-per-channel) @ small fixed weight matrix
-    gap_node = helper.make_node(
-        "GlobalAveragePool", ["image"], ["gap"]
-    )  # (1,3,1,1)
+    gap_node = helper.make_node("GlobalAveragePool", ["image"], ["gap"])  # (1,3,1,1)
     flat_shape_init = helper.make_tensor("flat_shape", TensorProto.INT64, [2], [1, 3])
     flat_node = helper.make_node("Reshape", ["gap", "flat_shape"], ["gap_flat"])
     weight_vals = [0.1, 0.2, 0.3, 0.4, 0.1, 0.2, -0.3, 0.5, 0.05]
     weight_init = helper.make_tensor(
         "roof_weight", TensorProto.FLOAT, [3, N_ROOF_CLASSES], weight_vals
     )
-    matmul_node = helper.make_node(
-        "MatMul", ["gap_flat", "roof_weight"], ["roof_logits"]
-    )
+    matmul_node = helper.make_node("MatMul", ["gap_flat", "roof_weight"], ["roof_logits"])
 
     graph = helper.make_graph(
         [
-            mean_node, scale_node, bias_node, reshape_h_node,
-            gap_node, flat_node, matmul_node,
+            mean_node,
+            scale_node,
+            bias_node,
+            reshape_h_node,
+            gap_node,
+            flat_node,
+            matmul_node,
         ],
         "synthetic_height_roof_net",
         [input_tensor],
@@ -118,6 +111,7 @@ class TestOnnxAvailability:
     def test_is_available_matches_import(self) -> None:
         try:
             import onnxruntime  # noqa: F401
+
             expected = True
         except ImportError:
             expected = False
@@ -206,9 +200,7 @@ class TestImageBasedPredictorWithModel:
 
     def test_custom_roof_types_mapping(self, synthetic_model_path: str) -> None:
         custom_labels = ("a", "b", "c")
-        predictor = ImageBasedPredictor(
-            model_path=synthetic_model_path, roof_types=custom_labels
-        )
+        predictor = ImageBasedPredictor(model_path=synthetic_model_path, roof_types=custom_labels)
         result = predictor.predict_image(np.full(IMG_SHAPE, 0.2, dtype=np.float32))
         assert result.roof_type in custom_labels
 

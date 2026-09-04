@@ -26,11 +26,12 @@ olasılığı, koşulu ve kaynağı roadmap metninden doğrudan izlenebilir olac
 girişindeki ASCII zincir diyagramının **birebir** kural tablosuna
 çevrilmiş halidir - yeni bir varsayım eklenmemiştir.
 """
+
 from __future__ import annotations
 
 import random
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
 
 from ..extensibility.city_events import CityEventType, emit_city_event
 from ..extensibility.event_system import Event, EventSystem
@@ -64,8 +65,8 @@ class CascadeRule:
     trigger_type: CityEventType
     probability: float
     effect_type: CityEventType
-    condition: Optional[Callable[[Event], bool]] = None
-    payload_fn: Optional[Callable[[Event], dict]] = None
+    condition: Callable[[Event], bool] | None = None
+    payload_fn: Callable[[Event], dict] | None = None
     cooldown_s: float = 0.0
 
 
@@ -74,6 +75,7 @@ def _magnitude_at_least(min_magnitude: float) -> Callable[[Event], bool]:
         payload = event.payload or {}
         magnitude = payload.get("magnitude")
         return magnitude is not None and magnitude >= min_magnitude
+
     return _check
 
 
@@ -148,16 +150,20 @@ class CascadeEngine:
 
     bus: EventSystem
     rules: tuple[CascadeRule, ...] = DEFAULT_CASCADE_RULES
-    seed: Optional[int] = None
+    seed: int | None = None
     triggered_log: list[dict] = field(default_factory=list)
     skipped_log: list[dict] = field(default_factory=list)
     _rng: random.Random = field(init=False, repr=False)
-    _last_triggered_at: dict[tuple[str, Optional[str]], float] = field(
-        default_factory=dict, init=False, repr=False,
+    _last_triggered_at: dict[tuple[str, str | None], float] = field(
+        default_factory=dict,
+        init=False,
+        repr=False,
     )
     _now_fn: Callable[[], float] = field(default=lambda: 0.0, repr=False)
     _rules_by_trigger: dict[str, list[CascadeRule]] = field(
-        default_factory=dict, init=False, repr=False,
+        default_factory=dict,
+        init=False,
+        repr=False,
     )
 
     def __post_init__(self) -> None:
@@ -185,16 +191,26 @@ class CascadeEngine:
             key = (rule.name, event.source)
             last = self._last_triggered_at.get(key)
             if last is not None and (now - last) < rule.cooldown_s:
-                self.skipped_log.append({"rule": rule.name, "reason": "cooldown", "event": event.name})
+                self.skipped_log.append(
+                    {"rule": rule.name, "reason": "cooldown", "event": event.name}
+                )
                 continue
             if rule.condition is not None and not rule.condition(event):
-                self.skipped_log.append({"rule": rule.name, "reason": "condition_false", "event": event.name})
+                self.skipped_log.append(
+                    {"rule": rule.name, "reason": "condition_false", "event": event.name}
+                )
                 continue
             roll = self._rng.random()
             if roll >= rule.probability:
-                self.skipped_log.append({"rule": rule.name, "reason": "probability_miss", "event": event.name})
+                self.skipped_log.append(
+                    {"rule": rule.name, "reason": "probability_miss", "event": event.name}
+                )
                 continue
             payload = rule.payload_fn(event) if rule.payload_fn else {}
-            emitted = emit_city_event(self.bus, rule.effect_type, source=f"cascade:{rule.name}", **payload)
+            emitted = emit_city_event(
+                self.bus, rule.effect_type, source=f"cascade:{rule.name}", **payload
+            )
             self._last_triggered_at[key] = now
-            self.triggered_log.append({"rule": rule.name, "trigger_event": event.name, "effect_event": emitted.name})
+            self.triggered_log.append(
+                {"rule": rule.name, "trigger_event": event.name, "effect_event": emitted.name}
+            )

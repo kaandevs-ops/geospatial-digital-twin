@@ -61,7 +61,9 @@ def _make_hub_with_users(n: int) -> tuple[CollaborationHub, list[str]]:
     return hub, tokens
 
 
-async def _recv_typed(client: _MinimalWSClient, want_type: str, *, timeout: float = 5.0) -> WSMessage:
+async def _recv_typed(
+    client: _MinimalWSClient, want_type: str, *, timeout: float = 5.0
+) -> WSMessage:
     """İstenen `want_type`'ta bir mesaj gelene kadar okur; eşleşmeyen
     mesajları `client._pending`'e (istemci başına arabellek) saklar.
     Bkz. modül docstring'i - gerçek ağda mesaj karışık sırayla gelebilir."""
@@ -79,9 +81,7 @@ async def _recv_typed(client: _MinimalWSClient, want_type: str, *, timeout: floa
     while True:
         remaining = deadline - loop.time()
         if remaining <= 0:
-            raise asyncio.TimeoutError(
-                f"'{want_type}' tipinde mesaj {timeout}s icinde gelmedi"
-            )
+            raise asyncio.TimeoutError(f"'{want_type}' tipinde mesaj {timeout}s icinde gelmedi")
         msg = await asyncio.wait_for(client.recv(), timeout=remaining)
         if msg.type == want_type:
             return msg
@@ -113,7 +113,9 @@ async def _edit(client: _MinimalWSClient, field: str, value: object) -> WSMessag
     return await _recv_typed(client, "collab.edit.reply")
 
 
-async def _drain_pending_crdt_patches(client: _MinimalWSClient, *, quiet_period: float = 0.5) -> list[dict]:
+async def _drain_pending_crdt_patches(
+    client: _MinimalWSClient, *, quiet_period: float = 0.5
+) -> list[dict]:
     """Kalan tüm `crdt_patch` mesajlarını (arabellek + soketten yeni
     gelenler, `quiet_period` sessizlik penceresi bitene kadar) toplar."""
     pending: list[WSMessage] = getattr(client, "_pending", None) or []
@@ -215,22 +217,30 @@ def test_concurrent_conflicting_edit_converges_deterministically_over_real_socke
             # gercek patch merge edilir.
             local_a = CRDTBuildingState(building_key=BUILDING_KEY)
             local_a.set_field(
-                patch_from_a_to_b["field"], patch_from_a_to_b["value"],
-                patch_from_a_to_b["timestamp"], patch_from_a_to_b["actor_id"],
+                patch_from_a_to_b["field"],
+                patch_from_a_to_b["value"],
+                patch_from_a_to_b["timestamp"],
+                patch_from_a_to_b["actor_id"],
             )
             local_a.set_field(
-                patch_from_b_to_a["field"], patch_from_b_to_a["value"],
-                patch_from_b_to_a["timestamp"], patch_from_b_to_a["actor_id"],
+                patch_from_b_to_a["field"],
+                patch_from_b_to_a["value"],
+                patch_from_b_to_a["timestamp"],
+                patch_from_b_to_a["actor_id"],
             )
 
             local_b = CRDTBuildingState(building_key=BUILDING_KEY)
             local_b.set_field(
-                patch_from_b_to_a["field"], patch_from_b_to_a["value"],
-                patch_from_b_to_a["timestamp"], patch_from_b_to_a["actor_id"],
+                patch_from_b_to_a["field"],
+                patch_from_b_to_a["value"],
+                patch_from_b_to_a["timestamp"],
+                patch_from_b_to_a["actor_id"],
             )
             local_b.set_field(
-                patch_from_a_to_b["field"], patch_from_a_to_b["value"],
-                patch_from_a_to_b["timestamp"], patch_from_a_to_b["actor_id"],
+                patch_from_a_to_b["field"],
+                patch_from_a_to_b["value"],
+                patch_from_a_to_b["timestamp"],
+                patch_from_a_to_b["actor_id"],
             )
 
             assert local_a.get_field("height_m") == local_b.get_field("height_m"), (
@@ -268,8 +278,10 @@ def test_server_rejects_non_editor_write_over_real_socket() -> None:
                 WSMessage(
                     type="collab.edit",
                     payload={
-                        "project_id": PROJECT_ID, "building_key": BUILDING_KEY,
-                        "field": "height_m", "value": 5.0,
+                        "project_id": PROJECT_ID,
+                        "building_key": BUILDING_KEY,
+                        "field": "height_m",
+                        "value": 5.0,
                     },
                 )
             )

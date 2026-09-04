@@ -17,10 +17,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.app_shell.api import build_app_router
 from harita.app_shell.session import AppSession, AppSessionError
-
 
 _PENZD_CSV = """PT,E,N,Z,DESC
 1,0,0,100,BLD_COR
@@ -120,9 +118,7 @@ class TestFeatureSurveyOrchestrationRestApi:
         assert post_resp.status == 200
         assert post_resp.body["qc_overall_passed"] is True
 
-        get_resp = router.dispatch(
-            "GET", f"/api/projects/{pid}/feature-survey/orchestrate"
-        )
+        get_resp = router.dispatch("GET", f"/api/projects/{pid}/feature-survey/orchestrate")
         assert get_resp.status == 200
         assert get_resp.body["linework_feature_count"] == 1
 

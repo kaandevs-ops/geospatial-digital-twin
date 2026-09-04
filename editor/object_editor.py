@@ -20,16 +20,16 @@ döndürüldüğünde/ölçeklendiğinde çocukların `world transform`'u da de�
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable
 
 from ..mesh_engine import Mesh3D, Vertex3D
 from .commands import EditorCommand, FunctionCommand
 
-
 # ============================================================================ #
 # Vec3
 # ============================================================================ #
+
 
 @dataclass(slots=True, frozen=True)
 class Vec3:
@@ -37,20 +37,20 @@ class Vec3:
     y: float = 0.0
     z: float = 0.0
 
-    def __add__(self, other: "Vec3") -> "Vec3":
+    def __add__(self, other: Vec3) -> Vec3:
         return Vec3(self.x + other.x, self.y + other.y, self.z + other.z)
 
-    def __sub__(self, other: "Vec3") -> "Vec3":
+    def __sub__(self, other: Vec3) -> Vec3:
         return Vec3(self.x - other.x, self.y - other.y, self.z - other.z)
 
-    def __mul__(self, s: float) -> "Vec3":
+    def __mul__(self, s: float) -> Vec3:
         return Vec3(self.x * s, self.y * s, self.z * s)
 
     def as_tuple(self) -> tuple[float, float, float]:
         return (self.x, self.y, self.z)
 
     def length(self) -> float:
-        return math.sqrt(self.x ** 2 + self.y ** 2 + self.z ** 2)
+        return math.sqrt(self.x**2 + self.y**2 + self.z**2)
 
 
 ZERO = Vec3(0.0, 0.0, 0.0)
@@ -60,6 +60,7 @@ ONE = Vec3(1.0, 1.0, 1.0)
 # ============================================================================ #
 # SceneNode (Hierarchy)
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class SceneNode:
@@ -73,19 +74,19 @@ class SceneNode:
     position: Vec3 = field(default_factory=lambda: ZERO)
     rotation_deg: Vec3 = field(default_factory=lambda: ZERO)  # euler (x,y,z)
     scale: Vec3 = field(default_factory=lambda: ONE)
-    parent: "SceneNode | None" = None
-    children: list["SceneNode"] = field(default_factory=list)
+    parent: SceneNode | None = None
+    children: list[SceneNode] = field(default_factory=list)
     is_prefab_instance: bool = False
-    prefab_source: "str | None" = None
+    prefab_source: str | None = None
 
     # -- hiyerarşi -------------------------------------------------------- #
-    def add_child(self, child: "SceneNode") -> None:
+    def add_child(self, child: SceneNode) -> None:
         if child.parent is not None:
             child.parent.children.remove(child)
         child.parent = self
         self.children.append(child)
 
-    def remove_child(self, child: "SceneNode") -> None:
+    def remove_child(self, child: SceneNode) -> None:
         if child in self.children:
             self.children.remove(child)
             child.parent = None
@@ -101,7 +102,7 @@ class SceneNode:
             node = node.parent
         return pos
 
-    def descendants(self) -> Iterable["SceneNode"]:
+    def descendants(self) -> Iterable[SceneNode]:
         for child in self.children:
             yield child
             yield from child.descendants()
@@ -113,7 +114,11 @@ class SceneNode:
         if self.mesh is None:
             return Mesh3D(name=self.name)
         wp = self.world_position()
-        rx, ry, rz = math.radians(self.rotation_deg.x), math.radians(self.rotation_deg.y), math.radians(self.rotation_deg.z)
+        rx, ry, rz = (
+            math.radians(self.rotation_deg.x),
+            math.radians(self.rotation_deg.y),
+            math.radians(self.rotation_deg.z),
+        )
         sx, sy, sz = self.scale.x, self.scale.y, self.scale.z
 
         def transform(v: Vertex3D) -> Vertex3D:
@@ -137,6 +142,7 @@ class SceneNode:
 # ============================================================================ #
 # Prefab
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class Prefab:
@@ -310,7 +316,9 @@ class ObjectEditor:
 
     # -- Duplicate -------------------------------------------------------------- #
     @staticmethod
-    def duplicate(node: SceneNode, offset: Vec3 = Vec3(1.0, 0.0, 0.0)) -> tuple[SceneNode, EditorCommand]:
+    def duplicate(
+        node: SceneNode, offset: Vec3 = Vec3(1.0, 0.0, 0.0)
+    ) -> tuple[SceneNode, EditorCommand]:
         """Yeni bir `SceneNode` kopyası oluşturur ve onu parent'a ekleyen
         komutu döndürür. Kopyanın kendisi çağıran tarafa hemen döner (id
         atamak/referans tutmak için), ama sahneye eklenmesi `do()`

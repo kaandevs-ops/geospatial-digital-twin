@@ -29,7 +29,9 @@ class BuildingEditor:
 
     # -- Kat ekle / sil ----------------------------------------------------- #
     @staticmethod
-    def add_floor(building: Building, height_m: float = 3.0, at_index: int | None = None) -> EditorCommand:
+    def add_floor(
+        building: Building, height_m: float = 3.0, at_index: int | None = None
+    ) -> EditorCommand:
         insert_at = len(building.floors) if at_index is None else at_index
         new_floor = Floor(level=insert_at, height_m=height_m)
 
@@ -65,7 +67,10 @@ class BuildingEditor:
     # -- Çatı değiştir --------------------------------------------------------- #
     @staticmethod
     def change_roof(
-        building: Building, roof_type: RoofType | str, pitch_deg: float = 25.0, overhang_m: float = 0.4
+        building: Building,
+        roof_type: RoofType | str,
+        pitch_deg: float = 25.0,
+        overhang_m: float = 0.4,
     ) -> EditorCommand:
         before_roof = building.roof
 

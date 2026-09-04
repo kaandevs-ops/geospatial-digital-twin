@@ -3,25 +3,23 @@
 from __future__ import annotations
 
 import json
-import math
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.core_engine.geometry_engine import Point2D, Polygon
-from harita.mesh_engine import MeshBuilder, Mesh3D, Vertex3D
+from harita.lighting import AmbientLight, SolarPosition, SunLight
 from harita.material_engine import PBRMaterial
-from harita.lighting import SunLight, AmbientLight, SolarPosition
+from harita.mesh_engine import Mesh3D, MeshBuilder, Vertex3D
 from harita.render_engine import (
+    SCENE_SCHEMA_VERSION,
     Scene,
     SceneLight,
-    SCENE_SCHEMA_VERSION,
+    ambient_light_to_scene_light,
     scene_from_meshes,
     sun_light_to_scene_light,
-    ambient_light_to_scene_light,
 )
 
 
@@ -150,8 +148,11 @@ class TestSerialization:
 
 class TestLightingBridge:
     def test_sun_light_to_scene_light_normalizes_intensity(self):
-        sun = SunLight(color=(1.0, 1.0, 1.0), intensity_lux=120_000.0,
-                        position=SolarPosition(azimuth_deg=180.0, elevation_deg=45.0))
+        sun = SunLight(
+            color=(1.0, 1.0, 1.0),
+            intensity_lux=120_000.0,
+            position=SolarPosition(azimuth_deg=180.0, elevation_deg=45.0),
+        )
         scene_light = sun_light_to_scene_light(sun)
         assert scene_light.kind == "directional"
         assert scene_light.intensity == pytest.approx(1.0)

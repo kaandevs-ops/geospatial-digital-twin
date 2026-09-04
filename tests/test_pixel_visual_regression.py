@@ -1,18 +1,23 @@
 """Roadmap V7 — `render_engine.software_rasterizer` + `scripts/pixel_visual_regression.py`
 için testler: gerçek piksel-tabanlı görsel regresyon katmanı.
 """
+
 from __future__ import annotations
 
 import importlib.util
-import sys
 from pathlib import Path
 
 import pytest
-
 from harita.building_reconstruction import BuildingType, Footprint, ProceduralBuildingGenerator
 from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.render_engine.software_rasterizer import (
-    Camera, Image, pixel_diff, rasterize_mesh, read_ppm, write_png, write_ppm,
+    Camera,
+    Image,
+    pixel_diff,
+    rasterize_mesh,
+    read_ppm,
+    write_png,
+    write_ppm,
 )
 
 _SCRIPT_PATH = Path(__file__).resolve().parent.parent / "scripts" / "pixel_visual_regression.py"
@@ -28,9 +33,13 @@ def _load_script():
 def _sample_mesh():
     footprint = Footprint(
         polygon=Polygon([Point2D(0, 0), Point2D(10, 0), Point2D(10, 8), Point2D(0, 8)]),
-        building_type=BuildingType.OFIS.value, floor_count=3, height_m=9.0,
+        building_type=BuildingType.OFIS.value,
+        floor_count=3,
+        height_m=9.0,
     )
-    building = ProceduralBuildingGenerator.generate(footprint, building_type=BuildingType.OFIS, seed=99)
+    building = ProceduralBuildingGenerator.generate(
+        footprint, building_type=BuildingType.OFIS, seed=99
+    )
     return building.full_mesh(include_interior=False)
 
 
@@ -40,8 +49,7 @@ def test_rasterize_produces_real_pixels_not_blank_canvas():
     assert img.width == 120 and img.height == 90
     background = (24, 26, 32)
     non_bg = sum(
-        1 for p in range(0, len(img.pixels), 3)
-        if tuple(img.pixels[p:p + 3]) != background
+        1 for p in range(0, len(img.pixels), 3) if tuple(img.pixels[p : p + 3]) != background
     )
     # Bina siluetinin makul bir kısmı arka plandan farklı olmalı - yoksa
     # rasterizer hiçbir şey çizmiyor demektir (regresyon).

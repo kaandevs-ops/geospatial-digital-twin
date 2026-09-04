@@ -22,11 +22,12 @@ from __future__ import annotations
 
 import heapq
 import math
+from collections.abc import Hashable, Sequence
 from dataclasses import dataclass, field
-from typing import Dict, Hashable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Tuple
 
-from ..pathfinding import AStar, NavGraph, NodeId, PathResult
 from ...core_engine.geometry_engine import Point2D
+from ..pathfinding import AStar, NavGraph, NodeId, PathResult
 
 StopId = Hashable
 
@@ -35,6 +36,7 @@ StopId = Hashable
 # Transit hattı veri modeli
 # ============================================================================ #
 
+
 @dataclass
 class TransitStop:
     """Bir toplu taşıma durağı - konumu, hangi yürüme-grafiği düğümüne
@@ -42,7 +44,7 @@ class TransitStop:
 
     stop_id: StopId
     position: Point2D
-    walk_node: Optional[NodeId] = None  # NavGraph'taki karşılık gelen düğüm
+    walk_node: NodeId | None = None  # NavGraph'taki karşılık gelen düğüm
 
 
 @dataclass
@@ -53,8 +55,8 @@ class TransitLine:
     süresidir (uzunluk == len(stops) - 1)."""
 
     line_id: str
-    stops: List[StopId]
-    travel_times_s: List[float]
+    stops: list[StopId]
+    travel_times_s: list[float]
     schedule_headway_s: float
     first_departure_s: float = 0.0
     capacity: int = 60
@@ -126,6 +128,7 @@ class TransitVehicle:
 # Çok-modlu rota planlama
 # ============================================================================ #
 
+
 @dataclass
 class RouteLeg:
     """Bir rotanın tek bir bacağı: yürüme veya transit yolculuğu."""
@@ -134,7 +137,7 @@ class RouteLeg:
     start: Hashable
     end: Hashable
     duration_s: float
-    line_id: Optional[str] = None
+    line_id: str | None = None
 
 
 @dataclass
@@ -155,8 +158,8 @@ class MultiModalRoute:
     """
 
     walk_graph: NavGraph
-    lines: List[TransitLine] = field(default_factory=list)
-    stops: Dict[StopId, TransitStop] = field(default_factory=dict)
+    lines: list[TransitLine] = field(default_factory=list)
+    stops: dict[StopId, TransitStop] = field(default_factory=dict)
     transfer_penalty_s: float = 30.0
 
     def add_stop(self, stop: TransitStop) -> None:
@@ -165,7 +168,7 @@ class MultiModalRoute:
     def add_line(self, line: TransitLine) -> None:
         self.lines.append(line)
 
-    def _combined_graph(self) -> Tuple[NavGraph, Dict[Tuple[Hashable, Hashable], str]]:
+    def _combined_graph(self) -> tuple[NavGraph, dict[tuple[Hashable, Hashable], str]]:
         """Yürüme grafiğini ve transit hat kenarlarını tek bir `NavGraph`
         üzerinde birleştirir. Dönen ikinci değer, hangi kenarın hangi
         `line_id`'ye ait olduğunu (yürüme kenarları için None) tutan bir
@@ -173,7 +176,7 @@ class MultiModalRoute:
         ayırt edebilmesi için.
         """
         combined = NavGraph()
-        edge_line: Dict[Tuple[Hashable, Hashable], str] = {}
+        edge_line: dict[tuple[Hashable, Hashable], str] = {}
 
         # 1) Yürüme grafiğini birebir kopyala.
         for node, pos in self.walk_graph.positions.items():
@@ -207,7 +210,7 @@ class MultiModalRoute:
 
         return combined, edge_line
 
-    def plan(self, start_walk_node: NodeId, goal_walk_node: NodeId) -> "MultiModalPlanResult":
+    def plan(self, start_walk_node: NodeId, goal_walk_node: NodeId) -> MultiModalPlanResult:
         combined, edge_line = self._combined_graph()
         start = ("walk", start_walk_node)
         goal = ("walk", goal_walk_node)
@@ -224,10 +227,10 @@ class MultiModalRoute:
 
     def _legs_from_path(
         self,
-        path: Sequence[Tuple[str, Hashable]],
-        edge_line: Dict[Tuple[Hashable, Hashable], str],
-    ) -> List[RouteLeg]:
-        legs: List[RouteLeg] = []
+        path: Sequence[tuple[str, Hashable]],
+        edge_line: dict[tuple[Hashable, Hashable], str],
+    ) -> list[RouteLeg]:
+        legs: list[RouteLeg] = []
         combined, _ = self._combined_graph()
         for a, b in zip(path, path[1:]):
             cost = dict(combined.neighbors(a)).get(b, 0.0)
@@ -244,7 +247,7 @@ class MultiModalRoute:
 
 @dataclass
 class MultiModalPlanResult:
-    legs: List[RouteLeg]
+    legs: list[RouteLeg]
     total_duration_s: float
     found: bool
 

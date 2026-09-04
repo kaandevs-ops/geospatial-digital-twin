@@ -27,6 +27,7 @@ Kullanım::
     python3 scripts/perf_regression_gate.py                # kontrol et (CI modu)
     python3 scripts/perf_regression_gate.py --update-baseline  # baseline'ı güncelle
 """
+
 from __future__ import annotations
 
 import json
@@ -38,10 +39,12 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from harita.mesh_engine import MeshBuilder  # noqa: E402
-from harita.mesh_engine.lod import LODChainBuilder, LODLevel  # noqa: E402
 from harita.mesh_engine.batching import DrawCallEstimator  # noqa: E402
+from harita.mesh_engine.lod import LODChainBuilder, LODLevel  # noqa: E402
 
-BASELINE_PATH = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "perf_regression_baseline.json"
+BASELINE_PATH = (
+    Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "perf_regression_baseline.json"
+)
 
 # Roadmap M1.1 kabul kriteri: LOD0 -> LOD3 (en agresif seviye, şehir
 # geneli görünüm) üçgen sayısı en az %90 azalmalı.

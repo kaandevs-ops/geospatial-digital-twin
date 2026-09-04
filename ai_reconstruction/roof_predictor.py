@@ -33,8 +33,19 @@ class RoofPrediction:
 # building_type -> {RoofType: ağırlık}. İklim bölgesine göre çarpan
 # `_CLIMATE_MODIFIERS` ile uygulanır.
 _BASE_WEIGHTS: dict[str, dict[RoofType, float]] = {
-    "apartments": {RoofType.FLAT: 0.55, RoofType.HIP: 0.25, RoofType.GABLE: 0.15, RoofType.MODERN: 0.05},
-    "house": {RoofType.HIP: 0.35, RoofType.GABLE: 0.35, RoofType.PYRAMID: 0.15, RoofType.MANSARD: 0.10, RoofType.FLAT: 0.05},
+    "apartments": {
+        RoofType.FLAT: 0.55,
+        RoofType.HIP: 0.25,
+        RoofType.GABLE: 0.15,
+        RoofType.MODERN: 0.05,
+    },
+    "house": {
+        RoofType.HIP: 0.35,
+        RoofType.GABLE: 0.35,
+        RoofType.PYRAMID: 0.15,
+        RoofType.MANSARD: 0.10,
+        RoofType.FLAT: 0.05,
+    },
     "office": {RoofType.FLAT: 0.65, RoofType.MODERN: 0.25, RoofType.HIP: 0.10},
     "commercial": {RoofType.FLAT: 0.7, RoofType.MODERN: 0.2, RoofType.SAWTOOTH: 0.1},
     "industrial": {RoofType.INDUSTRIAL: 0.5, RoofType.SAWTOOTH: 0.3, RoofType.FLAT: 0.2},

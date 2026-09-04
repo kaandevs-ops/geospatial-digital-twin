@@ -78,7 +78,7 @@ class Ray:
     direction: Vec3
 
     @staticmethod
-    def create(origin: Vec3, direction: Vec3) -> "Ray":
+    def create(origin: Vec3, direction: Vec3) -> Ray:
         return Ray(origin, _normalize(direction))
 
     def point_at(self, t: float) -> Vec3:
@@ -131,7 +131,9 @@ class RotateGizmo:
     döndürülür (derece, saat yönünün tersi pozitif - sağ-el kuralı)."""
 
     @staticmethod
-    def axis_drag_angle_deg(gizmo_origin: Vec3, axis: str, ray_start: Ray, ray_current: Ray) -> float:
+    def axis_drag_angle_deg(
+        gizmo_origin: Vec3, axis: str, ray_start: Ray, ray_current: Ray
+    ) -> float:
         axis_dir = AXES[axis]
         p_start = RotateGizmo._plane_intersection(gizmo_origin, axis_dir, ray_start)
         p_current = RotateGizmo._plane_intersection(gizmo_origin, axis_dir, ray_current)
@@ -166,7 +168,10 @@ class ScaleGizmo:
 
     @staticmethod
     def axis_drag_factor(
-        gizmo_origin: Vec3, axis: str, ray_start: Ray, ray_current: Ray,
+        gizmo_origin: Vec3,
+        axis: str,
+        ray_start: Ray,
+        ray_current: Ray,
         min_factor: float = 0.01,
     ) -> float:
         axis_dir = AXES[axis]

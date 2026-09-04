@@ -26,11 +26,9 @@ yüklenir (bkz. `backends/base.py::_load_torch`); aksi halde
 from __future__ import annotations
 
 import json
-import time
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
-
-from dataclasses import asdict
 
 from ..config import TrainingConfig
 from ..dataset import ManifestDataset, dataset_summary, load_manifest, split_manifest
@@ -39,8 +37,8 @@ from .base import TrainingResult
 try:
     import torch
     import torch.nn as nn
-    from torch.utils.data import DataLoader, Dataset
     import torchvision
+    from torch.utils.data import DataLoader, Dataset
     from torchvision import transforms
     from torchvision.models import get_model
 
@@ -68,19 +66,27 @@ class _ScratchCNN(nn.Module):
     def __init__(self, n_roof_types: int) -> None:
         super().__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(3, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(inplace=True),
+            nn.Conv2d(3, 32, 3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
             nn.MaxPool2d(2),
-            nn.Conv2d(32, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(inplace=True),
+            nn.Conv2d(32, 64, 3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
             nn.MaxPool2d(2),
-            nn.Conv2d(64, 128, 3, padding=1), nn.BatchNorm2d(128), nn.ReLU(inplace=True),
+            nn.Conv2d(64, 128, 3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
             nn.MaxPool2d(2),
-            nn.Conv2d(128, 128, 3, padding=1), nn.BatchNorm2d(128), nn.ReLU(inplace=True),
+            nn.Conv2d(128, 128, 3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
             nn.AdaptiveAvgPool2d(1),
         )
         self.height_head = nn.Linear(128, 1)
         self.roof_head = nn.Linear(128, n_roof_types) if n_roof_types > 0 else None
 
-    def forward(self, x: "torch.Tensor") -> tuple["torch.Tensor", "torch.Tensor | None"]:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None]:
         feat = self.features(x).flatten(1)
         height = self.height_head(feat).squeeze(-1)
         roof_logits = self.roof_head(feat) if self.roof_head is not None else None
@@ -127,7 +133,7 @@ class _FinetuneModel(nn.Module):
             for p in module.parameters():
                 p.requires_grad = True
 
-    def forward(self, x: "torch.Tensor") -> tuple["torch.Tensor", "torch.Tensor | None"]:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None]:
         feat = self.backbone(x)
         if feat.ndim > 2:
             feat = torch.flatten(feat, 1)
@@ -169,7 +175,9 @@ def _make_model(config: TrainingConfig) -> nn.Module:
     if config.mode == "scratch":
         return _ScratchCNN(n_roof_types=n_roof)
     model = _FinetuneModel(
-        config.pretrained_backbone, n_roof_types=n_roof, freeze_backbone=config.freeze_backbone,
+        config.pretrained_backbone,
+        n_roof_types=n_roof,
+        freeze_backbone=config.freeze_backbone,
     )
     if not config.freeze_backbone:
         model.unfreeze_last_n_blocks(config.unfreeze_last_n_blocks)
@@ -186,15 +194,26 @@ class TorchTrainerBackend:
         rows = load_manifest(config.manifest_path)
         summary = dataset_summary(rows)
         train_rows, val_rows, _test_rows = split_manifest(
-            rows, config.val_split, config.test_split, seed=config.seed,
+            rows,
+            config.val_split,
+            config.test_split,
+            seed=config.seed,
         )
 
         train_ds = _TorchManifestDataset(
-            ManifestDataset(train_rows, config.images_root), config.image_size, config.augment,
+            ManifestDataset(train_rows, config.images_root),
+            config.image_size,
+            config.augment,
         )
-        val_ds = _TorchManifestDataset(
-            ManifestDataset(val_rows, config.images_root), config.image_size, augment=False,
-        ) if val_rows else None
+        val_ds = (
+            _TorchManifestDataset(
+                ManifestDataset(val_rows, config.images_root),
+                config.image_size,
+                augment=False,
+            )
+            if val_rows
+            else None
+        )
 
         train_loader = DataLoader(train_ds, batch_size=config.batch_size, shuffle=True)
         val_loader = DataLoader(val_ds, batch_size=config.batch_size) if val_ds else None
@@ -206,14 +225,18 @@ class TorchTrainerBackend:
             if model.roof_head is not None:
                 head_params += list(model.roof_head.parameters())
             backbone_params = [p for p in model.backbone.parameters() if p.requires_grad]
-            optimizer = torch.optim.AdamW([
-                {"params": head_params, "lr": config.learning_rate},
-                {"params": backbone_params, "lr": config.finetune_learning_rate},
-            ], weight_decay=config.weight_decay)
+            optimizer = torch.optim.AdamW(
+                [
+                    {"params": head_params, "lr": config.learning_rate},
+                    {"params": backbone_params, "lr": config.finetune_learning_rate},
+                ],
+                weight_decay=config.weight_decay,
+            )
         else:
             optimizer = torch.optim.AdamW(
                 [p for p in model.parameters() if p.requires_grad],
-                lr=config.learning_rate, weight_decay=config.weight_decay,
+                lr=config.learning_rate,
+                weight_decay=config.weight_decay,
             )
 
         height_loss_fn = nn.SmoothL1Loss()
@@ -286,7 +309,9 @@ class TorchTrainerBackend:
 
         checkpoint_path = str(out_dir / "model.pt")
         torch.save({"state_dict": model.state_dict(), "config": asdict(config)}, checkpoint_path)
-        (out_dir / "dataset_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False))
+        (out_dir / "dataset_summary.json").write_text(
+            json.dumps(summary, indent=2, ensure_ascii=False)
+        )
         (out_dir / "history.json").write_text(json.dumps(history, indent=2, ensure_ascii=False))
 
         onnx_path = None
@@ -295,8 +320,12 @@ class TorchTrainerBackend:
             _export_onnx(model, config, onnx_path, device)
 
         return TrainingResult(
-            backend=self.name, epochs_run=len(history), best_val_loss=best_val_loss,
-            checkpoint_path=checkpoint_path, onnx_path=onnx_path, history=history,
+            backend=self.name,
+            epochs_run=len(history),
+            best_val_loss=best_val_loss,
+            checkpoint_path=checkpoint_path,
+            onnx_path=onnx_path,
+            history=history,
         )
 
     def load_and_predict(self, model_path: str, images: list[Any]) -> list[dict]:
@@ -306,10 +335,13 @@ class TorchTrainerBackend:
         model.load_state_dict(checkpoint["state_dict"])
         model.eval()
 
-        tf_ = transforms.Compose([
-            transforms.Resize(config.image_size), transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
+        tf_ = transforms.Compose(
+            [
+                transforms.Resize(config.image_size),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        )
         results = []
         with torch.no_grad():
             for img in images:
@@ -347,7 +379,8 @@ def _export_onnx(model: nn.Module, config: TrainingConfig, onnx_path: str, devic
 
     wrapped = _OnnxExportWrapper(model)
     export_kwargs: dict[str, Any] = dict(
-        input_names=["image"], output_names=output_names,
+        input_names=["image"],
+        output_names=output_names,
         dynamic_axes={"image": {0: "batch"}, **{n: {0: "batch"} for n in output_names}},
         opset_version=config.onnx_opset,
     )

@@ -11,10 +11,10 @@ varyasyonu (her üretimde farklı plan).
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from ..core_engine.geometry_engine import Polygon
 from ..building_reconstruction.room_generator import Room, RoomGenerator, RoomType
+from ..core_engine.geometry_engine import Polygon
 
 
 @dataclass(slots=True)
@@ -43,11 +43,14 @@ class AIInteriorLayout:
     ) -> InteriorLayoutVariant:
         used_seed = seed if seed is not None else self._rng.randrange(1_000_000)
         rooms = RoomGenerator.generate(
-            floor_polygon, building_type=building_type,
-            min_room_size=min_room_size, seed=used_seed,
+            floor_polygon,
+            building_type=building_type,
+            min_room_size=min_room_size,
+            seed=used_seed,
         )
         return InteriorLayoutVariant(
-            seed=used_seed, rooms=rooms,
+            seed=used_seed,
+            rooms=rooms,
             diversity_score=self._diversity(rooms),
         )
 
@@ -64,9 +67,14 @@ class AIInteriorLayout:
         variants = []
         for _ in range(n_variants):
             seed = self._rng.randrange(1_000_000)
-            variants.append(self.generate_variant(
-                floor_polygon, building_type, min_room_size, seed=seed,
-            ))
+            variants.append(
+                self.generate_variant(
+                    floor_polygon,
+                    building_type,
+                    min_room_size,
+                    seed=seed,
+                )
+            )
         return variants
 
     def best_variant(self, variants: list[InteriorLayoutVariant]) -> InteriorLayoutVariant:
@@ -85,6 +93,7 @@ class AIInteriorLayout:
             counts[r.room_type] = counts.get(r.room_type, 0) + 1
         n = len(rooms)
         import math
+
         entropy = -sum((c / n) * math.log2(c / n) for c in counts.values())
         max_entropy = math.log2(len(RoomType)) or 1.0
         return min(1.0, entropy / max_entropy)

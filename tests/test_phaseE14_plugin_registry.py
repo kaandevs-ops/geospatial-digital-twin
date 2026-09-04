@@ -19,7 +19,6 @@ Kabul kriteri (bu test dosyasının kanıtladığı):
       aynıdır - regresyon yok (mevcut imzalama testleri bozulmaz).
 """
 
-import os
 import sys
 import textwrap
 from pathlib import Path
@@ -27,7 +26,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
-
 from harita.extensibility.plugin_registry import (
     IncompatiblePluginError,
     PluginVersionRegistry,
@@ -36,7 +34,7 @@ from harita.extensibility.plugin_registry import (
     VersionRange,
     parse_version,
 )
-from harita.extensibility.plugin_system import Plugin, PluginManager, PluginMeta
+from harita.extensibility.plugin_system import PluginManager, PluginMeta
 
 
 class TestVersionParsing:

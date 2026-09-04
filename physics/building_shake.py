@@ -40,8 +40,8 @@ import hashlib
 import math
 from dataclasses import dataclass
 
-from . import GRAVITY, GroundShakeForceModel
 from ..hazard_data.risk_scoring import BasicBuildingType
+from . import GRAVITY, GroundShakeForceModel
 
 __all__ = [
     "StructureShakeProfile",
@@ -58,6 +58,7 @@ __all__ = [
 # ============================================================================ #
 # 3.4 — Yapısal tip farkı (kategorik frekans/sönüm profili)
 # ============================================================================ #
+
 
 @dataclass(frozen=True, slots=True)
 class StructureShakeProfile:
@@ -81,25 +82,30 @@ class StructureShakeProfile:
 #: SKORLAR ile aynı disiplin — kesin mühendislik değeri değildir).
 STRUCTURE_SHAKE_PROFILES: dict[BasicBuildingType, StructureShakeProfile] = {
     BasicBuildingType.YIGMA: StructureShakeProfile(
-        natural_frequency_hz=4.0, damping_ratio=0.03,
+        natural_frequency_hz=4.0,
+        damping_ratio=0.03,
         label="Yığma — yüksek frekans, düşük sönüm (gevrek, sert davranış)",
     ),
     BasicBuildingType.BETONARME_CERCEVE: StructureShakeProfile(
-        natural_frequency_hz=2.2, damping_ratio=0.05,
+        natural_frequency_hz=2.2,
+        damping_ratio=0.05,
         label="Betonarme çerçeve — orta frekans/sönüm",
     ),
     BasicBuildingType.BETONARME_PERDELI: StructureShakeProfile(
-        natural_frequency_hz=2.8, damping_ratio=0.07,
+        natural_frequency_hz=2.8,
+        damping_ratio=0.07,
         label="Betonarme perdeli — perde duvar rijitliği nedeniyle "
-              "çerçeveye göre biraz daha yüksek frekans/sönüm",
+        "çerçeveye göre biraz daha yüksek frekans/sönüm",
     ),
     BasicBuildingType.CELIK_CERCEVE: StructureShakeProfile(
-        natural_frequency_hz=1.4, damping_ratio=0.04,
+        natural_frequency_hz=1.4,
+        damping_ratio=0.04,
         label="Çelik çerçeve — düşük frekans (esnek), sünek davranış "
-              "nedeniyle nispeten daha yüksek enerji sönümü",
+        "nedeniyle nispeten daha yüksek enerji sönümü",
     ),
     BasicBuildingType.AHSAP: StructureShakeProfile(
-        natural_frequency_hz=3.2, damping_ratio=0.06,
+        natural_frequency_hz=3.2,
+        damping_ratio=0.06,
         label="Ahşap — hafif, orta-yüksek frekans/sönüm",
     ),
 }
@@ -152,6 +158,7 @@ def structure_type_for_usage(building_type: str | None) -> BasicBuildingType | N
 # 3.1 / 3.2 — Bina kök transform + kat-bazlı genlik
 # ============================================================================ #
 
+
 @dataclass(frozen=True, slots=True)
 class BuildingShakeState:
     """Render'ın vertex-shader'da doğrudan uygulayabileceği, bir bina/kat
@@ -160,8 +167,8 @@ class BuildingShakeState:
     building_id: str
     floor_index: int
     horizontal_offset_m: tuple[float, float]  # (x, y) — bina kökünden yatay kayma
-    rotation_rad: float                        # basit rijit eğim (taban etrafında)
-    intensity: float                            # 0..1 normalize şiddet (görsel/ses/panik ortak girdisi)
+    rotation_rad: float  # basit rijit eğim (taban etrafında)
+    intensity: float  # 0..1 normalize şiddet (görsel/ses/panik ortak girdisi)
 
 
 @dataclass
@@ -240,8 +247,11 @@ class BuildingShakeSimulator:
         # 0..1 normalize şiddet: debris/panik/ses katmanlarının ortak
         # girdisi. `debris_threshold_g`'yi 1.0'a eşleyen basit bir oran.
         local_peak_accel_g = abs(ground_accel) / GRAVITY * amplification * floor_multiplier
-        intensity = min(local_peak_accel_g / max(self.debris_threshold_g, 1e-6) * 0.5, 1.0) \
-            if self.debris_threshold_g > 0 else 0.0
+        intensity = (
+            min(local_peak_accel_g / max(self.debris_threshold_g, 1e-6) * 0.5, 1.0)
+            if self.debris_threshold_g > 0
+            else 0.0
+        )
 
         return BuildingShakeState(
             building_id=self.building_id,
@@ -267,6 +277,7 @@ class BuildingShakeSimulator:
 # ============================================================================ #
 # 3.3 — Sallanma -> ajan panik/rota geri beslemesi
 # ============================================================================ #
+
 
 def panic_probability_from_intensity(intensity: float) -> float:
     """Roadmap 3.3: sallanma şiddeti arttıkça panik olasılığı artar.
@@ -303,13 +314,14 @@ def apply_shake_panic(agents: list, intensity: float, *, seed: int = 0) -> int:
     if probability <= 0.0:
         return 0
     from ..mobility.crowd_simulation import AgentBehavior
+
     newly_panicked = 0
     for agent in agents:
         if getattr(agent, "evacuated", False):
             continue
         if agent.behavior == AgentBehavior.PANIC:
             continue
-        digest = hashlib.sha256(f"shake:{seed}:{agent.agent_id}".encode("utf-8")).digest()
+        digest = hashlib.sha256(f"shake:{seed}:{agent.agent_id}".encode()).digest()
         roll = digest[0] / 255.0
         if roll < probability:
             agent.behavior = AgentBehavior.PANIC
@@ -320,6 +332,7 @@ def apply_shake_panic(agents: list, intensity: float, *, seed: int = 0) -> int:
 # ============================================================================ #
 # 3.5 — Enkaz/toz parçacık efekti
 # ============================================================================ #
+
 
 @dataclass(frozen=True, slots=True)
 class DebrisParticleState:
@@ -333,7 +346,10 @@ class DebrisParticleState:
 
 
 def debris_particle_state(
-    intensity: float, *, glass_threshold: float = 0.35, dust_threshold: float = 0.15,
+    intensity: float,
+    *,
+    glass_threshold: float = 0.35,
+    dust_threshold: float = 0.15,
 ) -> DebrisParticleState:
     """Roadmap 3.5: "Sallanma şiddeti eşiği aşıldığında binadan küçük
     döküntü parçacıkları (cam kırığı, sıva tozu) düşen basit parçacık
@@ -347,6 +363,10 @@ def debris_particle_state(
         return DebrisParticleState(emit=False, particle_type="", emission_rate_per_s=0.0)
     if intensity < glass_threshold:
         rate = (intensity - dust_threshold) / max(glass_threshold - dust_threshold, 1e-6) * 20.0
-        return DebrisParticleState(emit=True, particle_type="siva_tozu", emission_rate_per_s=round(rate, 2))
+        return DebrisParticleState(
+            emit=True, particle_type="siva_tozu", emission_rate_per_s=round(rate, 2)
+        )
     rate = 20.0 + (intensity - glass_threshold) / max(1.0 - glass_threshold, 1e-6) * 40.0
-    return DebrisParticleState(emit=True, particle_type="cam_kirigi", emission_rate_per_s=round(rate, 2))
+    return DebrisParticleState(
+        emit=True, particle_type="cam_kirigi", emission_rate_per_s=round(rate, 2)
+    )

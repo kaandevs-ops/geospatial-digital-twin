@@ -13,6 +13,7 @@ otomatik yapamaz (bulduğu adları yeniden öneklemez), bu yüzden burada
 sırasında bulunan ve düzeltilen bir paketleme hatasının çözümüdür — bkz.
 `ROADMAP_V2.md` Faz 22 notları ve `DEVOPS.md`.
 """
+
 from __future__ import annotations
 
 import os
@@ -22,9 +23,14 @@ from setuptools import find_packages, setup
 _REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 _EXCLUDE = (
-    "tests", "tests.*", "*.tests", "*.tests.*",
-    "scripts", "scripts.*",
-    "docs", "docs.*",
+    "tests",
+    "tests.*",
+    "*.tests",
+    "*.tests.*",
+    "scripts",
+    "scripts.*",
+    "docs",
+    "docs.*",
 )
 
 _subpackages = find_packages(where=_REPO_ROOT, exclude=_EXCLUDE)

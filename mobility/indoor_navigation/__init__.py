@@ -176,8 +176,11 @@ class IndoorNavigationBuilder:
     """Roadmap: "Katlar arası / Merdiven / Asansör" birleştirme mantığı."""
 
     @staticmethod
-    def build(floors: list[Floor], floor_height: float = FLOOR_HEIGHT_DEFAULT,
-              hazard_rules: "HazardScenarioRules | None" = None) -> BuildingNavGraph:
+    def build(
+        floors: list[Floor],
+        floor_height: float = FLOOR_HEIGHT_DEFAULT,
+        hazard_rules: HazardScenarioRules | None = None,
+    ) -> BuildingNavGraph:
         floors_sorted = sorted(floors, key=lambda f: f.floor_index)
         combined = NavGraph()
 
@@ -193,8 +196,9 @@ class IndoorNavigationBuilder:
             for room in floor.rooms:
                 for nb_id in room.neighbors:
                     if fg.has_node(nb_id):
-                        combined.add_edge((floor.floor_index, room.room_id),
-                                           (floor.floor_index, nb_id))
+                        combined.add_edge(
+                            (floor.floor_index, room.room_id), (floor.floor_index, nb_id)
+                        )
 
         # 2) merdiven/asansör bağlantı noktalarını ardışık katlar arasında
         #    en yakın odaya bağla (dikey geçiş kenarı)
@@ -207,8 +211,10 @@ class IndoorNavigationBuilder:
                 if room_lower is None or room_upper is None:
                     continue
                 vertical_cost = floor_height * STAIR_COST_MULTIPLIER
-                stair_edge = ((lower.floor_index, room_lower.room_id),
-                              (upper.floor_index, room_upper.room_id))
+                stair_edge = (
+                    (lower.floor_index, room_lower.room_id),
+                    (upper.floor_index, room_upper.room_id),
+                )
                 combined.add_edge(stair_edge[0], stair_edge[1], cost=vertical_cost)
                 stair_edges.append(stair_edge)
 
@@ -218,28 +224,37 @@ class IndoorNavigationBuilder:
                 if room_lower is None or room_upper is None:
                     continue
                 vertical_cost = floor_height * ELEVATOR_COST_MULTIPLIER
-                edge = ((lower.floor_index, room_lower.room_id),
-                        (upper.floor_index, room_upper.room_id))
+                edge = (
+                    (lower.floor_index, room_lower.room_id),
+                    (upper.floor_index, room_upper.room_id),
+                )
                 combined.add_edge(edge[0], edge[1], cost=vertical_cost)
                 elevator_edges.append(edge)
 
-        building_graph = BuildingNavGraph(graph=combined, floor_count=len(floors_sorted),
-                                           floor_height=floor_height, elevator_edges=elevator_edges,
-                                           stair_edges=stair_edges)
+        building_graph = BuildingNavGraph(
+            graph=combined,
+            floor_count=len(floors_sorted),
+            floor_height=floor_height,
+            elevator_edges=elevator_edges,
+            stair_edges=stair_edges,
+        )
         if hazard_rules is not None and hazard_rules.disable_elevators:
             building_graph.disable_elevators()
         return building_graph
 
     @staticmethod
-    def nearest_node(building_graph: BuildingNavGraph, floor_index: int,
-                      position: Point2D) -> FloorNodeId | None:
+    def nearest_node(
+        building_graph: BuildingNavGraph, floor_index: int, position: Point2D
+    ) -> FloorNodeId | None:
         """Verilen kattaki en yakın oda düğümünü bulur (ör. bir agent'ın
         başlangıç konumundan en yakın navigasyon düğümüne 'snap' etmesi
         için)."""
         candidates = [n for n in building_graph.graph.positions if n[0] == floor_index]
         if not candidates:
             return None
-        return min(candidates, key=lambda n: building_graph.graph.positions[n].distance_to(position))
+        return min(
+            candidates, key=lambda n: building_graph.graph.positions[n].distance_to(position)
+        )
 
     @staticmethod
     def z_of_floor(building_graph: BuildingNavGraph, floor_index: int) -> float:

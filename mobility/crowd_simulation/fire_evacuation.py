@@ -22,8 +22,8 @@ tekrar tekrar çağıran bir sarmalayıcıdır.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Hashable
 from dataclasses import dataclass, field
-from typing import Callable, Hashable
 
 from ...hazard_data.fire_spread import FireAwareRouter, FireSpreadModel
 from ..pathfinding import NavGraph
@@ -35,6 +35,7 @@ NodeId = Hashable
 # ============================================================================ #
 # Periyodik duman-kaçınma rota yenilemesi (madde 2 + 3)
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class PeriodicFireRerouter:
@@ -78,7 +79,8 @@ class PeriodicFireRerouter:
         self.router.apply(self.fire_model)
         previous_goals = {a.agent_id: a.goal for a in agents if not a.evacuated}
         EvacuationSimulator.assign_nearest_exit_paths(
-            agents, self.router.graph, self.exits, self.node_of_agent)
+            agents, self.router.graph, self.exits, self.node_of_agent
+        )
         for agent in agents:
             if agent.evacuated:
                 continue
@@ -93,6 +95,7 @@ class PeriodicFireRerouter:
 # Çıkış performans karşılaştırması (madde 4)
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class ExitScenarioResult:
     """Tek bir kapalı-çıkış varsayımının sonucu - roadmap'in
@@ -101,7 +104,7 @@ class ExitScenarioResult:
     label: str
     closed_exit_edges: tuple
     result: EvacuationResult
-    pct_change_vs_baseline: float | None   # baseline için 0.0, hesaplanamıyorsa None
+    pct_change_vs_baseline: float | None  # baseline için 0.0, hesaplanamıyorsa None
 
 
 @dataclass(slots=True)
@@ -124,10 +127,13 @@ class FireEvacuationComparator:
 
     @staticmethod
     def compare(
-        scenario_factory: Callable[[], tuple[list[Agent], NavGraph, list[NodeId],
-                                              Callable[[Agent], NodeId]]],
+        scenario_factory: Callable[
+            [], tuple[list[Agent], NavGraph, list[NodeId], Callable[[Agent], NodeId]]
+        ],
         closure_scenarios: list[tuple[str, list[tuple[NodeId, NodeId]], list[NodeId]]],
-        *, dt: float = 0.1, max_time_s: float = 600.0,
+        *,
+        dt: float = 0.1,
+        max_time_s: float = 600.0,
     ) -> FireEvacuationComparisonReport:
         """`scenario_factory()` her çağrıda **taze** `(agents, graph, exits,
         node_of_agent)` üretmelidir (graf/agent durumu her koşumda
@@ -141,10 +147,13 @@ class FireEvacuationComparator:
 
         base_agents, base_graph, base_exits, base_node_of_agent = scenario_factory()
         EvacuationSimulator.assign_nearest_exit_paths(
-            base_agents, base_graph, base_exits, base_node_of_agent)
+            base_agents, base_graph, base_exits, base_node_of_agent
+        )
         baseline_result = EvacuationSimulator().run(base_agents, dt=dt, max_time_s=max_time_s)
         baseline = ExitScenarioResult(
-            label="baseline", closed_exit_edges=(), result=baseline_result,
+            label="baseline",
+            closed_exit_edges=(),
+            result=baseline_result,
             pct_change_vs_baseline=0.0,
         )
 
@@ -152,19 +161,25 @@ class FireEvacuationComparator:
         for label, closed_edges, remaining_exits in closure_scenarios:
             agents, graph, _exits, node_of_agent = scenario_factory()
             close_exit_and_seek_alternative(
-                agents, graph, closed_edges, remaining_exits, node_of_agent)
+                agents, graph, closed_edges, remaining_exits, node_of_agent
+            )
             result = EvacuationSimulator().run(agents, dt=dt, max_time_s=max_time_s)
 
             pct_change = None
             if baseline_result.evacuation_time_s > 0:
                 pct_change = (
                     (result.evacuation_time_s - baseline_result.evacuation_time_s)
-                    / baseline_result.evacuation_time_s * 100.0
+                    / baseline_result.evacuation_time_s
+                    * 100.0
                 )
-            scenarios_out.append(ExitScenarioResult(
-                label=label, closed_exit_edges=tuple(closed_edges),
-                result=result, pct_change_vs_baseline=pct_change,
-            ))
+            scenarios_out.append(
+                ExitScenarioResult(
+                    label=label,
+                    closed_exit_edges=tuple(closed_edges),
+                    result=result,
+                    pct_change_vs_baseline=pct_change,
+                )
+            )
 
         return FireEvacuationComparisonReport(baseline=baseline, scenarios=scenarios_out)
 

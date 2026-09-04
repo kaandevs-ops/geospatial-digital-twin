@@ -22,9 +22,9 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
-from ..extensibility.websocket_api import WSConnection, WebSocketRouter
+from ..extensibility.websocket_api import WebSocketRouter, WSConnection
 
 
 def scenario_topic(project_id: str, result_id: str) -> str:
@@ -45,7 +45,7 @@ class PlaybackState:
     playing: bool = False
     speed_multiplier: float = 1.0
     elapsed_s: float = 0.0
-    updated_by: Optional[str] = None
+    updated_by: str | None = None
     updated_at: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict[str, Any]:
@@ -115,7 +115,7 @@ class ScenarioWatchHub:
         self._router.register("scenario_watch.join", _on_join)
         self._router.register("scenario_watch.sync", _on_sync)
 
-    def current_state(self, project_id: str, result_id: str) -> Optional[dict[str, Any]]:
+    def current_state(self, project_id: str, result_id: str) -> dict[str, Any] | None:
         key = scenario_topic(project_id, result_id)
         state = self._states.get(key)
         return state.to_dict() if state is not None else None

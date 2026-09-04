@@ -31,7 +31,8 @@ def _lerp_vertex(a: Vertex3D, b: Vertex3D, t: float) -> Vertex3D:
         z=a.z + (b.z - a.z) * t,
         uv=(
             (a.uv[0] + (b.uv[0] - a.uv[0]) * t, a.uv[1] + (b.uv[1] - a.uv[1]) * t)
-            if a.uv and b.uv else None
+            if a.uv and b.uv
+            else None
         ),
     )
 
@@ -92,7 +93,9 @@ def _append_polygon_as_fan(mesh: Mesh3D, poly: list[Vertex3D]) -> None:
         mesh.triangles.append((base, base + i, base + i + 1))
 
 
-def _clip_triangle(verts: list[Vertex3D], dists: list[float]) -> tuple[list[Vertex3D], list[Vertex3D]]:
+def _clip_triangle(
+    verts: list[Vertex3D], dists: list[float]
+) -> tuple[list[Vertex3D], list[Vertex3D]]:
     """Sutherland-Hodgman tarzı tek-üçgen clip. `keep` (d>=0) ve `away` (d<0)
     poligonlarını (fan-triangulate edilebilir sıralı köşe listesi) döner."""
     keep_poly: list[Vertex3D] = []

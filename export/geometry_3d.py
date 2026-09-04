@@ -23,7 +23,7 @@ from __future__ import annotations
 import struct
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..mesh_engine import Mesh3D, Vertex3D
 
@@ -52,17 +52,17 @@ class ExportResult:
 # OBJ (+ MTL)
 # ======================================================================== #
 
+
 class OBJExporter:
     """Wavefront OBJ exporter. Normal/UV varsa yazar, materyal varsa .mtl üretir."""
 
     @staticmethod
-    def export(mesh: Mesh3D, path: str,
-               material: Optional["PBRMaterial"] = None) -> ExportResult:
+    def export(mesh: Mesh3D, path: str, material: PBRMaterial | None = None) -> ExportResult:
         path_obj = Path(path)
         has_normals = all(v.normal is not None for v in mesh.vertices) and len(mesh.vertices) > 0
         has_uvs = all(v.uv is not None for v in mesh.vertices) and len(mesh.vertices) > 0
 
-        lines: list[str] = [f"# Exported by harita.export.OBJExporter", f"o {mesh.name}"]
+        lines: list[str] = ["# Exported by harita.export.OBJExporter", f"o {mesh.name}"]
 
         mtl_name = None
         if material is not None:
@@ -79,7 +79,8 @@ class OBJExporter:
             for v in mesh.vertices:
                 lines.append(f"vn {v.normal[0]:.6f} {v.normal[1]:.6f} {v.normal[2]:.6f}")
 
-        for (i, j, k) in mesh.triangles:
+        for i, j, k in mesh.triangles:
+
             def _tok(idx: int) -> str:
                 obj_idx = idx + 1  # OBJ 1-indexlidir
                 if has_uvs and has_normals:
@@ -89,6 +90,7 @@ class OBJExporter:
                 if has_normals:
                     return f"{obj_idx}//{obj_idx}"
                 return f"{obj_idx}"
+
             lines.append(f"f {_tok(i)} {_tok(j)} {_tok(k)}")
 
         content = "\n".join(lines) + "\n"
@@ -97,11 +99,16 @@ class OBJExporter:
         if material is not None and mtl_name is not None:
             OBJExporter._write_mtl(path_obj.parent / mtl_name, material)
 
-        return ExportResult(str(path_obj), "obj", len(content.encode("utf-8")),
-                             mesh.vertex_count(), mesh.triangle_count())
+        return ExportResult(
+            str(path_obj),
+            "obj",
+            len(content.encode("utf-8")),
+            mesh.vertex_count(),
+            mesh.triangle_count(),
+        )
 
     @staticmethod
-    def _write_mtl(path: Path, material: "PBRMaterial") -> None:
+    def _write_mtl(path: Path, material: PBRMaterial) -> None:
         albedo = getattr(material, "albedo", (0.8, 0.8, 0.8))
         metallic = getattr(material, "metallic", 0.0)
         roughness = getattr(material, "roughness", 0.5)
@@ -121,6 +128,7 @@ class OBJExporter:
 # ======================================================================== #
 # STL (ASCII ve Binary)
 # ======================================================================== #
+
 
 class STLExporter:
     """STL exporter. `binary=True` (varsayılan) ile 80-byte header + binary
@@ -147,7 +155,7 @@ class STLExporter:
     @staticmethod
     def _export_ascii(mesh: Mesh3D, path: str) -> ExportResult:
         lines = [f"solid {mesh.name}"]
-        for (i, j, k) in mesh.triangles:
+        for i, j, k in mesh.triangles:
             a, b, c = mesh.vertices[i], mesh.vertices[j], mesh.vertices[k]
             nx, ny, nz = STLExporter._face_normal(a, b, c)
             lines.append(f"  facet normal {nx:.6e} {ny:.6e} {nz:.6e}")
@@ -159,18 +167,23 @@ class STLExporter:
         lines.append(f"endsolid {mesh.name}")
         content = "\n".join(lines) + "\n"
         Path(path).write_text(content, encoding="utf-8")
-        return ExportResult(path, "stl-ascii", len(content.encode("utf-8")),
-                             mesh.vertex_count(), mesh.triangle_count())
+        return ExportResult(
+            path,
+            "stl-ascii",
+            len(content.encode("utf-8")),
+            mesh.vertex_count(),
+            mesh.triangle_count(),
+        )
 
     @staticmethod
     def _export_binary(mesh: Mesh3D, path: str) -> ExportResult:
-        header = (f"Exported by harita.export.STLExporter: {mesh.name}").encode("utf-8")
+        header = (f"Exported by harita.export.STLExporter: {mesh.name}").encode()
         header = header[:80].ljust(80, b"\x00")
         tri_count = mesh.triangle_count()
         buf = bytearray()
         buf += header
         buf += struct.pack("<I", tri_count)
-        for (i, j, k) in mesh.triangles:
+        for i, j, k in mesh.triangles:
             a, b, c = mesh.vertices[i], mesh.vertices[j], mesh.vertices[k]
             nx, ny, nz = STLExporter._face_normal(a, b, c)
             buf += struct.pack("<3f", nx, ny, nz)
@@ -179,13 +192,15 @@ class STLExporter:
             buf += struct.pack("<3f", c.x, c.y, c.z)
             buf += struct.pack("<H", 0)  # attribute byte count
         Path(path).write_bytes(bytes(buf))
-        return ExportResult(path, "stl-binary", len(buf),
-                             mesh.vertex_count(), mesh.triangle_count())
+        return ExportResult(
+            path, "stl-binary", len(buf), mesh.vertex_count(), mesh.triangle_count()
+        )
 
 
 # ======================================================================== #
 # PLY (ASCII)
 # ======================================================================== #
+
 
 class PLYExporter:
     """Stanford PLY (ASCII) exporter. Normal/UV varsa vertex özelliği olarak yazar."""
@@ -222,18 +237,20 @@ class PLYExporter:
             if has_uvs:
                 row += [f"{v.uv[0]:.6f}", f"{v.uv[1]:.6f}"]
             body.append(" ".join(row))
-        for (i, j, k) in mesh.triangles:
+        for i, j, k in mesh.triangles:
             body.append(f"3 {i} {j} {k}")
 
         content = "\n".join(header + body) + "\n"
         Path(path).write_text(content, encoding="utf-8")
-        return ExportResult(path, "ply", len(content.encode("utf-8")),
-                             mesh.vertex_count(), mesh.triangle_count())
+        return ExportResult(
+            path, "ply", len(content.encode("utf-8")), mesh.vertex_count(), mesh.triangle_count()
+        )
 
 
 # ======================================================================== #
 # GLTF / GLB
 # ======================================================================== #
+
 
 class GLTFExporter:
     """glTF 2.0 exporter. `export_gltf` ayrık JSON+.bin çifti,
@@ -243,7 +260,6 @@ class GLTFExporter:
 
     @staticmethod
     def _build_buffers(mesh: Mesh3D) -> tuple[bytes, dict]:
-        import json as _json
 
         pos_bytes = bytearray()
         for v in mesh.vertices:
@@ -281,10 +297,14 @@ class GLTFExporter:
         def _add_view(data: bytearray, target: int) -> int:
             offset = len(blob)
             blob.extend(_pad(bytearray(data)))
-            buffer_views.append({
-                "buffer": 0, "byteOffset": offset, "byteLength": len(data),
-                "target": target,
-            })
+            buffer_views.append(
+                {
+                    "buffer": 0,
+                    "byteOffset": offset,
+                    "byteLength": len(data),
+                    "target": target,
+                }
+            )
             return len(buffer_views) - 1
 
         ARRAY_BUFFER = 34962
@@ -294,34 +314,51 @@ class GLTFExporter:
         xs = [v.x for v in mesh.vertices] or [0.0]
         ys = [v.y for v in mesh.vertices] or [0.0]
         zs = [v.z for v in mesh.vertices] or [0.0]
-        accessors.append({
-            "bufferView": pos_view, "componentType": 5126, "count": mesh.vertex_count(),
-            "type": "VEC3", "min": [min(xs), min(ys), min(zs)], "max": [max(xs), max(ys), max(zs)],
-        })
+        accessors.append(
+            {
+                "bufferView": pos_view,
+                "componentType": 5126,
+                "count": mesh.vertex_count(),
+                "type": "VEC3",
+                "min": [min(xs), min(ys), min(zs)],
+                "max": [max(xs), max(ys), max(zs)],
+            }
+        )
         attributes = {"POSITION": 0}
 
         if has_normals:
             nrm_view = _add_view(nrm_bytes, ARRAY_BUFFER)
-            accessors.append({
-                "bufferView": nrm_view, "componentType": 5126,
-                "count": mesh.vertex_count(), "type": "VEC3",
-            })
+            accessors.append(
+                {
+                    "bufferView": nrm_view,
+                    "componentType": 5126,
+                    "count": mesh.vertex_count(),
+                    "type": "VEC3",
+                }
+            )
             attributes["NORMAL"] = len(accessors) - 1
 
         if has_uvs:
             uv_view = _add_view(uv_bytes, ARRAY_BUFFER)
-            accessors.append({
-                "bufferView": uv_view, "componentType": 5126,
-                "count": mesh.vertex_count(), "type": "VEC2",
-            })
+            accessors.append(
+                {
+                    "bufferView": uv_view,
+                    "componentType": 5126,
+                    "count": mesh.vertex_count(),
+                    "type": "VEC2",
+                }
+            )
             attributes["TEXCOORD_0"] = len(accessors) - 1
 
         idx_view = _add_view(idx_bytes, ELEMENT_ARRAY_BUFFER)
-        accessors.append({
-            "bufferView": idx_view,
-            "componentType": 5125 if use_uint32 else 5123,
-            "count": mesh.triangle_count() * 3, "type": "SCALAR",
-        })
+        accessors.append(
+            {
+                "bufferView": idx_view,
+                "componentType": 5125 if use_uint32 else 5123,
+                "count": mesh.triangle_count() * 3,
+                "type": "SCALAR",
+            }
+        )
         indices_accessor = len(accessors) - 1
 
         gltf = {
@@ -329,14 +366,18 @@ class GLTFExporter:
             "scene": 0,
             "scenes": [{"nodes": [0]}],
             "nodes": [{"mesh": 0, "name": mesh.name}],
-            "meshes": [{
-                "name": mesh.name,
-                "primitives": [{
-                    "attributes": attributes,
-                    "indices": indices_accessor,
-                    "mode": 4,  # TRIANGLES
-                }],
-            }],
+            "meshes": [
+                {
+                    "name": mesh.name,
+                    "primitives": [
+                        {
+                            "attributes": attributes,
+                            "indices": indices_accessor,
+                            "mode": 4,  # TRIANGLES
+                        }
+                    ],
+                }
+            ],
             "buffers": [{"byteLength": len(blob)}],
             "bufferViews": buffer_views,
             "accessors": accessors,
@@ -345,7 +386,6 @@ class GLTFExporter:
 
     @staticmethod
     def export_gltf(mesh: Mesh3D, path: str) -> ExportResult:
-        import base64
         import json as _json
 
         blob, gltf = GLTFExporter._build_buffers(mesh)
@@ -356,8 +396,9 @@ class GLTFExporter:
         content = _json.dumps(gltf, indent=2)
         path_gltf.write_text(content, encoding="utf-8")
         total = len(content.encode("utf-8")) + len(blob)
-        return ExportResult(str(path_gltf), "gltf", total,
-                             mesh.vertex_count(), mesh.triangle_count())
+        return ExportResult(
+            str(path_gltf), "gltf", total, mesh.vertex_count(), mesh.triangle_count()
+        )
 
     @staticmethod
     def export_glb(mesh: Mesh3D, path: str) -> ExportResult:
@@ -371,14 +412,13 @@ class GLTFExporter:
             blob += b"\x00"
 
         json_chunk = struct.pack("<II", len(json_bytes), 0x4E4F534A) + json_bytes  # 'JSON'
-        bin_chunk = struct.pack("<II", len(blob), 0x004E4942) + blob                # 'BIN\0'
+        bin_chunk = struct.pack("<II", len(blob), 0x004E4942) + blob  # 'BIN\0'
         total_length = 12 + len(json_chunk) + len(bin_chunk)
         header = struct.pack("<III", 0x46546C67, 2, total_length)  # magic 'glTF', version 2
 
         data = header + json_chunk + bin_chunk
         Path(path).write_bytes(data)
-        return ExportResult(path, "glb", len(data),
-                             mesh.vertex_count(), mesh.triangle_count())
+        return ExportResult(path, "glb", len(data), mesh.vertex_count(), mesh.triangle_count())
 
 
 class SceneGLTFExporter:
@@ -417,7 +457,7 @@ class SceneGLTFExporter:
     """
 
     @staticmethod
-    def export_glb(scene: "Any", path: str) -> ExportResult:
+    def export_glb(scene: Any, path: str) -> ExportResult:
         import json as _json
 
         nodes_with_geometry = [n for n in scene.nodes if n.mesh.vertices and n.mesh.triangles]
@@ -441,9 +481,14 @@ class SceneGLTFExporter:
             while len(padded) % 4 != 0:
                 padded += b"\x00"
             blob.extend(padded)
-            buffer_views.append({
-                "buffer": 0, "byteOffset": offset, "byteLength": len(data), "target": target,
-            })
+            buffer_views.append(
+                {
+                    "buffer": 0,
+                    "byteOffset": offset,
+                    "byteLength": len(data),
+                    "target": target,
+                }
+            )
             return len(buffer_views) - 1
 
         ARRAY_BUFFER, ELEMENT_ARRAY_BUFFER = 34962, 34963
@@ -474,61 +519,85 @@ class SceneGLTFExporter:
             xs = [v.x for v in mesh.vertices] or [0.0]
             ys = [v.y for v in mesh.vertices] or [0.0]
             zs = [v.z for v in mesh.vertices] or [0.0]
-            accessors.append({
-                "bufferView": pos_view, "componentType": 5126, "count": mesh.vertex_count(),
-                "type": "VEC3", "min": [min(xs), min(ys), min(zs)], "max": [max(xs), max(ys), max(zs)],
-            })
+            accessors.append(
+                {
+                    "bufferView": pos_view,
+                    "componentType": 5126,
+                    "count": mesh.vertex_count(),
+                    "type": "VEC3",
+                    "min": [min(xs), min(ys), min(zs)],
+                    "max": [max(xs), max(ys), max(zs)],
+                }
+            )
             attributes = {"POSITION": len(accessors) - 1}
 
             if has_normals:
                 nrm_view = _add_view(bytes(nrm_bytes), ARRAY_BUFFER)
-                accessors.append({
-                    "bufferView": nrm_view, "componentType": 5126,
-                    "count": mesh.vertex_count(), "type": "VEC3",
-                })
+                accessors.append(
+                    {
+                        "bufferView": nrm_view,
+                        "componentType": 5126,
+                        "count": mesh.vertex_count(),
+                        "type": "VEC3",
+                    }
+                )
                 attributes["NORMAL"] = len(accessors) - 1
 
             if has_uvs:
                 uv_view = _add_view(bytes(uv_bytes), ARRAY_BUFFER)
-                accessors.append({
-                    "bufferView": uv_view, "componentType": 5126,
-                    "count": mesh.vertex_count(), "type": "VEC2",
-                })
+                accessors.append(
+                    {
+                        "bufferView": uv_view,
+                        "componentType": 5126,
+                        "count": mesh.vertex_count(),
+                        "type": "VEC2",
+                    }
+                )
                 attributes["TEXCOORD_0"] = len(accessors) - 1
 
             idx_view = _add_view(bytes(idx_bytes), ELEMENT_ARRAY_BUFFER)
-            accessors.append({
-                "bufferView": idx_view,
-                "componentType": 5125 if use_uint32 else 5123,
-                "count": mesh.triangle_count() * 3, "type": "SCALAR",
-            })
+            accessors.append(
+                {
+                    "bufferView": idx_view,
+                    "componentType": 5125 if use_uint32 else 5123,
+                    "count": mesh.triangle_count() * 3,
+                    "type": "SCALAR",
+                }
+            )
             indices_accessor = len(accessors) - 1
 
             primitive: dict = {
-                "attributes": attributes, "indices": indices_accessor, "mode": 4,
+                "attributes": attributes,
+                "indices": indices_accessor,
+                "mode": 4,
             }
             material = scene.materials.get(node.material_name) if node.material_name else None
             if material is not None:
                 if node.material_name not in material_index_by_name:
                     albedo = getattr(material, "albedo", (0.8, 0.8, 0.8))
                     opacity = getattr(material, "opacity", 1.0)
-                    gltf_materials.append({
-                        "name": node.material_name,
-                        "pbrMetallicRoughness": {
-                            "baseColorFactor": [albedo[0], albedo[1], albedo[2], opacity],
-                            "metallicFactor": getattr(material, "metallic", 0.0),
-                            "roughnessFactor": getattr(material, "roughness", 0.8),
-                        },
-                        **({"alphaMode": "BLEND"} if opacity < 1.0 else {}),
-                    })
+                    gltf_materials.append(
+                        {
+                            "name": node.material_name,
+                            "pbrMetallicRoughness": {
+                                "baseColorFactor": [albedo[0], albedo[1], albedo[2], opacity],
+                                "metallicFactor": getattr(material, "metallic", 0.0),
+                                "roughnessFactor": getattr(material, "roughness", 0.8),
+                            },
+                            **({"alphaMode": "BLEND"} if opacity < 1.0 else {}),
+                        }
+                    )
                     material_index_by_name[node.material_name] = len(gltf_materials) - 1
                 primitive["material"] = material_index_by_name[node.material_name]
 
             gltf_meshes.append({"name": mesh.name, "primitives": [primitive]})
-            gltf_nodes.append({
-                "mesh": len(gltf_meshes) - 1, "name": mesh.name,
-                "translation": list(node.translation),
-            })
+            gltf_nodes.append(
+                {
+                    "mesh": len(gltf_meshes) - 1,
+                    "name": mesh.name,
+                    "translation": list(node.translation),
+                }
+            )
 
         gltf: dict = {
             "asset": {"version": "2.0", "generator": "harita.export.SceneGLTFExporter"},
@@ -576,11 +645,14 @@ class GLTFImporter:
     fırlatılır — sessizce hatalı geometri üretilmez."""
 
     _COMPONENT_FMT = {
-        5120: ("b", 1), 5121: ("B", 1), 5122: ("h", 2),
-        5123: ("H", 2), 5125: ("I", 4), 5126: ("f", 4),
+        5120: ("b", 1),
+        5121: ("B", 1),
+        5122: ("h", 2),
+        5123: ("H", 2),
+        5125: ("I", 4),
+        5126: ("f", 4),
     }
-    _TYPE_COUNT = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4,
-                   "MAT2": 4, "MAT3": 9, "MAT4": 16}
+    _TYPE_COUNT = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4, "MAT2": 4, "MAT3": 9, "MAT4": 16}
 
     @classmethod
     def _read_accessor(cls, gltf: dict, buffers: list[bytes], accessor_idx: int) -> list:
@@ -608,7 +680,7 @@ class GLTFImporter:
         elem_size = comp_size * n_comp
         for i in range(count):
             off = base_offset + i * stride
-            chunk = buf[off:off + elem_size]
+            chunk = buf[off : off + elem_size]
             if len(chunk) < elem_size:
                 raise GLTFParseError(
                     f"Buffer sınırları aşıldı (accessor {accessor_idx}, eleman {i})"
@@ -618,9 +690,11 @@ class GLTFImporter:
         return out
 
     @classmethod
-    def _load_buffers(cls, gltf: dict, base_dir: Path,
-                       embedded_glb_bin: Optional[bytes]) -> list[bytes]:
+    def _load_buffers(
+        cls, gltf: dict, base_dir: Path, embedded_glb_bin: bytes | None
+    ) -> list[bytes]:
         import base64
+
         buffers = []
         for i, buf_def in enumerate(gltf.get("buffers", [])):
             uri = buf_def.get("uri")
@@ -652,15 +726,23 @@ class GLTFImporter:
 
         positions = cls._read_accessor(gltf, buffers, attrs["POSITION"])
         normals = cls._read_accessor(gltf, buffers, attrs["NORMAL"]) if "NORMAL" in attrs else None
-        uvs = cls._read_accessor(gltf, buffers, attrs["TEXCOORD_0"]) if "TEXCOORD_0" in attrs else None
+        uvs = (
+            cls._read_accessor(gltf, buffers, attrs["TEXCOORD_0"])
+            if "TEXCOORD_0" in attrs
+            else None
+        )
 
         vertices = []
         for idx, p in enumerate(positions):
-            vertices.append(Vertex3D(
-                x=p[0], y=p[1], z=p[2],
-                normal=tuple(normals[idx]) if normals is not None else None,
-                uv=tuple(uvs[idx]) if uvs is not None else None,
-            ))
+            vertices.append(
+                Vertex3D(
+                    x=p[0],
+                    y=p[1],
+                    z=p[2],
+                    normal=tuple(normals[idx]) if normals is not None else None,
+                    uv=tuple(uvs[idx]) if uvs is not None else None,
+                )
+            )
 
         if "indices" in prim:
             flat = cls._read_accessor(gltf, buffers, prim["indices"])
@@ -668,7 +750,7 @@ class GLTFImporter:
             flat = list(range(len(vertices)))
         if len(flat) % 3 != 0:
             raise GLTFParseError(f"Indices sayısı 3'ün katı değil: {len(flat)}")
-        triangles = [tuple(flat[i:i + 3]) for i in range(0, len(flat), 3)]
+        triangles = [tuple(flat[i : i + 3]) for i in range(0, len(flat), 3)]
 
         mesh_name = mesh_def.get("name") or name_hint
         return Mesh3D(vertices=vertices, triangles=triangles, name=mesh_name)
@@ -734,6 +816,7 @@ class GLTFImporter:
 # DXF (ASCII, basit 3DFACE mesh temsili)
 # ======================================================================== #
 
+
 class DXFExporter:
     """AutoCAD DXF (ASCII) exporter. Her üçgeni bir `3DFACE` varlığı olarak
     yazar (DXF R12 uyumlu minimal ENTITIES bölümü). DWG (ikili, kapalı
@@ -742,7 +825,7 @@ class DXFExporter:
     @staticmethod
     def export(mesh: Mesh3D, path: str, layer: str = "MESH") -> ExportResult:
         lines = ["0", "SECTION", "2", "ENTITIES"]
-        for (i, j, k) in mesh.triangles:
+        for i, j, k in mesh.triangles:
             a, b, c = mesh.vertices[i], mesh.vertices[j], mesh.vertices[k]
             lines += ["0", "3DFACE", "8", layer]
             for tag_prefix, v in ((10, a), (11, b), (12, c), (13, c)):
@@ -752,8 +835,9 @@ class DXFExporter:
         lines += ["0", "ENDSEC", "0", "EOF"]
         content = "\n".join(lines) + "\n"
         Path(path).write_text(content, encoding="utf-8")
-        return ExportResult(path, "dxf", len(content.encode("utf-8")),
-                             mesh.vertex_count(), mesh.triangle_count())
+        return ExportResult(
+            path, "dxf", len(content.encode("utf-8")), mesh.vertex_count(), mesh.triangle_count()
+        )
 
 
 class DWGExporter:
@@ -792,21 +876,20 @@ class USDExporter:
     def export_usda(mesh: Mesh3D, path: str) -> ExportResult:
         pts = ", ".join(f"({v.x:.6f}, {v.y:.6f}, {v.z:.6f})" for v in mesh.vertices)
         face_counts = ", ".join("3" for _ in mesh.triangles)
-        face_indices = ", ".join(
-            f"{i}, {j}, {k}" for (i, j, k) in mesh.triangles
-        )
+        face_indices = ", ".join(f"{i}, {j}, {k}" for (i, j, k) in mesh.triangles)
         content = (
-            f'#usda 1.0\n'
+            f"#usda 1.0\n"
             f'def Mesh "{mesh.name or "mesh"}"\n'
-            f'{{\n'
-            f'    int[] faceVertexCounts = [{face_counts}]\n'
-            f'    int[] faceVertexIndices = [{face_indices}]\n'
-            f'    point3f[] points = [{pts}]\n'
-            f'}}\n'
+            f"{{\n"
+            f"    int[] faceVertexCounts = [{face_counts}]\n"
+            f"    int[] faceVertexIndices = [{face_indices}]\n"
+            f"    point3f[] points = [{pts}]\n"
+            f"}}\n"
         )
         Path(path).write_text(content, encoding="utf-8")
-        return ExportResult(path, "usda", len(content.encode("utf-8")),
-                             mesh.vertex_count(), mesh.triangle_count())
+        return ExportResult(
+            path, "usda", len(content.encode("utf-8")), mesh.vertex_count(), mesh.triangle_count()
+        )
 
     @staticmethod
     def export(mesh: Mesh3D, path: str) -> ExportResult:

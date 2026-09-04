@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import pytest
-
-from harita.core_engine.coordinate_systems import CoordinateConverter, GeoPoint
+from harita.core_engine.coordinate_systems import CoordinateConverter
 from harita.core_engine.geo_reference import (
     REFERENCE_DISTANCES,
     REFERENCE_LOCATIONS,
@@ -20,10 +19,10 @@ from harita.core_engine.tile_sources import (
     XYZTileSource,
 )
 
-
 # ------------------------------------------------------------------ #
 # geo_reference
 # ------------------------------------------------------------------ #
+
 
 def test_reference_dataset_nonempty():
     assert len(REFERENCE_LOCATIONS) >= 5
@@ -82,6 +81,7 @@ def test_intentional_regression_is_detected():
 # tile_sources — XYZ
 # ------------------------------------------------------------------ #
 
+
 def test_xyz_build_url_basic():
     src = XYZTileSource(name="osm", url_template="https://tile.osm.org/{z}/{x}/{y}.png")
     coord = TileCoordinate(z=10, x=5, y=7)
@@ -90,7 +90,8 @@ def test_xyz_build_url_basic():
 
 def test_xyz_subdomain_rotation():
     src = XYZTileSource(
-        name="s", url_template="https://{s}.tiles.example.com/{z}/{x}/{y}.png",
+        name="s",
+        url_template="https://{s}.tiles.example.com/{z}/{x}/{y}.png",
         subdomains=("a", "b", "c"),
     )
     coord = TileCoordinate(z=1, x=0, y=0)
@@ -119,10 +120,13 @@ def test_xyz_zoom_over_max_raises():
 # tile_sources — WMTS
 # ------------------------------------------------------------------ #
 
+
 def test_wmts_kvp_build_url_contains_expected_params():
     src = WMTSTileSource(
-        name="ortofoto", base_url="https://wmts.example.gov/service",
-        layer="ortho2024", tile_matrix_set="GoogleMapsCompatible",
+        name="ortofoto",
+        base_url="https://wmts.example.gov/service",
+        layer="ortho2024",
+        tile_matrix_set="GoogleMapsCompatible",
     )
     url = src.build_url(TileCoordinate(z=12, x=100, y=200))
     assert "REQUEST=GetTile" in url
@@ -136,7 +140,9 @@ def test_wmts_restful_build_url_uses_template():
     src = WMTSTileSource(
         name="restful",
         base_url="https://wmts.example.gov/{TileMatrix}/{TileCol}/{TileRow}.jpg",
-        layer="ortho", tile_matrix_set="default028mm", kvp=False,
+        layer="ortho",
+        tile_matrix_set="default028mm",
+        kvp=False,
     )
     url = src.build_url(TileCoordinate(z=8, x=3, y=4))
     assert url == "https://wmts.example.gov/8/3/4.jpg"
@@ -144,7 +150,10 @@ def test_wmts_restful_build_url_uses_template():
 
 def test_wmts_tile_matrix_prefix():
     src = WMTSTileSource(
-        name="s", base_url="https://x", layer="l", tile_matrix_set="s",
+        name="s",
+        base_url="https://x",
+        layer="l",
+        tile_matrix_set="s",
         tile_matrix_prefix="EPSG:3857:",
     )
     url = src.build_url(TileCoordinate(z=5, x=1, y=1))
@@ -154,6 +163,7 @@ def test_wmts_tile_matrix_prefix():
 # ------------------------------------------------------------------ #
 # tile_sources — WMS
 # ------------------------------------------------------------------ #
+
 
 def test_wms_build_url_bbox_axis_order_130():
     src = WMSTileSource(name="wms", base_url="https://wms.example.gov/ows", layers="ortho")
@@ -166,7 +176,9 @@ def test_wms_build_url_bbox_axis_order_130():
 
 def test_wms_111_uses_srs_and_lonlat_order():
     src = WMSTileSource(
-        name="wms", base_url="https://wms.example.gov/ows", layers="ortho",
+        name="wms",
+        base_url="https://wms.example.gov/ows",
+        layers="ortho",
         version="1.1.1",
     )
     url = src.build_url(TileCoordinate(z=2, x=1, y=1))
@@ -177,6 +189,7 @@ def test_wms_111_uses_srs_and_lonlat_order():
 # ------------------------------------------------------------------ #
 # TileSourceConsumer — pluggable fetcher (ağsız test)
 # ------------------------------------------------------------------ #
+
 
 class _FakeFetcher:
     def __init__(self, response: bytes = b"PNGDATA", raise_on: set[str] | None = None):

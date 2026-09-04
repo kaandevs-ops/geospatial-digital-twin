@@ -19,7 +19,7 @@ yakın regresyon riski.
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 from ..extensibility.rest_api import RestNotFoundError, RestResponse, RestRouter
@@ -35,8 +35,8 @@ class InstrumentedRouter:
         self,
         router: RestRouter,
         *,
-        logger: Optional[StructuredLogger] = None,
-        metrics: Optional[MetricsRegistry] = None,
+        logger: StructuredLogger | None = None,
+        metrics: MetricsRegistry | None = None,
         service_name: str = "harita-app-shell",
     ) -> None:
         self.router = router
@@ -49,7 +49,7 @@ class InstrumentedRouter:
         method: str,
         path: str,
         body: Any = None,
-        query: Optional[Dict[str, Any]] = None,
+        query: dict[str, Any] | None = None,
     ) -> RestResponse:
         clean_path = urlparse(path).path
         start = time.perf_counter()

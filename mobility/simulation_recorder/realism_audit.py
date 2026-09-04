@@ -102,7 +102,10 @@ class RealismAuditReport:
         return self.overall_severity != AuditSeverity.FAIL
 
     def to_markdown(self) -> str:
-        lines = [f"# Gerçekçilik Denetim Raporu — genel durum: {self.overall_severity.value.upper()}", ""]
+        lines = [
+            f"# Gerçekçilik Denetim Raporu — genel durum: {self.overall_severity.value.upper()}",
+            "",
+        ]
         for f in self.findings:
             icon = {"pass": "✅", "warn": "⚠️", "fail": "❌"}[f.severity.value]
             lines.append(f"- {icon} `{f.check_id}` — {f.message}")
@@ -115,19 +118,22 @@ def _check_evacuation_time_distribution(
     times = list(getattr(result, "per_agent_time_s", {}).values())
     if not times:
         return AuditFinding(
-            "evacuation_time_distribution", AuditSeverity.WARN,
+            "evacuation_time_distribution",
+            AuditSeverity.WARN,
             "Kişi-başı tahliye süresi verisi bulunamadı — dağılım denetlenemedi "
             "(EvacuationResult bu alanı doldurmuyor olabilir).",
         )
     out_of_range = [
-        t for t in times
+        t
+        for t in times
         if t < thresholds.min_plausible_evacuation_time_s
         or t > thresholds.max_plausible_evacuation_time_s
     ]
     ratio = len(out_of_range) / len(times)
     if ratio > 0.10:
         return AuditFinding(
-            "evacuation_time_distribution", AuditSeverity.FAIL,
+            "evacuation_time_distribution",
+            AuditSeverity.FAIL,
             f"Ajanların %{ratio * 100:.1f}'i literatür-dışı tahliye süresine "
             f"sahip (izin verilen aralık: "
             f"[{thresholds.min_plausible_evacuation_time_s}, "
@@ -136,12 +142,14 @@ def _check_evacuation_time_distribution(
         )
     if out_of_range:
         return AuditFinding(
-            "evacuation_time_distribution", AuditSeverity.WARN,
+            "evacuation_time_distribution",
+            AuditSeverity.WARN,
             f"Ajanların %{ratio * 100:.1f}'i aralık dışında ama %10 eşiğinin altında.",
             details={"out_of_range_ratio": ratio, "sample_size": len(times)},
         )
     return AuditFinding(
-        "evacuation_time_distribution", AuditSeverity.PASS,
+        "evacuation_time_distribution",
+        AuditSeverity.PASS,
         f"Tüm {len(times)} ajanın tahliye süresi beklenen literatür aralığında.",
     )
 
@@ -154,13 +162,15 @@ def _check_collision_sanity(
 ) -> AuditFinding:
     if recorder is None or not recorder.keyframes:
         return AuditFinding(
-            "collision_sanity", AuditSeverity.WARN,
+            "collision_sanity",
+            AuditSeverity.WARN,
             "Recorder verilmedi/boş — duvar-penetrasyon denetimi yapılamadı.",
         )
     obstacles = obstacles or []
     if not obstacles:
         return AuditFinding(
-            "collision_sanity", AuditSeverity.PASS,
+            "collision_sanity",
+            AuditSeverity.PASS,
             "Engel listesi boş — denetlenecek duvar yok (açık alan senaryosu).",
         )
     worst_penetration = 0.0
@@ -178,14 +188,16 @@ def _check_collision_sanity(
     if worst_penetration > thresholds.obstacle_penetration_tolerance_m:
         t, agent_id = worst_at
         return AuditFinding(
-            "collision_sanity", AuditSeverity.FAIL,
+            "collision_sanity",
+            AuditSeverity.FAIL,
             f"Agent {agent_id}, t={t:.1f}s anında bir engelin {worst_penetration:.2f}m "
             f"içine geçti (tolerans: {thresholds.obstacle_penetration_tolerance_m}m) — "
             f"bu, ajanın duvar/mesh içinden geçtiği anlamına gelir.",
             details={"worst_penetration_m": worst_penetration, "at": worst_at},
         )
     return AuditFinding(
-        "collision_sanity", AuditSeverity.PASS,
+        "collision_sanity",
+        AuditSeverity.PASS,
         f"Hiçbir ajan hiçbir keyframe'de duvar/engel içine "
         f"{thresholds.obstacle_penetration_tolerance_m}m toleransından fazla geçmedi "
         f"(en kötü değer: {worst_penetration:.3f}m).",
@@ -197,20 +209,23 @@ def _check_bottleneck_density(
 ) -> AuditFinding:
     if recorder is None or not recorder.keyframes:
         return AuditFinding(
-            "bottleneck_density", AuditSeverity.WARN,
+            "bottleneck_density",
+            AuditSeverity.WARN,
             "Recorder verilmedi/boş — darboğaz yoğunluğu denetlenemedi.",
         )
     series = recorder.bottleneck_over_time(cell_size=cell_size_m)
     if not series:
         return AuditFinding(
-            "bottleneck_density", AuditSeverity.PASS,
+            "bottleneck_density",
+            AuditSeverity.PASS,
             "Kayıtlı koşuda hiçbir dolu hücre gözlemlenmedi (ör. çok az ajan/çok kısa koşu).",
         )
     cell_area_m2 = cell_size_m * cell_size_m
     max_density = max(count / cell_area_m2 for _, _, count in series)
     if max_density > thresholds.max_plausible_density_per_m2:
         return AuditFinding(
-            "bottleneck_density", AuditSeverity.FAIL,
+            "bottleneck_density",
+            AuditSeverity.FAIL,
             f"En yoğun hücrede {max_density:.1f} kişi/m² gözlendi — literatürde "
             f"fiziksel olarak makul kabul edilen üst sınırın "
             f"({thresholds.max_plausible_density_per_m2} kişi/m²) üzerinde. Bu, "
@@ -218,7 +233,8 @@ def _check_bottleneck_density(
             details={"max_density_per_m2": max_density},
         )
     return AuditFinding(
-        "bottleneck_density", AuditSeverity.PASS,
+        "bottleneck_density",
+        AuditSeverity.PASS,
         f"En yoğun hücre {max_density:.1f} kişi/m² — literatür üst sınırının "
         f"({thresholds.max_plausible_density_per_m2} kişi/m²) altında.",
     )
@@ -243,15 +259,21 @@ def run_realism_audit(
         _check_bottleneck_density(recorder, cell_size_m, thresholds),
     ]
     if recorder is not None and recorder.run_metadata.seed is None:
-        findings.append(AuditFinding(
-            "deterministic_replay_seed", AuditSeverity.WARN,
-            "Bu koşu için `recorder.run_metadata.seed` boş — koşu tekrar "
-            "oynatılabilirliği (Faz 1.5) doğrulanamaz. `EvacuationSimulator.run(..., "
-            "seed=...)` ile koşmayı düşünün.",
-        ))
+        findings.append(
+            AuditFinding(
+                "deterministic_replay_seed",
+                AuditSeverity.WARN,
+                "Bu koşu için `recorder.run_metadata.seed` boş — koşu tekrar "
+                "oynatılabilirliği (Faz 1.5) doğrulanamaz. `EvacuationSimulator.run(..., "
+                "seed=...)` ile koşmayı düşünün.",
+            )
+        )
     else:
-        findings.append(AuditFinding(
-            "deterministic_replay_seed", AuditSeverity.PASS,
-            f"Koşu seed={recorder.run_metadata.seed} ile etiketlendi — tekrar oynatılabilir.",
-        ))
+        findings.append(
+            AuditFinding(
+                "deterministic_replay_seed",
+                AuditSeverity.PASS,
+                f"Koşu seed={recorder.run_metadata.seed} ile etiketlendi — tekrar oynatılabilir.",
+            )
+        )
     return RealismAuditReport(findings=findings)

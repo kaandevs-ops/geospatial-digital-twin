@@ -13,9 +13,9 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date as date_type
-from typing import List, Optional, Sequence
 
 
 class ClimateError(Exception):
@@ -32,12 +32,8 @@ class ClimateParseError(ClimateError):
 
 #: Open-Meteo ücretsiz, API key gerektirmeyen tahmin + arşiv servisleri.
 #: forecast: son 16 gün ileri; archive: geçmiş tarihli (ERA5 reanaliz) veri.
-DEFAULT_FORECAST_ENDPOINTS: tuple[str, ...] = (
-    "https://api.open-meteo.com/v1/forecast",
-)
-DEFAULT_ARCHIVE_ENDPOINTS: tuple[str, ...] = (
-    "https://archive-api.open-meteo.com/v1/archive",
-)
+DEFAULT_FORECAST_ENDPOINTS: tuple[str, ...] = ("https://api.open-meteo.com/v1/forecast",)
+DEFAULT_ARCHIVE_ENDPOINTS: tuple[str, ...] = ("https://archive-api.open-meteo.com/v1/archive",)
 
 DEFAULT_USER_AGENT = "harita-modelleme-platformu/faz2.4 (open-meteo-client)"
 
@@ -67,16 +63,16 @@ class HourlyClimateSample:
     """Tek bir saatlik iklim/güneşlenme örneği."""
 
     time_iso: str
-    temperature_c: Optional[float]
-    cloud_cover_pct: Optional[float]
-    shortwave_radiation_wm2: Optional[float]
-    direct_radiation_wm2: Optional[float]
-    diffuse_radiation_wm2: Optional[float]
+    temperature_c: float | None
+    cloud_cover_pct: float | None
+    shortwave_radiation_wm2: float | None
+    direct_radiation_wm2: float | None
+    diffuse_radiation_wm2: float | None
     # ROADMAP_V9 Faz VI / Katman 3.3 madde 4 — yalnızca `hourly_vars`
     # `TRAFFIC_WEATHER_HOURLY_VARS` ile istenirse dolar; aksi halde `None`
     # kalır (mevcut çağıranlar için sessiz/zararsız varsayılan).
-    precipitation_mm: Optional[float] = None
-    visibility_m: Optional[float] = None
+    precipitation_mm: float | None = None
+    visibility_m: float | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -102,19 +98,25 @@ class OpenMeteoClient:
 
     def _fetch_json(self, endpoints: Sequence[str], params: dict) -> dict:
         query = urllib.parse.urlencode(params)
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
 
         for endpoint in endpoints:
             url = f"{endpoint}?{query}"
             request = urllib.request.Request(
-                url, headers={"User-Agent": self.user_agent, "Accept": "application/json"},
+                url,
+                headers={"User-Agent": self.user_agent, "Accept": "application/json"},
             )
             try:
                 with urllib.request.urlopen(request, timeout=self.timeout_s) as response:
                     raw_bytes = response.read()
                 return json.loads(raw_bytes.decode("utf-8"))
-            except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError,
-                    OSError, ValueError) as exc:
+            except (
+                urllib.error.URLError,
+                urllib.error.HTTPError,
+                TimeoutError,
+                OSError,
+                ValueError,
+            ) as exc:
                 last_error = exc
                 continue
 
@@ -160,20 +162,25 @@ class OpenMeteoClient:
         end_date: date_type,
         hourly_vars: Sequence[str] = DEFAULT_HOURLY_VARS,
         use_archive: bool = False,
-    ) -> List[HourlyClimateSample]:
+    ) -> list[HourlyClimateSample]:
         raw = self.fetch_raw(
-            latitude=latitude, longitude=longitude,
-            start_date=start_date, end_date=end_date,
-            hourly_vars=hourly_vars, use_archive=use_archive,
+            latitude=latitude,
+            longitude=longitude,
+            start_date=start_date,
+            end_date=end_date,
+            hourly_vars=hourly_vars,
+            use_archive=use_archive,
         )
         return parse_open_meteo_hourly(raw)
 
 
-def parse_open_meteo_hourly(raw: dict) -> List[HourlyClimateSample]:
+def parse_open_meteo_hourly(raw: dict) -> list[HourlyClimateSample]:
     """Open-Meteo'nun `hourly: {time: [...], var: [...]}` sütunsal şemasını
     `HourlyClimateSample` listesine çevirir."""
     if not isinstance(raw, dict) or "hourly" not in raw:
-        raise ClimateParseError(f"Beklenmeyen Open-Meteo yanıt şeması: {list(raw.keys()) if isinstance(raw, dict) else type(raw)}")
+        raise ClimateParseError(
+            f"Beklenmeyen Open-Meteo yanıt şeması: {list(raw.keys()) if isinstance(raw, dict) else type(raw)}"
+        )
 
     hourly = raw["hourly"]
     times = hourly.get("time")
@@ -192,16 +199,18 @@ def parse_open_meteo_hourly(raw: dict) -> List[HourlyClimateSample]:
     precipitation = col("precipitation")
     visibility = col("visibility")
 
-    samples: List[HourlyClimateSample] = []
+    samples: list[HourlyClimateSample] = []
     for i, t in enumerate(times):
-        samples.append(HourlyClimateSample(
-            time_iso=t,
-            temperature_c=temps[i] if i < len(temps) else None,
-            cloud_cover_pct=clouds[i] if i < len(clouds) else None,
-            shortwave_radiation_wm2=shortwave[i] if i < len(shortwave) else None,
-            direct_radiation_wm2=direct[i] if i < len(direct) else None,
-            diffuse_radiation_wm2=diffuse[i] if i < len(diffuse) else None,
-            precipitation_mm=precipitation[i] if i < len(precipitation) else None,
-            visibility_m=visibility[i] if i < len(visibility) else None,
-        ))
+        samples.append(
+            HourlyClimateSample(
+                time_iso=t,
+                temperature_c=temps[i] if i < len(temps) else None,
+                cloud_cover_pct=clouds[i] if i < len(clouds) else None,
+                shortwave_radiation_wm2=shortwave[i] if i < len(shortwave) else None,
+                direct_radiation_wm2=direct[i] if i < len(direct) else None,
+                diffuse_radiation_wm2=diffuse[i] if i < len(diffuse) else None,
+                precipitation_mm=precipitation[i] if i < len(precipitation) else None,
+                visibility_m=visibility[i] if i < len(visibility) else None,
+            )
+        )
     return samples

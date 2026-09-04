@@ -5,6 +5,7 @@ Sandbox ağ erişimi ambientcg.com'a izin vermediği için testler
 mantığını doğrular. Gerçek ağ olmadan da (procedural fallback) sınıfın
 hiçbir zaman exception fırlatmadığı ayrıca test edilir.
 """
+
 from __future__ import annotations
 
 import io
@@ -13,7 +14,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from harita.material_engine import PBRMaterial
 from harita.material_engine.external_library import (
     AmbientCGClient,
@@ -33,7 +33,10 @@ FAKE_SEARCH_RESPONSE = {
                     "downloadFiletypeCategories": {
                         "zip": {
                             "downloads": [
-                                {"attribute": "1K-PNG", "downloadLink": "https://ambientcg.com/Bricks090_1K.zip"},
+                                {
+                                    "attribute": "1K-PNG",
+                                    "downloadLink": "https://ambientcg.com/Bricks090_1K.zip",
+                                },
                             ]
                         }
                     }
@@ -54,7 +57,10 @@ class _FakeResponse(io.BytesIO):
 
 def test_client_search_parses_schema():
     client = AmbientCGClient()
-    with patch("urllib.request.urlopen", return_value=_FakeResponse(json.dumps(FAKE_SEARCH_RESPONSE).encode())):
+    with patch(
+        "urllib.request.urlopen",
+        return_value=_FakeResponse(json.dumps(FAKE_SEARCH_RESPONSE).encode()),
+    ):
         assets = client.search("Bricks")
     assert len(assets) == 1
     asset = assets[0]
@@ -121,11 +127,19 @@ def test_library_uses_cache_on_second_call_without_network(tmp_path: Path):
 def test_library_asset_search_no_downloads_falls_back(tmp_path: Path):
     empty_asset_response = {
         "foundAssets": [
-            {"assetId": "Weird1", "displayName": "Weird", "category": "Material", "downloadFolders": {}}
+            {
+                "assetId": "Weird1",
+                "displayName": "Weird",
+                "category": "Material",
+                "downloadFolders": {},
+            }
         ]
     }
     lib = PBRMaterialLibrary(cache_dir=tmp_path)
-    with patch("urllib.request.urlopen", return_value=_FakeResponse(json.dumps(empty_asset_response).encode())):
+    with patch(
+        "urllib.request.urlopen",
+        return_value=_FakeResponse(json.dumps(empty_asset_response).encode()),
+    ):
         mat, source = lib.get("ahsap")
     assert source == "procedural"
     assert mat.name == "ahsap"

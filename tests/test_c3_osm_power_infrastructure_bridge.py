@@ -8,6 +8,7 @@ ROADMAP_V7.md Faz C3 (7. dilim, B1'in son dilimi) — OSM altyapı köprüsü
 yanlış-tag durumların sessizce atlanması, ve uçtan uca
 `generate_power_infrastructure_for_collection`.
 """
+
 from __future__ import annotations
 
 import unittest
@@ -16,15 +17,15 @@ from harita.core_engine.gis_core import GeoFeature, GeoFeatureCollection
 from harita.core_engine.gis_core.osm_client import DEFAULT_CATEGORIES
 from harita.editor import Road
 from harita.power_infrastructure import (
-    CommunicationTowerItem,
-    SubstationItem,
-    PowerInfrastructureGenerator,
     DEFAULT_POWER_LINE_HEIGHT_M,
+    CommunicationTowerItem,
+    PowerInfrastructureGenerator,
+    SubstationItem,
 )
 from harita.power_infrastructure.osm_bridge import (
     DEFAULT_COMMUNICATION_TOWER_HEIGHT_M,
-    infra_item_from_feature,
     generate_power_infrastructure_for_collection,
+    infra_item_from_feature,
 )
 
 
@@ -62,11 +63,26 @@ class TestDefaultCategoriesRegistered(unittest.TestCase):
 
     def test_existing_categories_untouched(self) -> None:
         for key in (
-            "roads", "trees", "forest", "wood", "water_area", "waterway",
-            "street_lamp", "power_pole", "waste_basket", "bench",
-            "bus_stop", "bus_station", "place_of_worship",
-            "marketplace", "restaurant", "cafe",
-            "pitch", "stadium", "swimming_pool", "playground",
+            "roads",
+            "trees",
+            "forest",
+            "wood",
+            "water_area",
+            "waterway",
+            "street_lamp",
+            "power_pole",
+            "waste_basket",
+            "bench",
+            "bus_stop",
+            "bus_station",
+            "place_of_worship",
+            "marketplace",
+            "restaurant",
+            "cafe",
+            "pitch",
+            "stadium",
+            "swimming_pool",
+            "playground",
         ):
             self.assertIn(key, DEFAULT_CATEGORIES)
 
@@ -82,8 +98,9 @@ class TestPowerLineConversion(unittest.TestCase):
         self.assertIsNone(infra_item_from_feature(bad))
 
     def test_non_linestring_power_line_returns_none(self) -> None:
-        bad = GeoFeature(geometry_type="Point", coordinates=[0.0, 0.0],
-                          properties={"__category__": "power_line"})
+        bad = GeoFeature(
+            geometry_type="Point", coordinates=[0.0, 0.0], properties={"__category__": "power_line"}
+        )
         self.assertIsNone(infra_item_from_feature(bad))
 
     def test_power_line_mesh_is_non_degenerate(self) -> None:
@@ -98,8 +115,9 @@ class TestSubstationConversion(unittest.TestCase):
         self.assertIsInstance(item, SubstationItem)
 
     def test_non_polygon_substation_returns_none(self) -> None:
-        bad = GeoFeature(geometry_type="Point", coordinates=[0.0, 0.0],
-                          properties={"__category__": "substation"})
+        bad = GeoFeature(
+            geometry_type="Point", coordinates=[0.0, 0.0], properties={"__category__": "substation"}
+        )
         self.assertIsNone(infra_item_from_feature(bad))
 
     def test_degenerate_substation_ring_returns_none(self) -> None:
@@ -131,8 +149,11 @@ class TestCommunicationTowerConversion(unittest.TestCase):
         self.assertEqual(item.height_m, 40.0)
 
     def test_non_point_tower_returns_none(self) -> None:
-        bad = GeoFeature(geometry_type="LineString", coordinates=[(0.0, 0.0), (1.0, 1.0)],
-                          properties={"__category__": "communication_tower", "tower:type": "communication"})
+        bad = GeoFeature(
+            geometry_type="LineString",
+            coordinates=[(0.0, 0.0), (1.0, 1.0)],
+            properties={"__category__": "communication_tower", "tower:type": "communication"},
+        )
         self.assertIsNone(infra_item_from_feature(bad))
 
     def test_tower_mesh_is_non_degenerate(self) -> None:
@@ -144,14 +165,19 @@ class TestCommunicationTowerConversion(unittest.TestCase):
 
 class TestEndToEndCollection(unittest.TestCase):
     def test_mixed_collection_yields_all_infra_items(self) -> None:
-        collection = GeoFeatureCollection(features=[
-            _power_line_feature(),
-            _substation_feature(),
-            _tower_feature(),
-            _tower_feature(tower_type="observation"),  # atlanmalı
-            GeoFeature(geometry_type="Point", coordinates=[0.0, 0.0],
-                       properties={"__category__": "bench"}),  # ilgisiz
-        ])
+        collection = GeoFeatureCollection(
+            features=[
+                _power_line_feature(),
+                _substation_feature(),
+                _tower_feature(),
+                _tower_feature(tower_type="observation"),  # atlanmalı
+                GeoFeature(
+                    geometry_type="Point",
+                    coordinates=[0.0, 0.0],
+                    properties={"__category__": "bench"},
+                ),  # ilgisiz
+            ]
+        )
         items = generate_power_infrastructure_for_collection(collection)
         self.assertEqual(len(items), 3)
         self.assertEqual(sum(1 for i in items if isinstance(i, Road)), 1)

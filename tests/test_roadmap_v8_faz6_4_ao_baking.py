@@ -14,13 +14,14 @@ dosyası üç şeyi doğrular:
    bir binada çalışır, varsayılan `bake_ao=False` davranışını bozmaz
    (geriye dönük tam uyumlu).
 """
+
 from __future__ import annotations
 
-from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.building_reconstruction.footprint_parser import Footprint
 from harita.building_reconstruction.procedural_generator import (
     ProceduralBuildingGenerator,
 )
+from harita.core_engine.geometry_engine import Point2D, Polygon
 from harita.lighting import AmbientOcclusionBaker
 from harita.mesh_engine import Mesh3D, MeshBuilder, NormalGenerator, Vertex3D
 
@@ -51,10 +52,16 @@ def _concave_two_box_mesh() -> Mesh3D:
 
 
 def _l_shaped_footprint() -> Footprint:
-    poly = Polygon([
-        Point2D(0, 0), Point2D(10, 0), Point2D(10, 4),
-        Point2D(5, 4), Point2D(5, 8), Point2D(0, 8),
-    ])
+    poly = Polygon(
+        [
+            Point2D(0, 0),
+            Point2D(10, 0),
+            Point2D(10, 4),
+            Point2D(5, 4),
+            Point2D(5, 8),
+            Point2D(0, 8),
+        ]
+    )
     return Footprint(polygon=poly)
 
 
@@ -62,10 +69,16 @@ class TestSpatialPruneEquivalence:
     def test_pruned_and_bruteforce_give_identical_ao(self):
         mesh = _concave_two_box_mesh()
         pruned = AmbientOcclusionBaker.bake_vertex_ao(
-            mesh, sample_count=6, max_distance=4.0, spatial_prune=True,
+            mesh,
+            sample_count=6,
+            max_distance=4.0,
+            spatial_prune=True,
         )
         brute = AmbientOcclusionBaker.bake_vertex_ao(
-            mesh, sample_count=6, max_distance=4.0, spatial_prune=False,
+            mesh,
+            sample_count=6,
+            max_distance=4.0,
+            spatial_prune=False,
         )
         assert len(pruned) == len(brute) == mesh.vertex_count()
         for p, b in zip(pruned, brute):
@@ -87,7 +100,9 @@ class TestApplyVertexAO:
         assert all(a == 1.0 for a in original_ao), "varsayılan ao 1.0 olmalı"
 
         result = AmbientOcclusionBaker.apply_vertex_ao(
-            mesh, sample_count=8, max_distance=3.0,
+            mesh,
+            sample_count=8,
+            max_distance=3.0,
         )
 
         # Girdi mesh değişmedi (clone üzerinde çalışıldı).
@@ -119,7 +134,9 @@ class TestVertex3DAOFieldBackwardCompatible:
 class TestProceduralGeneratorAOIntegration:
     def test_bake_ao_false_is_default_and_unchanged_behaviour(self):
         building = ProceduralBuildingGenerator.generate(
-            _l_shaped_footprint(), floor_count=2, seed=7,
+            _l_shaped_footprint(),
+            floor_count=2,
+            seed=7,
         )
         mesh = building.full_mesh()
         assert mesh.triangles
@@ -127,11 +144,15 @@ class TestProceduralGeneratorAOIntegration:
 
     def test_bake_ao_true_produces_varying_ao_on_real_building(self):
         building = ProceduralBuildingGenerator.generate(
-            _l_shaped_footprint(), floor_count=2, seed=7,
+            _l_shaped_footprint(),
+            floor_count=2,
+            seed=7,
         )
         mesh = building.full_mesh(
-            generate_uvs=True, bake_ao=True,
-            ao_sample_count=4, ao_max_distance=3.0,
+            generate_uvs=True,
+            bake_ao=True,
+            ao_sample_count=4,
+            ao_max_distance=3.0,
         )
         assert mesh.triangles
         ao_values = [v.ao for v in mesh.vertices]
@@ -146,7 +167,9 @@ class TestProceduralGeneratorAOIntegration:
 
     def test_bake_ao_does_not_mutate_facade_or_roof_source_meshes(self):
         building = ProceduralBuildingGenerator.generate(
-            _l_shaped_footprint(), floor_count=2, seed=7,
+            _l_shaped_footprint(),
+            floor_count=2,
+            seed=7,
         )
         facade_ao_before = [v.ao for v in building.facade.mesh.vertices]
         building.full_mesh(bake_ao=True, ao_sample_count=4)

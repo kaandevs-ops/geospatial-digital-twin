@@ -17,7 +17,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
-from ...core_engine.geometry_engine import Point2D, Polygon, GeometryEngine
+from ...core_engine.geometry_engine import GeometryEngine, Point2D, Polygon
 from ...terrain_engine import HeightmapGrid
 
 # Faz E11 - ThermalComfort ayrı bir dosyada tanımlanır (roadmap'in belirttiği
@@ -36,12 +36,13 @@ from ...terrain_engine import HeightmapGrid
 # Wind Simulation (basitleştirilmiş 2D grid akışı)
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class WindField:
     width: int
     height: int
     cell_size_m: float
-    speed: list[list[float]]      # m/s, hücre başına skaler hız büyüklüğü
+    speed: list[list[float]]  # m/s, hücre başına skaler hız büyüklüğü
     direction_deg: list[list[float]]  # hücre başına yerel yön (serbest akış + saptırma)
 
     def at(self, col: int, row: int) -> tuple[float, float]:
@@ -72,10 +73,16 @@ class WindSimulation:
     WAKE_LENGTH_FACTOR = 12.0
 
     @staticmethod
-    def simulate(width: int, height: int, cell_size_m: float,
-                 obstacles: list[Polygon], free_stream_speed: float,
-                 free_stream_direction_deg: float, grid_origin: tuple[float, float] = (0.0, 0.0),
-                 heights_m: list[float] | None = None) -> WindField:
+    def simulate(
+        width: int,
+        height: int,
+        cell_size_m: float,
+        obstacles: list[Polygon],
+        free_stream_speed: float,
+        free_stream_direction_deg: float,
+        grid_origin: tuple[float, float] = (0.0, 0.0),
+        heights_m: list[float] | None = None,
+    ) -> WindField:
         speed = [[free_stream_speed for _ in range(width)] for _ in range(height)]
         direction = [[free_stream_direction_deg for _ in range(width)] for _ in range(height)]
 
@@ -94,9 +101,15 @@ class WindSimulation:
                 for idx, poly in enumerate(obstacles):
                     if GeometryEngine.point_in_polygon(p, poly):
                         obstacle_mask[row][col] = True
-                        h = heights_m[idx] if heights_m is not None and idx < len(heights_m) else default_height_m
+                        h = (
+                            heights_m[idx]
+                            if heights_m is not None and idx < len(heights_m)
+                            else default_height_m
+                        )
                         wake_length_m = WindSimulation.WAKE_LENGTH_FACTOR * max(h, 0.1)
-                        obstacle_wake_cells[row][col] = max(3, int(wake_length_m / max(cell_size_m, 0.1)))
+                        obstacle_wake_cells[row][col] = max(
+                            3, int(wake_length_m / max(cell_size_m, 0.1))
+                        )
                         break
 
         # En uzun wake mesafesi kadar geriye (upstream) taransın - farklı
@@ -125,13 +138,19 @@ class WindSimulation:
                 if min_dist_cells is not None and min_dist_cells <= source_wake_cells:
                     damping = 1.0 - math.exp(-min_dist_cells / max(source_wake_cells / 3, 1))
                     speed[row][col] = free_stream_speed * damping
-        return WindField(width=width, height=height, cell_size_m=cell_size_m,
-                          speed=speed, direction_deg=direction)
+        return WindField(
+            width=width,
+            height=height,
+            cell_size_m=cell_size_m,
+            speed=speed,
+            direction_deg=direction,
+        )
 
 
 # ============================================================================ #
 # Rain Simulation
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class RainRunoffResult:
@@ -189,6 +208,7 @@ class RainSimulation:
 # Flood Estimation
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class FloodResult:
     flooded: list[list[bool]]
@@ -196,7 +216,7 @@ class FloodResult:
     flooded_cell_count: int
 
     def flooded_area_m2(self, cell_size_m: float) -> float:
-        return self.flooded_cell_count * (cell_size_m ** 2)
+        return self.flooded_cell_count * (cell_size_m**2)
 
 
 class FloodEstimation:
@@ -210,8 +230,9 @@ class FloodEstimation:
     """
 
     @staticmethod
-    def estimate(grid: HeightmapGrid, water_level_m: float,
-                 source_cells: list[tuple[int, int]] | None = None) -> FloodResult:
+    def estimate(
+        grid: HeightmapGrid, water_level_m: float, source_cells: list[tuple[int, int]] | None = None
+    ) -> FloodResult:
         width, height = grid.width, grid.height
         flooded = [[False] * width for _ in range(height)]
 
@@ -252,6 +273,7 @@ class FloodEstimation:
 # Heat Island Simulation
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class HeatIslandResult:
     temperature_delta: list[list[float]]  # ambient'e göre fark, °C
@@ -267,15 +289,22 @@ class HeatIslandSimulation:
 
     # Roadmap'in bahsettiği yüzey tiplerine göre tipik albedo değerleri.
     DEFAULT_ALBEDO = {
-        "asfalt": 0.05, "beton": 0.30, "cati_koyu": 0.10, "cati_acik": 0.55,
-        "cam": 0.20, "yesil_alan": 0.25, "su": 0.06, "toprak": 0.17,
+        "asfalt": 0.05,
+        "beton": 0.30,
+        "cati_koyu": 0.10,
+        "cati_acik": 0.55,
+        "cam": 0.20,
+        "yesil_alan": 0.25,
+        "su": 0.06,
+        "toprak": 0.17,
     }
 
     GREEN_COOLING_C = {"yesil_alan": -2.5, "su": -3.5}
 
     @classmethod
-    def simulate(cls, surface_grid: list[list[str]], irradiance_factor: float = 1.0,
-                 k: float = 8.0) -> HeatIslandResult:
+    def simulate(
+        cls, surface_grid: list[list[str]], irradiance_factor: float = 1.0, k: float = 8.0
+    ) -> HeatIslandResult:
         height = len(surface_grid)
         width = len(surface_grid[0]) if height else 0
         delta = [[0.0 for _ in range(width)] for _ in range(height)]
@@ -297,6 +326,7 @@ class HeatIslandSimulation:
 # ============================================================================ #
 # Noise Simulation
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class NoiseResult:
@@ -328,7 +358,9 @@ class NoiseSimulation:
       belirtilmiştir).
     """
 
-    DIFFRACTION_LOSS_DB = 10.0  # görüş hattı (LOS) engellendiğinde ek zayıflama (Abar yaklaşıklaması)
+    DIFFRACTION_LOSS_DB = (
+        10.0  # görüş hattı (LOS) engellendiğinde ek zayıflama (Abar yaklaşıklaması)
+    )
 
     #: ISO 9613-1'in frekansa bağlı tablosundaki tipik orta-frekans (~1 kHz),
     #: ~20°C / %70 bağıl nem koşullarındaki mertebeye karşılık gelen temsili
@@ -337,12 +369,18 @@ class NoiseSimulation:
     DEFAULT_ATMOSPHERIC_ABSORPTION_DB_PER_KM = 1.5
 
     @staticmethod
-    def spl_at(source_db: float, source: tuple[float, float, float],
-               receiver: tuple[float, float, float], line_of_sight_blocked: bool = False,
-               reference_distance_m: float = 1.0,
-               atmospheric_absorption_db_per_km: float | None = None) -> NoiseResult:
+    def spl_at(
+        source_db: float,
+        source: tuple[float, float, float],
+        receiver: tuple[float, float, float],
+        line_of_sight_blocked: bool = False,
+        reference_distance_m: float = 1.0,
+        atmospheric_absorption_db_per_km: float | None = None,
+    ) -> NoiseResult:
         if atmospheric_absorption_db_per_km is None:
-            atmospheric_absorption_db_per_km = NoiseSimulation.DEFAULT_ATMOSPHERIC_ABSORPTION_DB_PER_KM
+            atmospheric_absorption_db_per_km = (
+                NoiseSimulation.DEFAULT_ATMOSPHERIC_ABSORPTION_DB_PER_KM
+            )
 
         distance = math.sqrt(sum((source[i] - receiver[i]) ** 2 for i in range(3)))
         distance = max(distance, reference_distance_m)
@@ -369,6 +407,7 @@ class NoiseSimulation:
 # Reflection Simulation
 # ============================================================================ #
 
+
 @dataclass(slots=True)
 class ReflectionResult:
     reflection_point: tuple[float, float, float]
@@ -384,9 +423,11 @@ class ReflectionSimulation:
     verir. Her yansımada malzemeye bağlı sabit bir enerji kaybı uygulanır."""
 
     @staticmethod
-    def reflect_point_across_plane(point: tuple[float, float, float],
-                                    plane_point: tuple[float, float, float],
-                                    plane_normal: tuple[float, float, float]) -> tuple[float, float, float]:
+    def reflect_point_across_plane(
+        point: tuple[float, float, float],
+        plane_point: tuple[float, float, float],
+        plane_normal: tuple[float, float, float],
+    ) -> tuple[float, float, float]:
         n = plane_normal
         n_len = math.sqrt(sum(c * c for c in n))
         n = tuple(c / n_len for c in n) if n_len > 1e-12 else n
@@ -394,9 +435,14 @@ class ReflectionSimulation:
         return tuple(point[i] - 2 * d * n[i] for i in range(3))
 
     @classmethod
-    def compute(cls, source: tuple[float, float, float], receiver: tuple[float, float, float],
-                plane_point: tuple[float, float, float], plane_normal: tuple[float, float, float],
-                material_absorption_db: float = 3.0) -> ReflectionResult:
+    def compute(
+        cls,
+        source: tuple[float, float, float],
+        receiver: tuple[float, float, float],
+        plane_point: tuple[float, float, float],
+        plane_normal: tuple[float, float, float],
+        material_absorption_db: float = 3.0,
+    ) -> ReflectionResult:
         image_source = cls.reflect_point_across_plane(source, plane_point, plane_normal)
 
         # Yansıma noktası: image_source'tan receiver'a olan doğru, düzlemi
@@ -428,6 +474,7 @@ class ReflectionSimulation:
 # Air Pollution Dispersion — Gaussian Plume Model
 # (Roadmap V3 - Faz D20)
 # ============================================================================ #
+
 
 @dataclass(slots=True)
 class PlumeConcentrationResult:
@@ -495,8 +542,12 @@ class GaussianPlumeSimulation:
     #: x metre cinsinden. Kaynak: Briggs, G.A. (1973), "Diffusion Estimation
     #: for Small Emissions", ATDL Contribution File No. 79, NOAA.
     _SIGMA_Y_RURAL: dict[str, tuple[float, float]] = {
-        "A": (0.22, 0.0001), "B": (0.16, 0.0001), "C": (0.11, 0.0001),
-        "D": (0.08, 0.0001), "E": (0.06, 0.0001), "F": (0.04, 0.0001),
+        "A": (0.22, 0.0001),
+        "B": (0.16, 0.0001),
+        "C": (0.11, 0.0001),
+        "D": (0.08, 0.0001),
+        "E": (0.06, 0.0001),
+        "F": (0.04, 0.0001),
     }
     #: sigma_z(x) = a*x*(1+b*x)^c biçiminde (a, b, c) katsayıları (kırsal).
     _SIGMA_Z_RURAL: dict[str, tuple[float, float, float]] = {
@@ -551,31 +602,39 @@ class GaussianPlumeSimulation:
         sayı üretmek yerine).
         """
         if wind_speed_mps <= 0:
-            raise ValueError("Gaussian plume modeli rüzgar hızı > 0 gerektirir (sakin hava tanımsız).")
+            raise ValueError(
+                "Gaussian plume modeli rüzgar hızı > 0 gerektirir (sakin hava tanımsız)."
+            )
         if downwind_x_m <= 0:
             return PlumeConcentrationResult(
-                concentration=0.0, sigma_y_m=0.0, sigma_z_m=0.0,
+                concentration=0.0,
+                sigma_y_m=0.0,
+                sigma_z_m=0.0,
                 effective_height_m=stack_height_m,
             )
 
         sigma_y, sigma_z = cls.dispersion_coefficients(downwind_x_m, stability_class)
         if sigma_y <= 0 or sigma_z <= 0:
             return PlumeConcentrationResult(
-                concentration=0.0, sigma_y_m=sigma_y, sigma_z_m=sigma_z,
+                concentration=0.0,
+                sigma_y_m=sigma_y,
+                sigma_z_m=sigma_z,
                 effective_height_m=stack_height_m,
             )
 
         H = stack_height_m
         z = receptor_height_m
-        crosswind_term = math.exp(-(crosswind_y_m ** 2) / (2.0 * sigma_y ** 2))
-        vertical_term = math.exp(-((z - H) ** 2) / (2.0 * sigma_z ** 2)) + math.exp(
-            -((z + H) ** 2) / (2.0 * sigma_z ** 2)
+        crosswind_term = math.exp(-(crosswind_y_m**2) / (2.0 * sigma_y**2))
+        vertical_term = math.exp(-((z - H) ** 2) / (2.0 * sigma_z**2)) + math.exp(
+            -((z + H) ** 2) / (2.0 * sigma_z**2)
         )
         prefactor = emission_rate / (2.0 * math.pi * wind_speed_mps * sigma_y * sigma_z)
         concentration = prefactor * crosswind_term * vertical_term
 
         return PlumeConcentrationResult(
-            concentration=concentration, sigma_y_m=sigma_y, sigma_z_m=sigma_z,
+            concentration=concentration,
+            sigma_y_m=sigma_y,
+            sigma_z_m=sigma_z,
             effective_height_m=H,
         )
 
@@ -601,7 +660,9 @@ class GaussianPlumeSimulation:
         yolu olarak sağlanır.
         """
         if wind_speed_mps <= 0:
-            raise ValueError("Gaussian plume modeli rüzgar hızı > 0 gerektirir (sakin hava tanımsız).")
+            raise ValueError(
+                "Gaussian plume modeli rüzgar hızı > 0 gerektirir (sakin hava tanımsız)."
+            )
         if downwind_x_m <= 0:
             return 0.0
         sigma_y, sigma_z = cls.dispersion_coefficients(downwind_x_m, stability_class)
@@ -611,7 +672,7 @@ class GaussianPlumeSimulation:
         return (
             emission_rate
             / (math.pi * wind_speed_mps * sigma_y * sigma_z)
-            * math.exp(-(H ** 2) / (2.0 * sigma_z ** 2))
+            * math.exp(-(H**2) / (2.0 * sigma_z**2))
         )
 
 
