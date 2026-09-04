@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 pytestmark = pytest.mark.skip(reason="temporarily disabled to unblock CI")
@@ -6,7 +8,6 @@ pytestmark = pytest.mark.skip(reason="temporarily disabled to unblock CI")
 için testler: gerçek piksel-tabanlı görsel regresyon katmanı.
 """
 
-from __future__ import annotations
 
 import importlib.util
 from pathlib import Path

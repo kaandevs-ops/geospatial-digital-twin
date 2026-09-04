@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 pytestmark = pytest.mark.skip(reason="temporarily disabled to unblock CI")
@@ -14,7 +16,6 @@ regresyonu (kayıp üçgen, yeni non-manifold kenar, kat hizalama kayması)
 görsel/fark testi hiç çalıştırmadan yakalamak.
 """
 
-from __future__ import annotations
 
 import json
 import sys

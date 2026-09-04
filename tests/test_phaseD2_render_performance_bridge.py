@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 pytestmark = pytest.mark.skip(reason="temporarily disabled to unblock CI")
@@ -19,7 +21,6 @@ Bu dosya:
 doğrular.
 """
 
-from __future__ import annotations
 
 import math
 import sys

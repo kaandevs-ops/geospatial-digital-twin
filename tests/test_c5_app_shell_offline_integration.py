@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 pytestmark = pytest.mark.skip(reason="temporarily disabled to unblock CI")
@@ -15,7 +17,6 @@ onun yerine sunucunun KENDİ önbelleğine doğrudan yazıp `offline_get_tile`/
 (ağ gerektirmeyen, ama uçtan uca gerçek entegrasyon testi).
 """
 
-from __future__ import annotations
 
 import sys
 from pathlib import Path

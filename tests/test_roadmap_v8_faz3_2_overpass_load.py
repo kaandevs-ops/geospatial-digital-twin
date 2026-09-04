@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 pytestmark = pytest.mark.skip(reason="temporarily disabled to unblock CI")
@@ -39,7 +41,6 @@ Script hâli için bkz. `scripts/overpass_load_report.py` (bu testin
 çalıştırılabilir).
 """
 
-from __future__ import annotations
 
 import io
 import json

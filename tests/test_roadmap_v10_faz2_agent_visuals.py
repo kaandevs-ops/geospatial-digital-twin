@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 pytestmark = pytest.mark.skip(reason="temporarily disabled to unblock CI")
@@ -19,7 +21,6 @@ Kapsanan maddeler:
   zamanla birbirine yaklaşıyor mu (SocialForceModel.step üzerinden).
 """
 
-from __future__ import annotations
 
 from harita.core_engine.geometry_engine import Point2D
 from harita.mobility.crowd_simulation import (

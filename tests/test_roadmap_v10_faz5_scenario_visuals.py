@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 pytestmark = pytest.mark.skip(reason="temporarily disabled to unblock CI")
@@ -9,7 +11,6 @@ pytestmark = pytest.mark.skip(reason="temporarily disabled to unblock CI")
 (trafik sahne karesi) -> 5.6 (ses/işitsel katman) kapsar.
 """
 
-from __future__ import annotations
 
 from harita.core_engine.geometry_engine import Point2D
 from harita.hazard_data.fire_spread import FireSpreadModel

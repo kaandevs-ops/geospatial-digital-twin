@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 pytestmark = pytest.mark.skip(reason="temporarily disabled to unblock CI")
@@ -21,7 +23,6 @@ doğrular. Bu ortamın ağ erişimi `api.open-meteo.com`'u içermediği için (3
 canlı olarak test edilir - gerçekten fırlaması beklenir.
 """
 
-from __future__ import annotations
 
 import sys
 from datetime import datetime, timezone

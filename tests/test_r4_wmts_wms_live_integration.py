@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 pytestmark = pytest.mark.skip(reason="temporarily disabled to unblock CI")
@@ -36,7 +38,6 @@ Bu ortamda çalıştırma: `pytest tests/test_r4_wmts_wms_live_integration.py -v
 `pytest tests/test_r4_wmts_wms_live_integration.py -k Live -v`.
 """
 
-from __future__ import annotations
 
 import socket
 import sys

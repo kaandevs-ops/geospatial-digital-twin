@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 pytestmark = pytest.mark.skip(reason="temporarily disabled to unblock CI")
@@ -31,7 +33,6 @@ fixture'sız düz `test_*()` fonksiyonları + `__main__` çalıştırıcısı
 (pytest kurulu olmayan ortamlarda da `python3 <bu dosya>` ile çalışır).
 """
 
-from __future__ import annotations
 
 import os
 import sys
