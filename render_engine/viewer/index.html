@@ -1,0 +1,1291 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Harita Modelleme — 3D Görüntüleyici (Faz 15)</title>
+<style>
+  :root{
+    --bg-0:#0c0f13; --bg-1:#12161c; --panel:#161b22; --line:#242b35;
+    --ink-0:#e6e9ef; --ink-1:#98a2b3; --accent:#4f8cff; --accent-dim:#2c4c8c;
+    --mono:'JetBrains Mono','SF Mono',ui-monospace,monospace;
+    --sans:'Inter',ui-sans-serif,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg-0);color:var(--ink-0);font-family:var(--sans);overflow:hidden;}
+  #app{display:grid;grid-template-columns:280px 1fr;height:100%;}
+  #sidebar{background:var(--panel);border-right:1px solid var(--line);padding:18px;overflow-y:auto;}
+  #sidebar h1{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-1);margin:0 0 2px;font-weight:600;}
+  #sidebar .sub{font-size:11px;color:var(--ink-1);margin:0 0 18px;opacity:.7;}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:11px;color:var(--ink-1);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;}
+  input[type=file]{width:100%;font-size:12px;color:var(--ink-1);}
+  button{background:var(--accent-dim);color:var(--ink-0);border:1px solid var(--accent);border-radius:6px;
+    padding:8px 12px;font-size:12px;cursor:pointer;width:100%;font-family:var(--sans);}
+  button:hover{background:var(--accent);}
+  .stat-row{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid var(--line);color:var(--ink-1);}
+  .stat-row b{color:var(--ink-0);font-family:var(--mono);font-weight:500;}
+  #node-list{list-style:none;margin:0;padding:0;max-height:220px;overflow-y:auto;}
+  #node-list li{font-size:12px;padding:6px 8px;border-radius:4px;color:var(--ink-1);font-family:var(--mono);cursor:default;}
+  #node-list li:hover{background:var(--bg-1);color:var(--ink-0);}
+  #canvas-wrap{position:relative;}
+  canvas{display:block;width:100%;height:100%;}
+  #hint{position:absolute;left:16px;bottom:14px;font-size:11px;color:var(--ink-1);
+    font-family:var(--mono);opacity:.6;pointer-events:none;line-height:1.6;}
+  #empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:10px;color:var(--ink-1);pointer-events:none;}
+  #empty b{color:var(--ink-0);font-weight:600;font-size:15px;}
+  #fps{position:absolute;top:14px;right:16px;font-family:var(--mono);font-size:11px;color:var(--ink-1);opacity:.7;}
+  ::-webkit-scrollbar{width:8px;} ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <h1>Render Engine</h1>
+    <p class="sub">Faz 15 — WebGL2 sahne görüntüleyici</p>
+
+    <div class="field">
+      <label>Sahne dosyası (scene.json)</label>
+      <input type="file" id="file-input" accept=".json,application/json" />
+    </div>
+    <div class="field">
+      <button id="demo-btn">Örnek sahneyi yükle</button>
+    </div>
+
+    <div class="field">
+      <label>İstatistikler</label>
+      <div class="stat-row"><span>Node</span><b id="stat-nodes">–</b></div>
+      <div class="stat-row"><span>Vertex</span><b id="stat-verts">–</b></div>
+      <div class="stat-row"><span>Üçgen (tam)</span><b id="stat-tris">–</b></div>
+      <div class="stat-row"><span>Üçgen (çizilen, LOD)</span><b id="stat-tris-drawn">–</b></div>
+      <div class="stat-row"><span>Işık</span><b id="stat-lights">–</b></div>
+    </div>
+
+    <div class="field">
+      <label>Sahnedeki nesneler</label>
+      <ul id="node-list"></ul>
+    </div>
+
+    <!-- Roadmap V9 / OMURGA / O.2: agent zaman çizelgesi kontrolü. Yalnızca
+         yüklenen scene.json'da agent_frames doluysa gösterilir (geriye
+         uyumlu - statik sahnelerde bu panel hiç görünmez). -->
+    <div class="field" id="timeline-panel" style="display:none;">
+      <label>Simülasyon Zaman Çizelgesi</label>
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <button id="play-btn" style="flex:0 0 auto; width:auto; padding:8px 14px;">▶</button>
+        <div style="flex:1; font-family:var(--mono); font-size:11px; color:var(--ink-1); align-self:center;">
+          <span id="timeline-t">0.0s</span> / <span id="timeline-tmax">0.0s</span>
+        </div>
+      </div>
+      <input type="range" id="timeline-scrub" min="0" max="1000" value="0" step="1" style="width:100%;" />
+      <div style="display:flex; gap:6px; margin-top:8px;">
+        <button id="speed-1x" style="padding:6px 8px; font-size:11px;">1x</button>
+        <button id="speed-4x" style="padding:6px 8px; font-size:11px;">4x</button>
+        <button id="speed-16x" style="padding:6px 8px; font-size:11px;">16x</button>
+      </div>
+    </div>
+  </aside>
+
+  <div id="canvas-wrap">
+    <canvas id="gl"></canvas>
+    <div id="fps">-- fps</div>
+    <div id="hint">sürükle: döndür &nbsp;·&nbsp; tekerlek: yakınlaştır &nbsp;·&nbsp; sağ-tık sürükle: kaydır</div>
+    <div id="empty"><b>Sahne yüklenmedi</b><span>Soldan bir scene.json seçin veya örnek sahneyi yükleyin</span></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// ============================================================ //
+// WebGL2 bootstrap
+// ============================================================ //
+const canvas = document.getElementById("gl");
+const gl = canvas.getContext("webgl2", { antialias: true });
+if (!gl) {
+  document.getElementById("empty").innerHTML =
+    "<b>WebGL2 desteklenmiyor</b><span>Bu tarayıcı/ortam WebGL2 sağlamıyor.</span>";
+}
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = canvas.clientWidth * dpr, h = canvas.clientHeight * dpr;
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w; canvas.height = h;
+  }
+}
+new ResizeObserver(resize).observe(canvas);
+resize();
+
+// ============================================================ //
+// Shader'lar — Lambert + Blinn-Phong specular, tek directional +
+// tek ambient (Scene JSON'undaki ilk directional/ambient kullanılır)
+// ============================================================ //
+// Faz E1 — Render Engine: Gerçek Gölge Haritası, IBL(basit) ve Post-Processing
+// ---------------------------------------------------------------------------
+// Eklenen 4 yeni pipeline parçası:
+//   1. SHADOW_VS/FS: depth-only shadow-map pass (Faz 2 SunLight yönüyle
+//      senkron ortografik ışık-uzayı - bkz. computeLightSpaceMatrix, bu
+//      `render_engine/scene_bridge.py::compute_light_space_matrix` ile
+//      BİREBİR AYNI matematik, bkz. o dosyadaki docstring/parite notu).
+//   2. Ana VS/FS: shadow-map'i PCF (3x3) ile örnekleyip gölge faktörünü
+//      diffuse+specular terimlerine uygular; D9 `AmbientOcclusionBaker`
+//      çıktısı `aAO` (location=2) attribute'u ile ambient terimi çarpılır
+//      (node'da AO yoksa viewer 1.0 - etkisiz - gönderir, geriye uyumlu).
+//   3. SKY_VS/FS: Faz 2 `HDRSky` ufuk/zenit gradyanının gerçek zamanlı
+//      arka plan render'ı (tam ekran üçgen, derinlik yazmaz).
+//   4. POST_VS/FS: ACES-yaklaşık tonemap + basit FXAA - `RenderPipeline`
+//      (Faz 9 `default_pbr_pipeline()`) sırasının ilk gerçek GPU karşılığı.
+
+const VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec3 aNormal;
+layout(location=2) in float aAO;
+uniform mat4 uModel;
+uniform mat4 uView;
+uniform mat4 uProj;
+uniform mat3 uNormalMat;
+uniform mat4 uLightSpaceMatrix;
+out vec3 vNormal;
+out vec3 vWorldPos;
+out vec4 vLightSpacePos;
+out float vAO;
+void main(){
+  vec4 world = uModel * vec4(aPos, 1.0);
+  vWorldPos = world.xyz;
+  vNormal = normalize(uNormalMat * aNormal);
+  vLightSpacePos = uLightSpaceMatrix * world;
+  vAO = aAO;
+  gl_Position = uProj * uView * world;
+}`;
+
+const FS = `#version 300 es
+precision highp float;
+in vec3 vNormal;
+in vec3 vWorldPos;
+in vec4 vLightSpacePos;
+in float vAO;
+out vec4 fragColor;
+uniform vec3 uAlbedo;
+uniform float uRoughness;
+uniform float uMetallic;
+uniform vec3 uEmissive;
+uniform float uOpacity;
+uniform vec3 uAmbientColor;
+uniform float uAmbientIntensity;
+uniform vec3 uSunDir;      // dünya-uzayında, ışığın GİTTİĞİ yön
+uniform vec3 uSunColor;
+uniform float uSunIntensity;
+uniform vec3 uCameraPos;
+uniform sampler2D uShadowMap;
+uniform bool uShadowsEnabled;
+uniform bool uApplyInlineTonemap; // yalnızca HDR post-process yoksa true
+
+// Faz E1: shadow-map PCF (3x3) örneklemesi. 'vLightSpacePos' zaten clip-space
+// (perspective-divide öncesi); burada [-1,1] -> [0,1] doku uzayına eşlenir.
+float sampleShadow(vec4 lsPos, float NdotL) {
+  vec3 proj = lsPos.xyz / lsPos.w;
+  proj = proj * 0.5 + 0.5;
+  if (proj.x < 0.0 || proj.x > 1.0 || proj.y < 0.0 || proj.y > 1.0 || proj.z > 1.0) {
+    return 1.0; // ışık-uzayı frustum'u dışında -> gölgesiz kabul (aydınlık)
+  }
+  float bias = max(0.0025 * (1.0 - NdotL), 0.0006);
+  float shadow = 0.0;
+  vec2 texel = 1.0 / vec2(textureSize(uShadowMap, 0));
+  for (int x = -1; x <= 1; x++) {
+    for (int y = -1; y <= 1; y++) {
+      float closestDepth = texture(uShadowMap, proj.xy + vec2(x, y) * texel).r;
+      shadow += (proj.z - bias > closestDepth) ? 0.0 : 1.0;
+    }
+  }
+  return shadow / 9.0;
+}
+
+void main(){
+  vec3 N = normalize(vNormal);
+  vec3 L = normalize(-uSunDir);
+  vec3 V = normalize(uCameraPos - vWorldPos);
+  vec3 H = normalize(L + V);
+
+  float diff = max(dot(N, L), 0.0);
+  float spec = pow(max(dot(N, H), 0.0), mix(8.0, 128.0, 1.0 - uRoughness));
+  float specStrength = mix(0.04, 1.0, uMetallic);
+
+  float shadowFactor = uShadowsEnabled ? sampleShadow(vLightSpacePos, diff) : 1.0;
+  float ao = clamp(vAO, 0.0, 1.0);
+
+  vec3 ambient = uAmbientColor * uAmbientIntensity * uAlbedo * ao;
+  vec3 diffuse = uAlbedo * uSunColor * uSunIntensity * diff * (1.0 - uMetallic * 0.5) * shadowFactor;
+  vec3 specular = uSunColor * uSunIntensity * spec * specStrength * shadowFactor;
+
+  vec3 color = ambient + diffuse + specular + uEmissive;
+  // Faz E1: tonemap/gamma normalde POST_FS'te (HDR ara-tampon) uygulanır;
+  // 'EXT_color_buffer_float' yoksa (nadir/eski ortam) doğrudan canvas'a
+  // çizildiğinden burada basit bir Reinhard+gamma fallback'i uygulanır.
+  if (uApplyInlineTonemap) {
+    color = color / (color + vec3(1.0));
+    color = pow(color, vec3(1.0/2.2));
+  }
+  fragColor = vec4(color, uOpacity);
+}`;
+
+// --- Shadow-map depth-only pass ------------------------------------------ //
+const SHADOW_VS = `#version 300 es
+layout(location=0) in vec3 aPos;
+uniform mat4 uModel;
+uniform mat4 uLightSpaceMatrix;
+void main(){ gl_Position = uLightSpaceMatrix * uModel * vec4(aPos, 1.0); }`;
+const SHADOW_FS = `#version 300 es
+precision mediump float;
+void main(){ /* yalnızca derinlik yazılır (gl.drawBuffers yok, color yok) */ }`;
+
+// --- Gökyüzü (Faz 2 HDRSky ufuk/zenit gradyanı) -------------------------- //
+const SKY_VS = `#version 300 es
+layout(location=0) in vec2 aPos;
+out vec2 vUv;
+void main(){ vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.9999, 1.0); }`;
+const SKY_FS = `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 fragColor;
+uniform vec3 uZenith;
+uniform vec3 uHorizon;
+void main(){
+  // Basit dikey gradyan (tam gökküre projeksiyonu yerine - stdlib-only
+  // ilkesiyle uyumlu, equirect HDRI yoksa HDRSky'nin kendi fallback'i).
+  float t = clamp(vUv.y, 0.0, 1.0);
+  vec3 c = mix(uHorizon, uZenith, t);
+  fragColor = vec4(c, 1.0);
+}`;
+
+// --- Post-processing: ACES-yaklaşık tonemap + basit FXAA ----------------- //
+const POST_VS = `#version 300 es
+layout(location=0) in vec2 aPos;
+out vec2 vUv;
+void main(){ vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }`;
+const POST_FS = `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 fragColor;
+uniform sampler2D uColorTex;
+uniform vec2 uTexelSize;
+
+// Narkowicz 2015 ACES yaklaşımı - basit, ucuz, stdlib/bağımlılıksız.
+vec3 acesTonemap(vec3 x) {
+  float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14;
+  return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0);
+}
+
+float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+
+// Basitleştirilmiş FXAA (3x3 komşuluk, kenar tespiti + yumuşatma) - tam
+// FXAA 3.11 kalitesinde değil ama gerçek bir aliasing-azaltma etkisi verir.
+vec3 fxaa(sampler2D tex, vec2 uv, vec2 texel) {
+  vec3 rgbNW = texture(tex, uv + vec2(-1.0,-1.0)*texel).rgb;
+  vec3 rgbNE = texture(tex, uv + vec2( 1.0,-1.0)*texel).rgb;
+  vec3 rgbSW = texture(tex, uv + vec2(-1.0, 1.0)*texel).rgb;
+  vec3 rgbSE = texture(tex, uv + vec2( 1.0, 1.0)*texel).rgb;
+  vec3 rgbM  = texture(tex, uv).rgb;
+
+  float lNW=luma(rgbNW), lNE=luma(rgbNE), lSW=luma(rgbSW), lSE=luma(rgbSE), lM=luma(rgbM);
+  float lMin = min(lM, min(min(lNW,lNE), min(lSW,lSE)));
+  float lMax = max(lM, max(max(lNW,lNE), max(lSW,lSE)));
+  if ((lMax - lMin) < 0.06) return rgbM; // düşük kontrast -> kenar yok, atla
+
+  vec2 dir = vec2(-((lNW+lNE)-(lSW+lSE)), ((lNW+lSW)-(lNE+lSE)));
+  float dirReduce = max((lNW+lNE+lSW+lSE)*0.03125, 1.0/128.0);
+  float rcpDirMin = 1.0/(min(abs(dir.x),abs(dir.y))+dirReduce);
+  dir = clamp(dir*rcpDirMin, -8.0, 8.0) * texel;
+
+  vec3 rgbA = 0.5*(texture(tex, uv+dir*(1.0/3.0-0.5)).rgb + texture(tex, uv+dir*(2.0/3.0-0.5)).rgb);
+  vec3 rgbB = rgbA*0.5 + 0.25*(texture(tex, uv+dir*-0.5).rgb + texture(tex, uv+dir*0.5).rgb);
+  float lB = luma(rgbB);
+  return (lB < lMin || lB > lMax) ? rgbA : rgbB;
+}
+
+void main(){
+  vec3 color = fxaa(uColorTex, vUv, uTexelSize);
+  color = acesTonemap(color);
+  color = pow(color, vec3(1.0/2.2));
+  fragColor = vec4(color, 1.0);
+}`;
+
+const GRID_VS = `#version 300 es
+layout(location=0) in vec3 aPos;
+uniform mat4 uView; uniform mat4 uProj;
+void main(){ gl_Position = uProj * uView * vec4(aPos, 1.0); }`;
+const GRID_FS = `#version 300 es
+precision mediump float; out vec4 fragColor;
+uniform vec3 uColor; uniform float uAlpha;
+void main(){ fragColor = vec4(uColor, uAlpha); }`;
+
+// Roadmap V9 / OMURGA / O.2 — "Render/Viewer Köprüsü — Agent Katmanı".
+// Bilinçli olarak basit: her agent tek bir GL_POINTS vertex'i (kapsül/nokta
+// gösterimi, roadmap notu) - şehir ölçeğinde 50.000 agent tek draw call'la
+// çizilebilsin diye tam 3D karakter mesh'i kullanılmaz.
+const AGENT_VS = `#version 300 es
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec3 aColor;
+uniform mat4 uView; uniform mat4 uProj;
+out vec3 vColor;
+void main(){
+  gl_Position = uProj * uView * vec4(aPos, 1.0);
+  vColor = aColor;
+  // Kamera mesafesine göre biraz küçülsün diye basit bir sabit boyut -
+  // gerçek mesafe-tabanlı ölçekleme O.6 (Simulation LOD) kapsamında.
+  gl_PointSize = 10.0;
+}`;
+const AGENT_FS = `#version 300 es
+precision mediump float;
+in vec3 vColor; out vec4 fragColor;
+void main(){
+  // Kare noktayı basit bir daireye yuvarla (köşeleri discard et).
+  vec2 c = gl_PointCoord - vec2(0.5);
+  if (dot(c,c) > 0.25) discard;
+  fragColor = vec4(vColor, 1.0);
+}`;
+
+function compile(type, src) {
+  const sh = gl.createShader(type);
+  gl.shaderSource(sh, src);
+  gl.compileShader(sh);
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+    console.error(gl.getShaderInfoLog(sh));
+  }
+  return sh;
+}
+function program(vsSrc, fsSrc) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compile(gl.VERTEX_SHADER, vsSrc));
+  gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fsSrc));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+    console.error(gl.getProgramInfoLog(p));
+  }
+  return p;
+}
+
+let meshProgram, gridProgram, shadowProgram, skyProgram, postProgram, agentProgram;
+let meshUniforms = {}, gridUniforms = {}, shadowUniforms = {}, skyUniforms = {}, postUniforms = {}, agentUniforms = {};
+if (gl) {
+  meshProgram = program(VS, FS);
+  gridProgram = program(GRID_VS, GRID_FS);
+  shadowProgram = program(SHADOW_VS, SHADOW_FS);
+  skyProgram = program(SKY_VS, SKY_FS);
+  postProgram = program(POST_VS, POST_FS);
+  agentProgram = program(AGENT_VS, AGENT_FS);
+  agentUniforms.uView = gl.getUniformLocation(agentProgram, "uView");
+  agentUniforms.uProj = gl.getUniformLocation(agentProgram, "uProj");
+  for (const name of ["uModel","uView","uProj","uNormalMat","uAlbedo","uRoughness",
+    "uMetallic","uEmissive","uOpacity","uAmbientColor","uAmbientIntensity",
+    "uSunDir","uSunColor","uSunIntensity","uCameraPos","uLightSpaceMatrix",
+    "uShadowMap","uShadowsEnabled","uApplyInlineTonemap"]) {
+    meshUniforms[name] = gl.getUniformLocation(meshProgram, name);
+  }
+  for (const name of ["uView","uProj","uColor","uAlpha"]) {
+    gridUniforms[name] = gl.getUniformLocation(gridProgram, name);
+  }
+  for (const name of ["uModel","uLightSpaceMatrix"]) {
+    shadowUniforms[name] = gl.getUniformLocation(shadowProgram, name);
+  }
+  for (const name of ["uZenith","uHorizon"]) {
+    skyUniforms[name] = gl.getUniformLocation(skyProgram, name);
+  }
+  for (const name of ["uColorTex","uTexelSize"]) {
+    postUniforms[name] = gl.getUniformLocation(postProgram, name);
+  }
+}
+
+// ============================================================ //
+// Küçük mat4/mat3/vec3 yardımcıları (bağımlılıksız)
+// ============================================================ //
+const M4 = {
+  identity(){ return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]); },
+  multiply(a,b){
+    const o = new Float32Array(16);
+    for(let r=0;r<4;r++) for(let c=0;c<4;c++){
+      let s=0; for(let k=0;k<4;k++) s += a[k*4+r]*b[c*4+k];
+      o[c*4+r]=s;
+    }
+    return o;
+  },
+  perspective(fovyRad, aspect, near, far){
+    const f = 1/Math.tan(fovyRad/2), nf = 1/(near-far);
+    return new Float32Array([
+      f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,2*far*near*nf,0
+    ]);
+  },
+  lookAt(eye, target, up){
+    let zx=eye[0]-target[0], zy=eye[1]-target[1], zz=eye[2]-target[2];
+    let zl=Math.hypot(zx,zy,zz)||1; zx/=zl; zy/=zl; zz/=zl;
+    let xx=up[1]*zz-up[2]*zy, xy=up[2]*zx-up[0]*zz, xz=up[0]*zy-up[1]*zx;
+    let xl=Math.hypot(xx,xy,xz)||1; xx/=xl; xy/=xl; xz/=xl;
+    let yx=zy*xz-zz*xy, yy=zz*xx-zx*xz, yz=zx*xy-zy*xx;
+    return new Float32Array([
+      xx,yx,zx,0, xy,yy,zy,0, xz,yz,zz,0,
+      -(xx*eye[0]+xy*eye[1]+xz*eye[2]),
+      -(yx*eye[0]+yy*eye[1]+yz*eye[2]),
+      -(zx*eye[0]+zy*eye[1]+zz*eye[2]), 1
+    ]);
+  },
+  trs(t, rDeg, s){
+    const [rx,ry,rz] = rDeg.map(d => d*Math.PI/180);
+    const cx=Math.cos(rx), sx=Math.sin(rx), cy=Math.cos(ry), sy=Math.sin(ry), cz=Math.cos(rz), sz=Math.sin(rz);
+    // R = Rz * Ry * Rx  (Python tarafındaki _apply_trs ile aynı sıra)
+    const r00=cy*cz, r01=-cy*sz, r02=sy;
+    const r10=sx*sy*cz+cx*sz, r11=-sx*sy*sz+cx*cz, r12=-sx*cy;
+    const r20=-cx*sy*cz+sx*sz, r21=cx*sy*sz+sx*cz, r22=cx*cy;
+    return new Float32Array([
+      r00*s[0], r10*s[0], r20*s[0], 0,
+      r01*s[1], r11*s[1], r21*s[1], 0,
+      r02*s[2], r12*s[2], r22*s[2], 0,
+      t[0], t[1], t[2], 1
+    ]);
+  },
+  // Faz E1: `render_engine/scene_bridge.py::compute_light_space_matrix()`
+  // ile BİREBİR AYNI matematik (parite testi: test_phaseE1_shadow_render_
+  // pipeline.py + scripts/check_e1_light_space_parity.mjs). `lightDirGoing`
+  // ışığın GİTTİĞİ yön (uSunDir ile aynı konvansiyon); `bounds` = {lx,ly,lz,
+  // hx,hy,hz}. Dönen değer, WebGL'in beklediği SÜTUN-ÖNCELİKLİ (column-major)
+  // Float32Array(16) - Python tarafı satır-öncelikli list[list] tutar, bu
+  // fonksiyon sonunda transpoze ederek dönüştürür.
+  computeLightSpaceMatrix(lightDirGoing, bounds){
+    const {lx,ly,lz,hx,hy,hz} = bounds;
+    const center = [(lx+hx)/2, (ly+hy)/2, (lz+hz)/2];
+    const diag = Math.hypot(hx-lx, hy-ly, hz-lz) || 1.0;
+    const halfExtent = diag * 0.75;
+
+    let [dx,dy,dz] = lightDirGoing;
+    const dl = Math.hypot(dx,dy,dz) || 1.0;
+    dx/=dl; dy/=dl; dz/=dl;
+
+    const eye = [center[0]-dx*diag, center[1]-dy*diag, center[2]-dz*diag];
+    const up = Math.abs(dy) < 0.999 ? [0,1,0] : [1,0,0];
+
+    let zx=eye[0]-center[0], zy=eye[1]-center[1], zz=eye[2]-center[2];
+    let zl=Math.hypot(zx,zy,zz)||1; zx/=zl; zy/=zl; zz/=zl;
+    let xx=up[1]*zz-up[2]*zy, xy=up[2]*zx-up[0]*zz, xz=up[0]*zy-up[1]*zx;
+    let xl=Math.hypot(xx,xy,xz)||1; xx/=xl; xy/=xl; xz/=xl;
+    let yx=zy*xz-zz*xy, yy=zz*xx-zx*xz, yz=zx*xy-zy*xx;
+
+    const view = [
+      [xx,xy,xz,-(xx*eye[0]+xy*eye[1]+xz*eye[2])],
+      [yx,yy,yz,-(yx*eye[0]+yy*eye[1]+yz*eye[2])],
+      [zx,zy,zz,-(zx*eye[0]+zy*eye[1]+zz*eye[2])],
+      [0,0,0,1],
+    ];
+
+    const near=0.01, far=diag*3.0;
+    const proj = [
+      [1/halfExtent, 0, 0, 0],
+      [0, 1/halfExtent, 0, 0],
+      [0, 0, -2/(far-near), -(far+near)/(far-near)],
+      [0, 0, 0, 1],
+    ];
+
+    const rowMajor = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+    for (let r=0;r<4;r++) for (let c=0;c<4;c++) {
+      let s=0; for (let k=0;k<4;k++) s += proj[r][k]*view[k][c];
+      rowMajor[r][c]=s;
+    }
+    // satır-öncelikliden sütun-öncelikliye (WebGL) transpoze
+    const out = new Float32Array(16);
+    for (let r=0;r<4;r++) for (let c=0;c<4;c++) out[c*4+r] = rowMajor[r][c];
+    return out;
+  },
+  normalMat3(m){
+    // rotasyon+üniform-olmayan ölçek için basit yaklaşım: üst-3x3'ün tersinin transpozu
+    const a=[[m[0],m[1],m[2]],[m[4],m[5],m[6]],[m[8],m[9],m[10]]];
+    const det = a[0][0]*(a[1][1]*a[2][2]-a[1][2]*a[2][1])
+              - a[0][1]*(a[1][0]*a[2][2]-a[1][2]*a[2][0])
+              + a[0][2]*(a[1][0]*a[2][1]-a[1][1]*a[2][0]);
+    if (Math.abs(det) < 1e-8) return new Float32Array([1,0,0,0,1,0,0,0,1]);
+    const inv = 1/det;
+    const c00=(a[1][1]*a[2][2]-a[1][2]*a[2][1])*inv;
+    const c01=(a[1][2]*a[2][0]-a[1][0]*a[2][2])*inv;
+    const c02=(a[1][0]*a[2][1]-a[1][1]*a[2][0])*inv;
+    const c10=(a[0][2]*a[2][1]-a[0][1]*a[2][2])*inv;
+    const c11=(a[0][0]*a[2][2]-a[0][2]*a[2][0])*inv;
+    const c12=(a[0][1]*a[2][0]-a[0][0]*a[2][1])*inv;
+    const c20=(a[0][1]*a[1][2]-a[0][2]*a[1][1])*inv;
+    const c21=(a[0][2]*a[1][0]-a[0][0]*a[1][2])*inv;
+    const c22=(a[0][0]*a[1][1]-a[0][1]*a[1][0])*inv;
+    // transpoz(inverse) = normal matrix
+    return new Float32Array([c00,c01,c02, c10,c11,c12, c20,c21,c22]);
+  }
+};
+
+// ============================================================ //
+// Kamera (orbit)
+// ============================================================ //
+const cam = { target:[0,0,0], distance:20, yaw:45, pitch:30, fov:50, near:0.1, far:1000 };
+let isDragging=false, isPanning=false, lastX=0, lastY=0;
+
+canvas.addEventListener("mousedown", e=>{
+  if (e.button===2) isPanning=true; else isDragging=true;
+  lastX=e.clientX; lastY=e.clientY;
+});
+window.addEventListener("mouseup", ()=>{isDragging=false; isPanning=false;});
+canvas.addEventListener("contextmenu", e=>e.preventDefault());
+window.addEventListener("mousemove", e=>{
+  const dx=e.clientX-lastX, dy=e.clientY-lastY;
+  lastX=e.clientX; lastY=e.clientY;
+  if (isDragging) {
+    cam.yaw -= dx*0.4;
+    cam.pitch = Math.max(-89, Math.min(89, cam.pitch - dy*0.4));
+  } else if (isPanning) {
+    const panSpeed = cam.distance*0.0015;
+    const yawRad = cam.yaw*Math.PI/180;
+    const rightX=Math.cos(yawRad), rightZ=-Math.sin(yawRad);
+    cam.target[0] -= rightX*dx*panSpeed;
+    cam.target[2] -= rightZ*dx*panSpeed;
+    cam.target[1] += dy*panSpeed;
+  }
+});
+canvas.addEventListener("wheel", e=>{
+  e.preventDefault();
+  cam.distance *= (1 + Math.sign(e.deltaY)*0.1);
+  cam.distance = Math.max(0.05, Math.min(cam.distance, 100000));
+}, {passive:false});
+
+function camEye() {
+  const yawRad = cam.yaw*Math.PI/180, pitchRad = cam.pitch*Math.PI/180;
+  const x = cam.target[0] + cam.distance*Math.cos(pitchRad)*Math.sin(yawRad);
+  const y = cam.target[1] + cam.distance*Math.sin(pitchRad);
+  const z = cam.target[2] + cam.distance*Math.cos(pitchRad)*Math.cos(yawRad);
+  return [x,y,z];
+}
+
+// ============================================================ //
+// Sahne yükleme -> GPU buffer'ları
+// ============================================================ //
+let scene = null;
+let gpuNodes = [];  // {vao, indexCount, node}
+let gridVAO = null, gridVertCount = 0;
+let sceneBoundsCache = {lx:-1,ly:-1,lz:-1,hx:1,hy:1,hz:1};
+
+// ============================================================ //
+// Faz E1 — Shadow-map FBO, HDR ara-tampon FBO, tam-ekran üçgen
+// ============================================================ //
+const SHADOW_MAP_SIZE = 2048; // Faz 2 ShadowMapPass.resolution varsayılanıyla eşleşir
+let shadowFBO=null, shadowDepthTex=null;
+let hdrFBO=null, hdrColorTex=null, hdrDepthRB=null, hdrW=0, hdrH=0;
+let fullscreenVAO=null, skyVAO=null;
+
+function setupFullscreenTriangle() {
+  // Tek üçgenle tam ekranı kaplayan klasik teknik (quad'dan daha az vertex).
+  const verts = new Float32Array([-1,-1, 3,-1, -1,3]);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
+  const vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  gl.bindVertexArray(null);
+  return vao;
+}
+
+function setupShadowFBO() {
+  shadowDepthTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, shadowDepthTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT24, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE,
+    0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+  shadowFBO = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, shadowFBO);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, shadowDepthTex, 0);
+  gl.drawBuffers([gl.NONE]);
+  gl.readBuffer(gl.NONE);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
+function ensureHdrFBO(w, h) {
+  if (hdrFBO && hdrW === w && hdrH === h) return;
+  hdrW = w; hdrH = h;
+  if (hdrColorTex) gl.deleteTexture(hdrColorTex);
+  if (hdrDepthRB) gl.deleteRenderbuffer(hdrDepthRB);
+  if (hdrFBO) gl.deleteFramebuffer(hdrFBO);
+
+  hdrColorTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, hdrColorTex);
+  // Faz E1: gerçek HDR ara-tampon (>1.0 parlaklık değerleri tonemap
+  // öncesi kaybolmadan taşınabilsin diye float16 renk hedefi).
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+  hdrDepthRB = gl.createRenderbuffer();
+  gl.bindRenderbuffer(gl.RENDERBUFFER, hdrDepthRB);
+  gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h);
+
+  hdrFBO = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, hdrFBO);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, hdrColorTex, 0);
+  gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, hdrDepthRB);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
+let hdrSupported = false;
+// ROADMAP_V4 - Faz E10: EXT_disjoint_timer_query_webgl2 destekleniyorsa
+// gercek GPU-taraflı süre ölçümü alınır; desteklenmiyorsa (çoğu ortam)
+// sessizce mevcut yazılım-tarafı `performance/profiler.py::GPUProfiler`
+// simülasyonuna düşülür (regresyon yok).
+let gpuTimerExt = null;
+let gpuTimerQuery = null;
+let gpuTimerPending = false;
+window.__lastGpuTimeMs = null; // test/köprü erişimi için (headless doğrulama)
+
+if (gl) {
+  hdrSupported = !!gl.getExtension("EXT_color_buffer_float");
+  if (!hdrSupported) {
+    console.warn("EXT_color_buffer_float yok - HDR post-processing devre dışı, doğrudan canvas'a çiziliyor (gölge yine aktif).");
+  }
+  gpuTimerExt = gl.getExtension("EXT_disjoint_timer_query_webgl2");
+  if (!gpuTimerExt) {
+    console.warn("EXT_disjoint_timer_query_webgl2 yok - gerçek GPU zamanlaması devre dışı, yazılım-tarafı süre simülasyonu kullanılıyor.");
+  }
+  fullscreenVAO = setupFullscreenTriangle();
+  setupShadowFBO();
+}
+
+function beginGpuTimer() {
+  if (!gpuTimerExt || gpuTimerPending) return;
+  gpuTimerQuery = gl.createQuery();
+  gl.beginQuery(gpuTimerExt.TIME_ELAPSED_EXT, gpuTimerQuery);
+}
+
+function endGpuTimer() {
+  if (!gpuTimerExt || !gpuTimerQuery) return;
+  gl.endQuery(gpuTimerExt.TIME_ELAPSED_EXT);
+  gpuTimerPending = true;
+}
+
+/** Onceki karenin GPU sorgusu hazirsa okur; degilse atlar (non-blocking). */
+function pollGpuTimer() {
+  if (!gpuTimerExt || !gpuTimerQuery || !gpuTimerPending) return;
+  const available = gl.getQueryParameter(gpuTimerQuery, gl.QUERY_RESULT_AVAILABLE);
+  const disjoint = gl.getParameter(gpuTimerExt.GPU_DISJOINT_EXT);
+  if (available) {
+    if (!disjoint) {
+      const nanoseconds = gl.getQueryParameter(gpuTimerQuery, gl.QUERY_RESULT);
+      window.__lastGpuTimeMs = nanoseconds / 1e6;
+      reportGpuTimingToProfiler(window.__lastGpuTimeMs, true);
+    }
+    gl.deleteQuery(gpuTimerQuery);
+    gpuTimerQuery = null;
+    gpuTimerPending = false;
+  }
+}
+
+/** Python-tarafi GPUProfiler'a REST köprüsü (app_shell çalışıyorsa best-effort;
+ * çalışmıyorsa sessizce yutulur - viewer bağımsız da açılabilir olmalı). */
+function reportGpuTimingToProfiler(gpuTimeMs, supported) {
+  try {
+    fetch("/api/performance/gpu-timing", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({gpu_time_ms: gpuTimeMs, supported: supported}),
+    }).catch(() => {});
+  } catch (e) { /* viewer standalone modda çalışıyor olabilir */ }
+}
+
+function buildGrid(halfSize, step) {
+  const verts = [];
+  for (let i=-halfSize; i<=halfSize; i+=step) {
+    verts.push(-halfSize,0,i, halfSize,0,i);
+    verts.push(i,0,-halfSize, i,0,halfSize);
+  }
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+  const vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+  gl.bindVertexArray(null);
+  gridVAO = vao;
+  gridVertCount = verts.length/3;
+}
+
+function computeFlatNormals(positions, indices) {
+  const n = positions.length/3;
+  const normals = new Float32Array(n*3);
+  for (let t=0; t<indices.length; t+=3) {
+    const ia=indices[t]*3, ib=indices[t+1]*3, ic=indices[t+2]*3;
+    const ax=positions[ia],ay=positions[ia+1],az=positions[ia+2];
+    const bx=positions[ib],by=positions[ib+1],bz=positions[ib+2];
+    const cx=positions[ic],cy=positions[ic+1],cz=positions[ic+2];
+    const ux=bx-ax, uy=by-ay, uz=bz-az;
+    const vx=cx-ax, vy=cy-ay, vz=cz-az;
+    let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx;
+    const l = Math.hypot(nx,ny,nz)||1; nx/=l; ny/=l; nz/=l;
+    for (const idx of [ia,ib,ic]) { normals[idx]+=nx; normals[idx+1]+=ny; normals[idx+2]+=nz; }
+  }
+  for (let i=0;i<n;i++){
+    const x=normals[i*3],y=normals[i*3+1],z=normals[i*3+2];
+    const l=Math.hypot(x,y,z)||1;
+    normals[i*3]=x/l; normals[i*3+1]=y/l; normals[i*3+2]=z/l;
+  }
+  return normals;
+}
+
+// ============================================================ //
+// Faz D2 — Render Engine <-> Performance köprüsü (viewer tarafı)
+// ============================================================ //
+// scene_bridge.py `Scene.add_mesh_with_lod()` her node için (varsa)
+// `lod_groups` alanına azalan detaylı bir mesh zinciri gömer (bkz.
+// ROADMAP_V3.md Faz D2). Burada her seviye için AYRI bir VAO/index-buffer
+// kurulur; her karede kamera-node mesafesine göre hangi VAO'nun
+// çizileceğine karar verilir (pickLodLevel). `lod_groups` yoksa (eski/
+// LOD'suz sahne) node her zaman tek seviyeli `positions/indices` ile,
+// eskisi gibi çizilir - geriye dönük uyumluluk korunur.
+
+function buildGpuLevel(positions, indices, normals, ao) {
+  const posBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+  const normBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
+
+  // Faz E1: D9 AmbientOcclusionBaker çıktısı - node'da yoksa (`ao` null/
+  // undefined) hepsi 1.0 (etkisiz) olan bir dizi üretilir, geriye uyumlu.
+  const vertexCount = positions.length / 3;
+  const aoData = ao && ao.length === vertexCount
+    ? new Float32Array(ao)
+    : new Float32Array(vertexCount).fill(1.0);
+  const aoBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, aoBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, aoData, gl.STATIC_DRAW);
+
+  const idxBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+  const vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+  gl.enableVertexAttribArray(1);
+  gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, aoBuf);
+  gl.enableVertexAttribArray(2);
+  gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+  gl.bindVertexArray(null);
+
+  return { vao, indexCount: indices.length, triangleCount: indices.length / 3 };
+}
+
+// scene_bridge.select_lod_for_distance()'in JS karşılığı: artan
+// max_distance sırasıyla ilk uyan seviyeyi seçer; hiçbiri uymazsa (kuramsal
+// olarak olmamalı, son seviye null/Infinity max_distance taşır) son seviyeye
+// düşer.
+function pickLodLevel(levels, distance) {
+  for (const lvl of levels) {
+    if (lvl.maxDistance === null || distance <= lvl.maxDistance) return lvl;
+  }
+  return levels[levels.length - 1];
+}
+
+function nodeWorldCenter(node) {
+  // node.positions dünya-öncesi (local) koordinatlar; TRS'in yalnızca
+  // translation kısmını merkez tahmini için yeterli kabul ediyoruz (LOD
+  // mesafe seçimi kaba bir yaklaşıklık gerektirir, tam dogruluk gerekmez).
+  const p = node.positions;
+  let lx = Infinity, ly = Infinity, lz = Infinity, hx = -Infinity, hy = -Infinity, hz = -Infinity;
+  for (let i = 0; i < p.length; i += 3) {
+    lx = Math.min(lx, p[i]); hx = Math.max(hx, p[i]);
+    ly = Math.min(ly, p[i+1]); hy = Math.max(hy, p[i+1]);
+    lz = Math.min(lz, p[i+2]); hz = Math.max(hz, p[i+2]);
+  }
+  return [
+    (lx+hx)/2 + node.translation[0],
+    (ly+hy)/2 + node.translation[1],
+    (lz+hz)/2 + node.translation[2],
+  ];
+}
+
+function loadScene(json) {
+  scene = json;
+  gpuNodes.forEach(n => (n.levels || [n]).forEach(l => gl.deleteVertexArray(l.vao)));
+  gpuNodes = [];
+
+  for (const node of scene.nodes) {
+    if (node.lod_groups) {
+      // Faz D2: her LOD seviyesi için ayrı VAO. Faz E1: AO şu an yalnızca
+      // tam-detay (node.ao) seviyesine bağlı - LOD basitleştirmesi vertex
+      // sayısını değiştirdiğinden alt-seviyelere AO taşınmıyor (etkisiz=1.0
+      // dizisine düşülüyor, görsel fark yalnızca en yakın LOD'da hissedilir).
+      const levels = node.lod_groups.map(g => {
+        const positions = new Float32Array(g.positions);
+        const indices = new Uint32Array(g.indices);
+        const normals = g.normals ? new Float32Array(g.normals) : computeFlatNormals(positions, indices);
+        const ao = (g.positions.length/3 === (node.ao||[]).length) ? node.ao : null;
+        const gpu = buildGpuLevel(positions, indices, normals, ao);
+        return { ...gpu, maxDistance: g.max_distance };
+      });
+      gpuNodes.push({ node, levels, worldCenter: nodeWorldCenter(node) });
+    } else {
+      const positions = new Float32Array(node.positions);
+      const indices = new Uint32Array(node.indices);
+      const normals = node.normals ? new Float32Array(node.normals) : computeFlatNormals(positions, indices);
+      const gpu = buildGpuLevel(positions, indices, normals, node.ao);
+      gpuNodes.push({ node, levels: [{ ...gpu, maxDistance: null }], worldCenter: nodeWorldCenter(node) });
+    }
+  }
+
+  const bb = computeSceneBounds(scene);
+  const diag = Math.hypot(bb.hx-bb.lx, bb.hy-bb.ly, bb.hz-bb.lz) || 1;
+  buildGrid(Math.max(diag, 10), Math.max(diag/20, 1));
+  sceneBoundsCache = bb;
+
+  cam.target = scene.camera.target.slice();
+  cam.distance = scene.camera.distance;
+  cam.yaw = scene.camera.yaw_deg;
+  cam.pitch = scene.camera.pitch_deg;
+  cam.fov = scene.camera.fov_deg;
+  cam.near = scene.camera.near;
+  cam.far = scene.camera.far;
+
+  updateSidebar(scene);
+  setupTimelineUI();
+  document.getElementById("empty").style.display = "none";
+}
+
+function computeSceneBounds(scene) {
+  let lx=Infinity,ly=Infinity,lz=Infinity,hx=-Infinity,hy=-Infinity,hz=-Infinity;
+  for (const node of scene.nodes) {
+    for (let i=0;i<node.positions.length;i+=3){
+      const x=node.positions[i]+node.translation[0];
+      const y=node.positions[i+1]+node.translation[1];
+      const z=node.positions[i+2]+node.translation[2];
+      lx=Math.min(lx,x); ly=Math.min(ly,y); lz=Math.min(lz,z);
+      hx=Math.max(hx,x); hy=Math.max(hy,y); hz=Math.max(hz,z);
+    }
+  }
+  if (!isFinite(lx)) { lx=ly=lz=0; hx=hy=hz=1; }
+  return {lx,ly,lz,hx,hy,hz};
+}
+
+function updateSidebar(scene) {
+  const totalVerts = scene.nodes.reduce((a,n)=>a+n.vertex_count,0);
+  const totalTris = scene.nodes.reduce((a,n)=>a+n.triangle_count,0);
+  document.getElementById("stat-nodes").textContent = scene.nodes.length;
+  document.getElementById("stat-verts").textContent = totalVerts.toLocaleString("tr-TR");
+  document.getElementById("stat-tris").textContent = totalTris.toLocaleString("tr-TR");
+  document.getElementById("stat-lights").textContent = scene.lights.length;
+  const ul = document.getElementById("node-list");
+  ul.innerHTML = "";
+  for (const n of scene.nodes) {
+    const li = document.createElement("li");
+    li.textContent = `${n.name} · ${n.triangle_count} tri`;
+    ul.appendChild(li);
+  }
+}
+
+// ============================================================ //
+// Roadmap V9 / OMURGA / O.2 — Agent zaman çizelgesi oynatımı
+// ============================================================ //
+// `Python SimulationRecorder.interpolate_at()` ile aynı mantık: iki
+// keyframe arasında lineer interpolasyon, aralık dışında en yakın uca
+// clamp. Burada tekrar yazılıyor çünkü Python tarafı sunucu-sızdırmayan
+// (stdlib-only) bir kütüphane, viewer tarafı ise bağımsız bir istemci -
+// iki taraf da aynı `agent_frames` JSON temsilini tüketip aynı sonuca
+// varmalı (kod tekrarı burada bilinçli bir tercih: ağ üzerinden ayrı bir
+// "interpolasyon servisi" çağırmak performansı öldürür).
+const AGENT_STATE_COLOR = {
+  moving:    [0.35, 0.85, 0.45],   // yeşil = hareket ediyor
+  waiting:   [0.95, 0.75, 0.20],   // sarı = bekliyor
+  panic:     [0.95, 0.25, 0.25],   // kırmızı = panik
+  evacuated: [0.35, 0.55, 0.95],   // mavi = tahliye oldu
+};
+
+let agentPlayback = { playing: false, t: 0, tMin: 0, tMax: 0, speed: 1.0 };
+let agentVAO = null, agentVBO = null, agentPointCount = 0;
+
+function agentFrameAt(t) {
+  const frames = scene && scene.agent_frames;
+  if (!frames || frames.length === 0) return null;
+  if (t <= frames[0].t) return frames[0];
+  if (t >= frames[frames.length-1].t) return frames[frames.length-1];
+  // Sıralı varsayılan (Python tarafı keyframe'leri sırayla üretir) - basit
+  // doğrusal tarama yeterli (tipik koşum uzunluğu birkaç yüz kare).
+  let before = frames[0], after = frames[frames.length-1];
+  for (let i=0;i<frames.length-1;i++){
+    if (frames[i].t <= t && frames[i+1].t >= t) { before = frames[i]; after = frames[i+1]; break; }
+  }
+  const span = after.t - before.t;
+  const ratio = span <= 0 ? 0 : (t - before.t) / span;
+  const afterById = new Map(after.agents.map(a => [a.id, a]));
+  const merged = [];
+  for (const ab of before.agents) {
+    const aa = afterById.get(ab.id);
+    if (!aa) { merged.push(ab); continue; }
+    merged.push({
+      id: ab.id,
+      x: ab.x + (aa.x - ab.x) * ratio,
+      y: ab.y + (aa.y - ab.y) * ratio,
+      state: ratio >= 0.5 ? aa.state : ab.state,
+    });
+  }
+  return { t, agents: merged };
+}
+
+function ensureAgentGpuBuffers() {
+  if (agentVAO) return;
+  agentVAO = gl.createVertexArray();
+  gl.bindVertexArray(agentVAO);
+  agentVBO = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, agentVBO);
+  const stride = 6 * 4; // 3 pos + 3 color, float32
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, stride, 0);
+  gl.enableVertexAttribArray(1);
+  gl.vertexAttribPointer(1, 3, gl.FLOAT, false, stride, 3*4);
+  gl.bindVertexArray(null);
+}
+
+function uploadAgentFrame(frame) {
+  if (!frame || !frame.agents.length) { agentPointCount = 0; return; }
+  ensureAgentGpuBuffers();
+  const data = new Float32Array(frame.agents.length * 6);
+  frame.agents.forEach((a, i) => {
+    const color = AGENT_STATE_COLOR[a.state] || AGENT_STATE_COLOR.moving;
+    // Agent koordinatları 2D simülasyon uzayı (x,y); sahnede zemin
+    // düzlemine (x, 0, z) olarak yerleştirilir - `y` sim ekseni -> `z`
+    // dünya ekseni, yükseklik sabit (0.9m, göğüs hizası nokta gösterimi).
+    const o = i*6;
+    data[o] = a.x; data[o+1] = 0.9; data[o+2] = a.y;
+    data[o+3] = color[0]; data[o+4] = color[1]; data[o+5] = color[2];
+  });
+  gl.bindBuffer(gl.ARRAY_BUFFER, agentVBO);
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+  agentPointCount = frame.agents.length;
+}
+
+function renderAgentLayer(view, proj) {
+  if (!agentProgram || agentPointCount === 0) return;
+  gl.useProgram(agentProgram);
+  gl.uniformMatrix4fv(agentUniforms.uView, false, view);
+  gl.uniformMatrix4fv(agentUniforms.uProj, false, proj);
+  gl.bindVertexArray(agentVAO);
+  gl.drawArrays(gl.POINTS, 0, agentPointCount);
+}
+
+function setupTimelineUI() {
+  const panel = document.getElementById("timeline-panel");
+  const playBtn = document.getElementById("play-btn");
+  const scrub = document.getElementById("timeline-scrub");
+  const tLabel = document.getElementById("timeline-t");
+  const tMaxLabel = document.getElementById("timeline-tmax");
+
+  const frames = scene && scene.agent_frames;
+  if (!frames || frames.length === 0) {
+    panel.style.display = "none";
+    agentPlayback.playing = false;
+    agentPointCount = 0;
+    return;
+  }
+  panel.style.display = "block";
+  agentPlayback.tMin = frames[0].t;
+  agentPlayback.tMax = frames[frames.length-1].t;
+  agentPlayback.t = agentPlayback.tMin;
+  agentPlayback.playing = false;
+  playBtn.textContent = "▶";
+  scrub.min = "0"; scrub.max = "1000"; scrub.value = "0";
+  tMaxLabel.textContent = agentPlayback.tMax.toFixed(1) + "s";
+  tLabel.textContent = agentPlayback.tMin.toFixed(1) + "s";
+  uploadAgentFrame(agentFrameAt(agentPlayback.t));
+}
+
+document.getElementById("play-btn").addEventListener("click", () => {
+  agentPlayback.playing = !agentPlayback.playing;
+  document.getElementById("play-btn").textContent = agentPlayback.playing ? "⏸" : "▶";
+});
+document.getElementById("timeline-scrub").addEventListener("input", (e) => {
+  agentPlayback.playing = false;
+  document.getElementById("play-btn").textContent = "▶";
+  const ratio = Number(e.target.value) / 1000;
+  agentPlayback.t = agentPlayback.tMin + ratio * (agentPlayback.tMax - agentPlayback.tMin);
+  document.getElementById("timeline-t").textContent = agentPlayback.t.toFixed(1) + "s";
+  uploadAgentFrame(agentFrameAt(agentPlayback.t));
+});
+for (const [id, mult] of [["speed-1x",1],["speed-4x",4],["speed-16x",16]]) {
+  document.getElementById(id).addEventListener("click", () => { agentPlayback.speed = mult; });
+}
+
+function advanceAgentPlayback(dt) {
+  if (!agentPlayback.playing) return;
+  const frames = scene && scene.agent_frames;
+  if (!frames || frames.length === 0) return;
+  agentPlayback.t += dt * agentPlayback.speed;
+  if (agentPlayback.t >= agentPlayback.tMax) {
+    agentPlayback.t = agentPlayback.tMax;
+    agentPlayback.playing = false;
+    document.getElementById("play-btn").textContent = "▶";
+  }
+  const span = agentPlayback.tMax - agentPlayback.tMin;
+  const ratio = span <= 0 ? 0 : (agentPlayback.t - agentPlayback.tMin) / span;
+  document.getElementById("timeline-scrub").value = String(Math.round(ratio*1000));
+  document.getElementById("timeline-t").textContent = agentPlayback.t.toFixed(1) + "s";
+  uploadAgentFrame(agentFrameAt(agentPlayback.t));
+}
+
+// ============================================================ //
+// Render döngüsü
+// ============================================================ //
+let lastFrame = performance.now(), frameCount=0, fpsAccum=0;
+
+function renderShadowPass(lightSpaceMatrix) {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, shadowFBO);
+  gl.viewport(0, 0, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+  gl.clear(gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST);
+  // Faz E1: peter-panning yerine shadow-acne'i tercih etmek için ön-yüzleri
+  // kırpıp yalnızca arka-yüzlerin derinliğini yazıyoruz (basit bias tekniği,
+  // FS tarafındaki `bias` ile birlikte).
+  gl.enable(gl.CULL_FACE);
+  gl.cullFace(gl.FRONT);
+
+  gl.useProgram(shadowProgram);
+  gl.uniformMatrix4fv(shadowUniforms.uLightSpaceMatrix, false, lightSpaceMatrix);
+
+  for (const gn of gpuNodes) {
+    const model = M4.trs(gn.node.translation, gn.node.rotation_deg, gn.node.scale);
+    gl.uniformMatrix4fv(shadowUniforms.uModel, false, model);
+    // Shadow-pass'te LOD ayrımı yapılmaz - her zaman en yüksek detay
+    // (levels[0], tam-detay/LOD0) engelleyici olarak kullanılır; bu,
+    // uzak nesnelerin gölgesinin LOD basitleştirmesiyle bozulmasını önler.
+    const level = gn.levels[0];
+    gl.bindVertexArray(level.vao);
+    gl.drawElements(gl.TRIANGLES, level.indexCount, gl.UNSIGNED_INT, 0);
+  }
+  gl.cullFace(gl.BACK);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
+function renderMainPass(targetFBO, w, h, eye, view, proj, lightSpaceMatrix) {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, targetFBO);
+  gl.viewport(0, 0, w, h);
+  gl.disable(gl.DEPTH_TEST);
+  gl.depthMask(false);
+
+  // --- Gökyüzü (Faz 2 HDRSky) - derinlik yazmadan, en arkada --- //
+  gl.useProgram(skyProgram);
+  const sky = scene.sky || {zenith_color:[0.047,0.055,0.07], horizon_color:[0.047,0.055,0.07]};
+  gl.uniform3f(skyUniforms.uZenith, ...sky.zenith_color);
+  gl.uniform3f(skyUniforms.uHorizon, ...sky.horizon_color);
+  gl.bindVertexArray(fullscreenVAO);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  gl.depthMask(true);
+  gl.enable(gl.DEPTH_TEST);
+  gl.clear(gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.CULL_FACE);
+  gl.cullFace(gl.BACK);
+
+  // grid
+  gl.useProgram(gridProgram);
+  gl.uniformMatrix4fv(gridUniforms.uView, false, view);
+  gl.uniformMatrix4fv(gridUniforms.uProj, false, proj);
+  gl.uniform3f(gridUniforms.uColor, 0.2, 0.24, 0.3);
+  gl.uniform1f(gridUniforms.uAlpha, 0.5);
+  gl.bindVertexArray(gridVAO);
+  gl.drawArrays(gl.LINES, 0, gridVertCount);
+
+  const ambient = scene.lights.find(l=>l.kind==="ambient") || {color:[1,1,1], intensity:0.3};
+  const sun = scene.lights.find(l=>l.kind==="directional") || {color:[1,1,1], intensity:1, direction:[0,-1,0]};
+
+  gl.useProgram(meshProgram);
+  gl.uniformMatrix4fv(meshUniforms.uView, false, view);
+  gl.uniformMatrix4fv(meshUniforms.uProj, false, proj);
+  gl.uniform3f(meshUniforms.uAmbientColor, ...ambient.color);
+  gl.uniform1f(meshUniforms.uAmbientIntensity, ambient.intensity);
+  gl.uniform3f(meshUniforms.uSunDir, ...sun.direction);
+  gl.uniform3f(meshUniforms.uSunColor, ...sun.color);
+  gl.uniform1f(meshUniforms.uSunIntensity, sun.intensity);
+  gl.uniform3f(meshUniforms.uCameraPos, ...eye);
+  gl.uniformMatrix4fv(meshUniforms.uLightSpaceMatrix, false, lightSpaceMatrix);
+  gl.uniform1i(meshUniforms.uShadowsEnabled, 1);
+  gl.uniform1i(meshUniforms.uApplyInlineTonemap, targetFBO === null ? 1 : 0);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, shadowDepthTex);
+  gl.uniform1i(meshUniforms.uShadowMap, 0);
+
+  let drawnTriangles = 0;
+  for (const gn of gpuNodes) {
+    const model = M4.trs(gn.node.translation, gn.node.rotation_deg, gn.node.scale);
+    gl.uniformMatrix4fv(meshUniforms.uModel, false, model);
+    gl.uniformMatrix3fv(meshUniforms.uNormalMat, false, M4.normalMat3(model));
+
+    const mat = (scene.materials && gn.node.material) ? scene.materials[gn.node.material] : null;
+    const albedo = mat ? mat.albedo : [0.75,0.75,0.78];
+    const roughness = mat ? mat.roughness : 0.6;
+    const metallic = mat ? mat.metallic : 0.0;
+    const emissive = mat ? mat.emissive : [0,0,0];
+    const opacity = mat ? mat.opacity : 1.0;
+
+    gl.uniform3f(meshUniforms.uAlbedo, ...albedo);
+    gl.uniform1f(meshUniforms.uRoughness, roughness);
+    gl.uniform1f(meshUniforms.uMetallic, metallic);
+    gl.uniform3f(meshUniforms.uEmissive, ...emissive);
+    gl.uniform1f(meshUniforms.uOpacity, opacity);
+
+    // Faz D2: kamera-node mesafesine göre bu kare için LOD seviyesi seçilir.
+    const dist = Math.hypot(
+      gn.worldCenter[0] - eye[0], gn.worldCenter[1] - eye[1], gn.worldCenter[2] - eye[2],
+    );
+    const level = pickLodLevel(gn.levels, dist);
+    drawnTriangles += level.triangleCount;
+
+    gl.bindVertexArray(level.vao);
+    gl.drawElements(gl.TRIANGLES, level.indexCount, gl.UNSIGNED_INT, 0);
+  }
+
+  return drawnTriangles;
+}
+
+function renderPostProcessPass(w, h) {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, w, h);
+  gl.disable(gl.DEPTH_TEST);
+  gl.useProgram(postProgram);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, hdrColorTex);
+  gl.uniform1i(postUniforms.uColorTex, 0);
+  gl.uniform2f(postUniforms.uTexelSize, 1.0/w, 1.0/h);
+  gl.bindVertexArray(fullscreenVAO);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+
+function render(now) {
+  requestAnimationFrame(render);
+  if (!gl || !scene) return;
+  resize();
+
+  const dt = (now - lastFrame)/1000; lastFrame = now;
+  frameCount++; fpsAccum += dt;
+  if (fpsAccum >= 0.5) {
+    document.getElementById("fps").textContent = Math.round(frameCount/fpsAccum) + " fps";
+    frameCount = 0; fpsAccum = 0;
+  }
+
+  const w = canvas.width, h = canvas.height;
+  const aspect = w/Math.max(h,1);
+  const proj = M4.perspective(cam.fov*Math.PI/180, aspect, cam.near, cam.far);
+  const eye = camEye();
+  const view = M4.lookAt(eye, cam.target, [0,1,0]);
+
+  // Faz E1: güneş yönü her kare Scene JSON'undan okunur - `sun.direction`
+  // değişirse (farklı bir scene.json yeniden yüklenirse) ışık-uzayı matrisi
+  // ve dolayısıyla gölge yönü de otomatik güncellenir (kabul kriteri).
+  const sunLight = scene.lights.find(l=>l.kind==="directional");
+  const lightDirGoing = sunLight ? sunLight.direction : [0,-1,0];
+  const lightSpaceMatrix = M4.computeLightSpaceMatrix(lightDirGoing, sceneBoundsCache);
+
+  pollGpuTimer(); // Faz E10: önceki karenin GPU sorgu sonucu hazırsa oku
+  beginGpuTimer();
+  renderShadowPass(lightSpaceMatrix);
+
+  let drawnTriangles;
+  if (hdrSupported) {
+    ensureHdrFBO(w, h);
+    drawnTriangles = renderMainPass(hdrFBO, w, h, eye, view, proj, lightSpaceMatrix);
+    renderPostProcessPass(w, h);
+  } else {
+    // HDR ara-tampon desteklenmiyorsa (nadir/eski ortam) doğrudan canvas'a
+    // çiz - gölge/AO/gökyüzü yine çalışır, yalnızca ACES tonemap+FXAA atlanır.
+    drawnTriangles = renderMainPass(null, w, h, eye, view, proj, lightSpaceMatrix);
+  }
+  endGpuTimer();
+
+  const drawnEl = document.getElementById("stat-tris-drawn");
+  if (drawnEl) drawnEl.textContent = drawnTriangles.toLocaleString("tr-TR");
+
+  // Roadmap V9 / OMURGA / O.2: agent oynatımını ilerlet ve çiz (statik
+  // sahnelerde `scene.agent_frames` boş olduğundan bu iki çağrı no-op'tur).
+  advanceAgentPlayback(dt);
+  renderAgentLayer(view, proj);
+}
+requestAnimationFrame(render);
+
+// ============================================================ //
+// Dosya yükleme + örnek sahne
+// ============================================================ //
+document.getElementById("file-input").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const text = await file.text();
+  loadScene(JSON.parse(text));
+});
+
+document.getElementById("demo-btn").addEventListener("click", () => {
+  loadScene(buildDemoScene());
+});
+
+function buildDemoScene() {
+  // Basit bir "sokak" demosu: birkaç kutu-bina + zemin, tamamen JS içinde
+  // üretilir (Python scene_bridge çıktısıyla AYNI şemayı kullanır) — böylece
+  // gerçek bir Python export'u olmadan da viewer bağımsız test edilebilir.
+  function box(cx,cz,w,d,h, name) {
+    const hw=w/2, hd=d/2;
+    const p = [
+      [-hw,0,-hd],[hw,0,-hd],[hw,h,-hd],[-hw,h,-hd], // back
+      [-hw,0,hd],[hw,0,hd],[hw,h,hd],[-hw,h,hd],     // front
+    ];
+    const positions = [];
+    const faces = [
+      [0,1,2,3],[5,4,7,6],[4,0,3,7],[1,5,6,2],[3,2,6,7],[4,5,1,0]
+    ];
+    const indices = [];
+    let vi = 0;
+    for (const face of faces) {
+      for (const idx of face) positions.push(...p[idx]);
+      indices.push(vi,vi+1,vi+2, vi,vi+2,vi+3);
+      vi += 4;
+    }
+    return {
+      name, material: "beton", translation:[cx,0,cz], rotation_deg:[0,0,0], scale:[1,1,1],
+      positions, normals: null, uvs: null, indices,
+      vertex_count: positions.length/3, triangle_count: indices.length/3,
+    };
+  }
+  const nodes = [];
+  let i=0;
+  for (let x=-2;x<=2;x++){
+    for (let z=-2;z<=2;z++){
+      if (Math.random()<0.3) continue;
+      const h = 4 + Math.random()*14;
+      nodes.push(box(x*14, z*14, 8+Math.random()*4, 8+Math.random()*4, h, "bina_"+(i++)));
+    }
+  }
+  return {
+    schema_version: "1.0",
+    name: "demo_sokak",
+    camera: { target:[0,5,0], distance:80, yaw_deg:35, pitch_deg:28, fov_deg:50, near:0.1, far:2000 },
+    materials: { beton: { albedo:[0.72,0.71,0.68], roughness:0.75, metallic:0.02, emissive:[0,0,0], opacity:1 } },
+    lights: [
+      { kind:"ambient", color:[0.55,0.62,0.75], intensity:0.4 },
+      { kind:"directional", color:[1.0,0.95,0.85], intensity:1.1, direction:[-0.4,-1.0,-0.35] },
+    ],
+    nodes,
+  };
+}
+</script>
+</body>
+</html>

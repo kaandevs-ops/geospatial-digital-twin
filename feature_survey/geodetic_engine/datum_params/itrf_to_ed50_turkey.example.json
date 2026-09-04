@@ -1,0 +1,11 @@
+{
+  "_comment": "Bu bir SABLON dosyasidir - asagidaki sayisal degerler GERCEK DEGILDIR (hepsi 0.0). load_datum_transform_params() 'source' alanindaki REPLACE_ME isaretcisi nedeniyle bu dosyayi reddeder. Gercek kullanim icin: bu dosyayi kopyalayip (orn. itrf_to_ed50_turkey.json) HGK/TUSAGA-Aktif resmi yayinindan alinan gercek 7 Helmert parametresiyle doldurun ve 'source' alanina tam kaynak referansini (yayin adi, tarih, erisim linki) yazin.",
+  "tx_m": 0.0,
+  "ty_m": 0.0,
+  "tz_m": 0.0,
+  "rx_arcsec": 0.0,
+  "ry_arcsec": 0.0,
+  "rz_arcsec": 0.0,
+  "scale_ppm": 0.0,
+  "source": "REPLACE_ME - HGK TUSAGA-Aktif resmi ITRF->ED50 (Turkiye bolgesi) Helmert parametre seti, yayin adi + tarih + erisim linki buraya"
+}

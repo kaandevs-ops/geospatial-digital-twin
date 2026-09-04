@@ -1,0 +1,119 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "harita-modelleme"
+version = "0.16.0"
+description = "Uydu/harita verisinden 3D bina rekonstrüksiyonu, dijital ikiz, simülasyon ve analiz platformu (stdlib-only çekirdek)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+authors = [{ name = "Harita Modelleme Platformu" }]
+keywords = ["gis", "3d", "digital-twin", "building-reconstruction", "webgl"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+]
+# Çekirdek platform kasıtlı olarak stdlib-only'dir (bkz. ROADMAP_V2.md ilke 0).
+dependencies = []
+
+[project.optional-dependencies]
+# Faz 4/A4: gerçek ML tahmin modeli (yoksa heuristic fallback korunur).
+ml = ["scikit-learn>=1.3", "onnxruntime>=1.16"]
+# ROADMAP_V5 - Faz T1: sıfırdan eğitim + fine-tuning altyapısı
+# (ai_reconstruction/training/). Yalnızca *eğitim* için gerekli; çalışma
+# zamanı çıkarımı (inference) hâlâ yalnızca `ml` extrasına bağlıdır.
+train = ["Pillow>=10.0"]
+train-torch = ["harita-modelleme[train]", "torch>=2.2", "torchvision>=0.17"]
+train-tensorflow = ["harita-modelleme[train]", "tensorflow>=2.16", "tf2onnx>=1.16"]
+# Faz 17: tam PROJ-uyumlu grid-shift/datum dönüşümü (yoksa dahili EPSG/UTM
+# tablosu kullanılmaya devam eder).
+geo = ["pyproj>=3.6"]
+# ROADMAP_V4 - Faz E4: sıkıştırılmış LAZ nokta bulutu desteği (yoksa
+# LASPointCloudParser.parse_laz_file açık UnsupportedFormatError fırlatır;
+# sıkıştırılmamış LAS çekirdek stdlib-only kalır ve bu extra'ya bağlı değildir).
+cloud = ["laspy>=2.5", "lazrs>=0.5"]
+# Faz 5.2: PostgreSQL+PostGIS kalıcılık backend'i (yoksa persistence
+# yalnızca db_backend.py'nin SQLite ProjectDatabase'ini kullanmaya devam eder).
+postgres = ["psycopg[binary]>=3.1"]
+# ROADMAP_V4 - Faz E12: gerçek bir MQTT broker'ına bağlanma (yoksa
+# `digital_twin.iot_bridge.TopicBus` stdlib-only in-process pub/sub olarak
+# tam işlevsel kalır; `MqttBridge.connect()` bu extra yoksa açık
+# `MqttBackendUnavailable` fırlatır).
+iot = ["paho-mqtt>=2.0"]
+# Kullanici talebi (bkz. ai_assistant/llm_providers.py): gercek yerel GGUF
+# model cikarimi. Kurulu degilse `GGUFProvider` acik `ProviderUnavailableError`
+# firlatir; OpenAI-uyumlu/Anthropic API-key saglayicilari (`ai_assistant.
+# llm_providers.OpenAICompatibleProvider` / `AnthropicProvider`) stdlib
+# `urllib` kullandigindan bu extra'ya bagli DEGILDIR - her zaman kullanilabilir.
+llm = ["llama-cpp-python>=0.2.90"]
+# ROADMAP_V6 - Faz S1.2: RTK-GNSS ham RINEX gözlem dosyası ayrıştırma.
+# `feature_survey.raw_import.rinex` artık RINEX 3.x gözlem dosyalarını
+# stdlib-only (bağımlılıksız) ayrıştırır (bkz. ilgili README). `georinex`
+# burada sadece RINEX navigasyon mesajları/çoklu-frekans gelişmiş analiz
+# gibi bu modülün kapsamadığı ileri senaryolar için opsiyonel kalır.
+# LAZ (sıkıştırılmış nokta bulutu) desteği zaten `cloud` extra'sında.
+survey = ["harita-modelleme[cloud]", "georinex>=1.16", "pyproj>=3.6"]
+# Geliştirme/CI araçları.
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "mypy>=1.10",
+    "ruff>=0.5",
+]
+
+[project.urls]
+Repository = "https://example.com/harita-modelleme"
+Changelog = "https://example.com/harita-modelleme/blob/main/CHANGELOG.md"
+
+[project.scripts]
+harita-app = "harita.app_shell.server:main"
+
+[tool.setuptools]
+# ÖNEMLİ (Faz 22 doğrulaması sırasında bulundu ve düzeltildi): önceki
+# `packages = { find = { include = ["harita*"] } }` yalnızca "harita" ile
+# BAŞLAYAN dizin adlarını arıyordu; bu depoda tek eşleşen eski/iskelet
+# `harita_modelleme/` alt paketiydi. Gerçek 25+ modüllük kod tabanı
+# (core_engine, persistence, app_shell, render_engine, ...) "harita" önekiyle
+# BAŞLAMAYAN adlarla, pyproject.toml ile aynı dizinde yaşıyor — bu yüzden
+# `pip install -e .` kullanan bir geliştirici gerçek koda hiç erişemiyordu
+# (yalnızca kullanılmayan eski iskelet kurulurdu). Ayrıca alt paketlerdeki
+# `from ...core_engine import ...` gibi üç-nokta göreli importlar, bu
+# dizinin BİZZAT KENDİSİNİN "harita" adlı bir paket olarak sarılmasını
+# gerektiriyor (kökte zaten bir `__init__.py` var). setuptools'un statik
+# `packages.find` mekanizması "harita." önekini otomatik ekleyemediği için
+# gerçek keşif + önekleme mantığı `setup.py`'a taşındı (bkz. o dosyadaki
+# yorum). `pyproject.toml` [project] tablosu tüm metadata'yı sağlamaya
+# devam ediyor; `setup.py` yalnızca `packages`/`package_dir` sağlıyor.
+
+[tool.setuptools.package-data]
+"harita.app_shell.web" = ["*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra -q"
+norecursedirs = ["archive", ".git", "build", "dist", "*.egg-info"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+# Kod tabanı kademeli olarak tipleniyor; sert modu şimdilik kapalı.
+strict = false
+exclude = ["build/", "dist/"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = ["build", "dist", "*.egg-info"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]

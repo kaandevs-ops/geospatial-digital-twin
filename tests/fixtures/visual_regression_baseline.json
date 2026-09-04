@@ -1,0 +1,122 @@
+{
+  "dikdortgen_apartman": {
+    "boundary_edge_count": 2572,
+    "bounding_box": [
+      [
+        -0.32,
+        -0.24,
+        -0.25
+      ],
+      [
+        20.32,
+        15.24,
+        15.4
+      ]
+    ],
+    "degenerate_triangle_count": 0,
+    "floor_count": 5,
+    "is_manifold": true,
+    "is_watertight": false,
+    "non_manifold_edge_count": 0,
+    "normal_consistency_ratio": 0.9754,
+    "total_height_m": 15.0,
+    "triangle_count": 3136,
+    "vertex_count": 2632
+  },
+  "duzensiz_villa": {
+    "boundary_edge_count": 673,
+    "bounding_box": [
+      [
+        -1.3957,
+        -0.2876,
+        -0.25
+      ],
+      [
+        13.3692,
+        12.3998,
+        10.3392
+      ]
+    ],
+    "degenerate_triangle_count": 0,
+    "floor_count": 2,
+    "is_manifold": true,
+    "is_watertight": false,
+    "non_manifold_edge_count": 0,
+    "normal_consistency_ratio": 0.9475,
+    "total_height_m": 6.0,
+    "triangle_count": 809,
+    "vertex_count": 708
+  },
+  "kare_depo": {
+    "boundary_edge_count": 428,
+    "bounding_box": [
+      [
+        -0.2828,
+        -0.2828,
+        -0.25
+      ],
+      [
+        16.2828,
+        16.2828,
+        6.4
+      ]
+    ],
+    "degenerate_triangle_count": 0,
+    "floor_count": 1,
+    "is_manifold": true,
+    "is_watertight": false,
+    "non_manifold_edge_count": 0,
+    "normal_consistency_ratio": 0.9402,
+    "total_height_m": 6.0,
+    "triangle_count": 544,
+    "vertex_count": 456
+  },
+  "l_sekli_ofis": {
+    "boundary_edge_count": 3100,
+    "bounding_box": [
+      [
+        -0.3037,
+        -0.2713,
+        -0.25
+      ],
+      [
+        18.4,
+        16.3986,
+        21.4
+      ]
+    ],
+    "degenerate_triangle_count": 0,
+    "floor_count": 6,
+    "is_manifold": true,
+    "is_watertight": false,
+    "non_manifold_edge_count": 0,
+    "normal_consistency_ratio": 0.9646,
+    "total_height_m": 21.0,
+    "triangle_count": 3744,
+    "vertex_count": 3200
+  },
+  "u_sekli_okul": {
+    "boundary_edge_count": 1900,
+    "bounding_box": [
+      [
+        -0.3795,
+        -0.1789,
+        -0.25
+      ],
+      [
+        24.3795,
+        10.2828,
+        13.9389
+      ]
+    ],
+    "degenerate_triangle_count": 0,
+    "floor_count": 3,
+    "is_manifold": true,
+    "is_watertight": false,
+    "non_manifold_edge_count": 0,
+    "normal_consistency_ratio": 0.9597,
+    "total_height_m": 10.5,
+    "triangle_count": 2288,
+    "vertex_count": 1969
+  }
+}
