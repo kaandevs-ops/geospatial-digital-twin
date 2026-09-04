@@ -45,6 +45,8 @@
 <summary><strong>📋 Table of Contents</strong></summary>
 
 - [Overview](#overview)
+- [Screenshots](#screenshots)
+- [Demo](#demo)
 - [Architecture](#architecture)
 - [Data / Sensor Pipeline](#data--sensor-pipeline)
 - [Core Components](#core-components)
@@ -84,6 +86,71 @@ It answers three broad problems:
 | 1 | Turn 2D footprints/OSM data into parametric 3D buildings | floors, roofs, façades, materials — optionally augmented with drone/GNSS/LiDAR field survey data |
 | 2 | Simulate what happens to that city model | earthquakes (PGA + building risk scoring), fire spread, flood/landslide terrain risk, traffic, crowd evacuation |
 | 3 | Let multiple users edit and view the same digital twin in real time | CRDT-based collaboration layer, a REST/WebSocket API, a browser-based editor/renderer, export to CityGML, CityJSON, IFC, 3D Tiles |
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="assets/screenshot-03-3d-building-render.png" alt="Parametric 3D building render" width="100%"/>
+      <p align="center"><sub><strong>Parametric 3D building render</strong> — OSM footprint turned into a floor-by-floor 3D model with a live camera/editor inspector.</sub></p>
+    </td>
+    <td width="50%">
+      <img src="assets/screenshot-04-earthquake-risk-score.png" alt="Earthquake risk scoring" width="100%"/>
+      <p align="center"><sub><strong>Earthquake risk scoring</strong> — FEMA P-154/TBDY 2018-style rapid visual screening with a weighted PGA/story/slenderness breakdown.</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="assets/screenshot-06-iot-collaboration.png" alt="Structural sanity check and IoT sensor twin" width="100%"/>
+      <p align="center"><sub><strong>Structural sanity check + IoT digital twin</strong> — slenderness/overhang checks alongside simulated per-floor sensor readings.</sub></p>
+    </td>
+    <td width="50%">
+      <img src="assets/screenshot-07-ai-assistant.png" alt="AI building assistant" width="100%"/>
+      <p align="center"><sub><strong>AI building assistant</strong> — natural-language edits ("2 kat ekle") and AI-generated compliance report summaries.</sub></p>
+    </td>
+  </tr>
+</table>
+
+## Demo
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="assets/demo-01.gif" alt="Interactive 3D model viewer" width="100%"/>
+      <p align="center"><sub>Rotating/inspecting a generated building in the 3D viewer with live inspector panels.</sub></p>
+    </td>
+    <td width="50%">
+      <img src="assets/demo-04.gif" alt="Earthquake shake simulation" width="100%"/>
+      <p align="center"><sub>Running a seismic shake simulation against a reconstructed building.</sub></p>
+    </td>
+  </tr>
+</table>
+
+<details>
+<summary><strong>▶ More demos (onboarding, project/editor workflow, terrain & road editing)</strong></summary>
+
+<br/>
+
+<table>
+  <tr>
+    <td width="33%"><img src="assets/demo-02.gif" alt="Onboarding tour" width="100%"/><p align="center"><sub>First-run onboarding tour</sub></p></td>
+    <td width="33%"><img src="assets/demo-03.gif" alt="Terrain and road editor" width="100%"/><p align="center"><sub>Terrain / road editor workflow</sub></p></td>
+    <td width="33%"><img src="assets/demo-05.gif" alt="Multi-building layout" width="100%"/><p align="center"><sub>Multi-building layout generation</sub></p></td>
+  </tr>
+  <tr>
+    <td width="33%"><img src="assets/demo-06.gif" alt="Project creation" width="100%"/><p align="center"><sub>Project creation flow</sub></p></td>
+    <td width="33%"><img src="assets/demo-07.gif" alt="Feature survey import" width="100%"/><p align="center"><sub>Feature-survey / GeoJSON import</sub></p></td>
+    <td width="33%"><img src="assets/demo-08.gif" alt="Layer and project browser" width="100%"/><p align="center"><sub>Layer & project browser</sub></p></td>
+  </tr>
+  <tr>
+    <td width="33%"><img src="assets/demo-09.gif" alt="Tsunami and hazard overlay" width="100%"/><p align="center"><sub>Hazard overlay on a reconstructed building</sub></p></td>
+    <td width="33%"><img src="assets/demo-10.gif" alt="Empty scene / new project" width="100%"/><p align="center"><sub>Starting a new empty scene</sub></p></td>
+    <td width="33%"><img src="assets/demo-11.gif" alt="Building editor panel" width="100%"/><p align="center"><sub>Building editor side panel</sub></p></td>
+  </tr>
+</table>
+
+</details>
 
 ## Architecture
 
