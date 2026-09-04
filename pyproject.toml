@@ -8,7 +8,7 @@ version = "0.16.0"
 description = "Uydu/harita verisinden 3D bina rekonstrüksiyonu, dijital ikiz, simülasyon ve analiz platformu (stdlib-only çekirdek)."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Proprietary" }
+license = { text = "Apache-2.0" }
 authors = [{ name = "Harita Modelleme Platformu" }]
 keywords = ["gis", "3d", "digital-twin", "building-reconstruction", "webgl"]
 classifiers = [
@@ -20,6 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: GIS",
     "Topic :: Multimedia :: Graphics :: 3D Modeling",
+    "License :: OSI Approved :: Apache Software License",
 ]
 # Çekirdek platform kasıtlı olarak stdlib-only'dir (bkz. ROADMAP_V2.md ilke 0).
 dependencies = []
@@ -70,8 +71,8 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://example.com/harita-modelleme"
-Changelog = "https://example.com/harita-modelleme/blob/main/CHANGELOG.md"
+Repository = "https://github.com/kaandevs-ops/geospatial-digital-twin"
+Issues = "https://github.com/kaandevs-ops/geospatial-digital-twin/issues"
 
 [project.scripts]
 harita-app = "harita.app_shell.server:main"
