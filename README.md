@@ -2,195 +2,267 @@
 
 <img src="assets/banner.png" alt="Geospatial Digital Twin Platform" width="100%"/>
 
-# 🌍 Geospatial Digital Twin Platform
+<h1>🌍 Geospatial Digital Twin Platform</h1>
 
-**Uydu/harita verisinden 3D bina rekonstrüksiyonu, dijital ikiz, şehir ölçekli simülasyon ve analiz platformu**
+<p><b>Turn satellite imagery and map data into a living, interactive 3D digital twin of a city — buildings, hazards, mobility, and real-time collaboration in one platform.</b></p>
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![Stdlib-only Core](https://img.shields.io/badge/core-stdlib--only-brightgreen.svg)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-175%2B-success.svg)](tests/)
-[![Modules](https://img.shields.io/badge/modules-39-informational.svg)](#-mimari--modüller)
+<p>
+  <img src="https://img.shields.io/badge/version-0.16.0-blue?style=flat-square" alt="Version"/>
+  <img src="https://img.shields.io/badge/python-3.10%2B-blue?style=flat-square&logo=python&logoColor=white" alt="Python"/>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square" alt="License"/></a>
+  <img src="https://img.shields.io/badge/core-stdlib--only-brightgreen?style=flat-square" alt="Stdlib-only core"/>
+  <img src="https://img.shields.io/badge/tests-175%2B-success?style=flat-square" alt="Tests"/>
+  <img src="https://img.shields.io/badge/modules-39-informational?style=flat-square" alt="Modules"/>
+</p>
 
-[Özellikler](#-öne-çıkan-özellikler) •
-[Mimari](#-mimari--modüller) •
-[Kurulum](#-kurulum) •
-[Hızlı Başlangıç](#-hızlı-başlangıç) •
-[Test](#-test--kalite) •
-[Katkı](#-katkıda-bulunma) •
-[Lisans](#-lisans)
+<p>
+  <img src="https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker"/>
+  <img src="https://img.shields.io/badge/GIS-CityGML%20%7C%20CityJSON%20%7C%20IFC-orange?style=flat-square" alt="GIS Standards"/>
+  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square" alt="PRs Welcome"/>
+</p>
+
+<p>
+  <a href="#-key-features">Features</a> •
+  <a href="#-architecture">Architecture</a> •
+  <a href="#-installation">Installation</a> •
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-testing">Testing</a> •
+  <a href="#-contributing">Contributing</a> •
+  <a href="#-license">License</a>
+</p>
 
 </div>
 
 ---
 
-## 📖 Genel Bakış
+## 📖 Overview
 
-**Geospatial Digital Twin Platform**, gerçek dünyadaki bir şehir veya bölgenin uydu görüntüsü, OpenStreetMap verisi ve arazi/yükseklik modellerinden yola çıkarak **canlı, etkileşimli bir 3D dijital ikizini** üreten uçtan uca bir platformdur. Bina rekonstrüksiyonundan deprem/sel/yangın simülasyonuna, trafik ve kalabalık modellemesinden gerçek zamanlı çok kullanıcılı işbirliğine kadar geniş bir yelpazede çalışır.
+**Geospatial Digital Twin Platform** is an end-to-end system that turns real-world satellite imagery, OpenStreetMap data, and elevation models into a **living, interactive 3D digital twin** of a city or region. It spans everything from parametric 3D building reconstruction to earthquake/flood/fire simulation, traffic and crowd modeling, and real-time multi-user collaboration.
 
-Proje, **~115.000 satır Python kodu**, **39 fonksiyonel modül** ve **175+ test** içerir. Çekirdek platform bilinçli olarak **stdlib-only** (harici bağımlılık gerektirmez) tasarlanmıştır; gelişmiş özellikler (ML tabanlı tahmin, gerçek CRS dönüşümleri, PostGIS, MQTT/IoT, LLM entegrasyonu) opsiyonel paket eklentileriyle etkinleşir ve yoksa otomatik olarak dahili heuristik/istatistiksel karşılıklarına düşer.
+The codebase includes **~115,000 lines of Python**, **39 independent modules**, and **175+ tests**. The core platform is deliberately **stdlib-only** (zero required dependencies); advanced capabilities (ML-based prediction, full CRS transforms, PostGIS, MQTT/IoT, LLM integration) are opt-in extras that gracefully fall back to built-in heuristics when not installed.
 
-## ✨ Öne Çıkan Özellikler
+<details>
+<summary><b>📋 Table of Contents</b></summary>
 
-### 🏗️ 3D Bina & Arazi Rekonstrüksiyonu
-- Bina ayak izinden (footprint) tam parametrik 3D yapı üretimi: kat planları, çatı tipolojisi, cephe/pencere/kapı düzeni
-- Yapay zekâ destekli tahmin katmanı (yükseklik, malzeme, çatı tipi) — model yoksa kural tabanlı heuristik'e otomatik düşer
-- Kavisli cephe, çift kabuk cephe, prosedürel iç mekân üretimi
-- Arazi entegrasyonu, erozyon/hidroloji simülasyonu
+- [Key Features](#-key-features)
+- [Architecture](#-architecture)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Docker](#-docker)
+- [Testing](#-testing)
+- [Project Structure](#-project-structure)
+- [Documentation](#-documentation)
+- [Roadmap Philosophy](#-roadmap-philosophy)
+- [Contributing](#-contributing)
+- [License](#-license)
 
-### 🌐 Dijital İkiz & Coğrafi Çekirdek
-- Gerçek koordinat sistemleri (EPSG/UTM), nokta bulutu işleme (LAS/LAZ), OSM/harita katmanları
-- IoT köprüsü (MQTT desteği opsiyonel), gerçek zamanlı veri akışı (`reality_feed`)
-- Çok seviyeli hiyerarşi yönetimi (bina → kat → oda → nesne)
+</details>
 
-### ⚠️ Afet & Risk Simülasyonu
-- Deprem (PGA tahmini, bina sarsıntı/hasar modeli), yangın yayılımı, sel/heyelan
-- Şehir ölçekli tahliye planlama, kademeli (cascading) afet kuralları, dayanıklılık zaman çizelgesi
-- AFAD/USGS canlı veri istemcileri
+## ✨ Key Features
 
-### 🚦 Mobilite & Nüfus Simülasyonu
-- Trafik simülasyonu, adaptif sinyal kontrolü, toplu taşıma modellemesi
-- Kalabalık simülasyonu (davranış kuralları, kapasite analizi, yangın tahliyesi)
-- Sentetik nüfus üretimi ve günlük aktivite modeli
+<table>
+<tr>
+<td width="50%" valign="top">
 
-### 🖥️ Render, Editor & İşbirliği
-- Gerçek zamanlı yazılımsal rasterizer, LOD/streaming, sahne örnekleme (instancing)
-- Blender benzeri düzenleyici: gizmo, komut sistemi, geri al/ileri al
-- CRDT tabanlı gerçek zamanlı çok kullanıcılı işbirliği, rol bazlı yetkilendirme (viewer/editor/owner)
-- WebSocket API, REST API, eklenti (plugin) sistemi, sandbox script çalıştırma
+### 🏗️ Building & Terrain Reconstruction
+- Full parametric 3D generation from building footprints — floors, roof typology, façade/window/door layout
+- AI-assisted prediction (height, material, roof type) with automatic fallback to rule-based heuristics
+- Curved façades, double-skin envelopes, procedural interiors
+- Terrain integration with erosion/hydrology simulation
 
-### 📤 Dışa Aktarım & Standartlar
-- CityGML, CityJSON, IFC, 3D Tiles, GeoTIFF dışa aktarım
-- Saha ölçüm (survey) hattı: RINEX/GNSS ayarlama, total station, drone GCP, nokta bulutu ICP
+### 🌐 Digital Twin & Geo Core
+- Real coordinate systems (EPSG/UTM), point cloud processing (LAS/LAZ), OSM/map layers
+- IoT bridge (optional MQTT), real-time data streaming (`reality_feed`)
+- Multi-level hierarchy management (building → floor → room → object)
 
-### 🌦️ Çevresel Analiz
-- Güneş/gölge simülasyonu, görüş alanı (visibility) analizi, termal konfor
-- Mikroiklim, hava kalitesi, gürültü tahmini; rüzgar/yağmur/ısı adası modelleri
+### ⚠️ Hazard & Risk Simulation
+- Earthquake (PGA estimation, building shake/damage models), fire spread, flood/landslide
+- City-scale evacuation planning, cascading hazard rules, resilience timeline
+- Live AFAD / USGS data clients
 
-## 🏛️ Mimari & Modüller
+</td>
+<td width="50%" valign="top">
 
-Platform, her biri kendi sorumluluğuna sahip **39 bağımsız Python modülünden** oluşur:
+### 🚦 Mobility & Population
+- Traffic simulation, adaptive signal control, transit modeling
+- Crowd simulation (behavior rules, capacity analysis, fire evacuation)
+- Synthetic population generation and daily activity modeling
 
-| Katman | Modüller |
+### 🖥️ Render, Editor & Collaboration
+- Real-time software rasterizer, LOD/streaming, scene instancing
+- Blender-like editor: gizmos, command system, undo/redo
+- CRDT-based real-time multi-user collaboration, role-based auth (viewer/editor/owner)
+- WebSocket API, REST API, plugin system, sandboxed scripting
+
+### 📤 Export & Environmental Analysis
+- CityGML, CityJSON, IFC, 3D Tiles, GeoTIFF export
+- Field survey pipeline: RINEX/GNSS adjustment, total station, drone GCP, point cloud ICP
+- Sun/shadow simulation, visibility analysis, thermal comfort, microclimate & air quality
+
+</td>
+</tr>
+</table>
+
+## 🏛️ Architecture
+
+The platform is organized into **39 independent modules**, each owning a single responsibility:
+
+```mermaid
+flowchart TB
+    subgraph Core["🌐 Geo Core"]
+        A[core_engine] --- B[data_engine]
+        A --- C[climate_data]
+        A --- D[terrain_engine]
+    end
+
+    subgraph Recon["🏗️ Reconstruction"]
+        E[building_reconstruction] --> F[ai_reconstruction]
+        E --> G[mesh_engine]
+        E --> H[material_engine]
+    end
+
+    subgraph Sim["⚠️ Simulation"]
+        I[hazard_data] --- J[physics]
+        K[mobility] --- L[population]
+    end
+
+    subgraph App["🖥️ Application Layer"]
+        M[app_shell] --> N[render_engine]
+        M --> O[editor]
+        M --> P[collaboration]
+        M --> Q[persistence]
+    end
+
+    Core --> Recon
+    Recon --> Sim
+    Sim --> App
+    Recon --> App
+```
+
+| Layer | Modules |
 |---|---|
-| **Coğrafi Çekirdek** | `core_engine`, `data_engine`, `climate_data`, `terrain_engine` |
-| **Bina & Rekonstrüksiyon** | `building_reconstruction`, `ai_reconstruction`, `mesh_engine`, `material_engine`, `lighting` |
-| **Dijital İkiz** | `digital_twin`, `feature_survey`, `offline_cache` |
-| **Afet & Risk** | `hazard_data`, `physics` |
-| **Mobilite & Nüfus** | `mobility`, `population` |
-| **Şehir Altyapısı** | `power_infrastructure`, `street_furniture`, `religious_structures`, `sport_recreation`, `commerce_props`, `vegetation` |
-| **Render & Görselleştirme** | `render_engine`, `visualization`, `editor` |
-| **Analiz** | `analysis_engine` |
-| **Uygulama Katmanı** | `app_shell`, `collaboration`, `persistence`, `extensibility`, `i18n` |
-| **Yapay Zekâ** | `ai_assistant` |
-| **Dışa Aktarım** | `export` |
-| **Altyapı** | `observability`, `security`, `performance`, `simulation_core` |
+| **Geo Core** | `core_engine`, `data_engine`, `climate_data`, `terrain_engine` |
+| **Building & Reconstruction** | `building_reconstruction`, `ai_reconstruction`, `mesh_engine`, `material_engine`, `lighting` |
+| **Digital Twin** | `digital_twin`, `feature_survey`, `offline_cache` |
+| **Hazard & Risk** | `hazard_data`, `physics` |
+| **Mobility & Population** | `mobility`, `population` |
+| **City Infrastructure** | `power_infrastructure`, `street_furniture`, `religious_structures`, `sport_recreation`, `commerce_props`, `vegetation` |
+| **Render & Visualization** | `render_engine`, `visualization`, `editor` |
+| **Analysis** | `analysis_engine` |
+| **Application Layer** | `app_shell`, `collaboration`, `persistence`, `extensibility`, `i18n` |
+| **AI Assistant** | `ai_assistant` |
+| **Export** | `export` |
+| **Infrastructure** | `observability`, `security`, `performance`, `simulation_core` |
 
-Modül bazlı detaylı dokümantasyon için her klasördeki `README.md` dosyasına bakınız (örn. [`digital_twin/README.md`](digital_twin/README.md), [`mobility/README.md`](mobility/README.md)).
+Each module ships its own `README.md` with implementation details — see e.g. [`digital_twin/README.md`](digital_twin/README.md) or [`mobility/README.md`](mobility/README.md).
 
-## 📦 Kurulum
+## 📦 Installation
 
 ```bash
 git clone https://github.com/kaandevs-ops/geospatial-digital-twin.git
 cd geospatial-digital-twin
 
-# Çekirdek (stdlib-only, harici bağımlılık yok)
+# Core (stdlib-only, zero dependencies)
 pip install -e .
 
-# Geliştirme araçlarıyla (pytest, ruff, mypy)
+# With development tools (pytest, ruff, mypy)
 pip install -e ".[dev]"
 
-# Opsiyonel eklentiler — ihtiyaca göre birleştirilebilir
-pip install -e ".[ml]"        # scikit-learn / onnxruntime tabanlı ML tahmin
-pip install -e ".[geo]"       # pyproj ile tam CRS/datum dönüşümü
-pip install -e ".[cloud]"     # sıkıştırılmış LAZ nokta bulutu desteği
-pip install -e ".[postgres]"  # PostgreSQL + PostGIS kalıcılık backend'i
-pip install -e ".[iot]"       # gerçek MQTT broker entegrasyonu
-pip install -e ".[survey]"    # RINEX/GNSS saha ölçüm hattı (tam)
+# Optional extras — mix and match as needed
+pip install -e ".[ml]"        # scikit-learn / onnxruntime based ML prediction
+pip install -e ".[geo]"       # pyproj for full CRS/datum transforms
+pip install -e ".[cloud]"     # compressed LAZ point cloud support
+pip install -e ".[postgres]"  # PostgreSQL + PostGIS persistence backend
+pip install -e ".[iot]"       # real MQTT broker integration
+pip install -e ".[survey]"    # full RINEX/GNSS field survey pipeline
 ```
 
-> **Not:** Opsiyonel bir eklenti kurulu değilse ilgili özellik sessizce devre dışı kalmaz — platform bunun yerine dahili heuristik/istatistiksel bir karşılığa döner ya da (destekleyici altyapı yoksa) açık ve anlaşılır bir hata fırlatır.
+> **Note:** missing an optional extra never silently disables a feature — the platform either falls back to a built-in heuristic/statistical equivalent, or raises a clear, explicit error if no fallback exists.
 
-## 🚀 Hızlı Başlangıç
+## 🚀 Quick Start
 
 ```bash
 python -m harita.app_shell.server --port 8765
-# Tarayıcıda http://127.0.0.1:8765 adresini aç
+# open http://127.0.0.1:8765 in your browser
 ```
 
-### 🐳 Docker ile çalıştırma
+## 🐳 Docker
 
 ```bash
 docker build -t geospatial-digital-twin .
 docker run -p 8765:8765 -v geo-data:/home/harita/.harita geospatial-digital-twin
 ```
 
-## 🧪 Test & Kalite
+## 🧪 Testing
 
 ```bash
-pytest                # 175+ test
-ruff check .           # lint
-ruff format .           # kod biçimlendirme
-mypy .                 # statik tip kontrolü (kademeli, uyarı seviyesi)
+pytest                 # 175+ tests
+ruff check .            # lint
+ruff format .            # formatting
+mypy .                  # static type checking (gradual, warning-level)
 ```
 
-## 📁 Proje Yapısı
+## 📁 Project Structure
 
 ```
 .
-├── core_engine/            # Coğrafi çekirdek: koordinat sistemleri, GIS, tile motoru
-├── building_reconstruction/ # Footprint'ten 3D bina üretimi
-├── ai_reconstruction/       # ML/heuristik tahmin katmanı (yükseklik, malzeme, çatı)
-├── digital_twin/            # Hiyerarşi, IoT köprüsü, gerçek zamanlı veri akışı
-├── hazard_data/             # Deprem, yangın, sel/heyelan risk modelleri
-├── mobility/                # Trafik, kalabalık, toplu taşıma simülasyonu
-├── analysis_engine/         # Ölçüm, görünürlük, güneş/çevresel simülasyon
-├── render_engine/           # Gerçek zamanlı render, LOD, streaming
-├── editor/                  # 3D sahne düzenleyici
-├── collaboration/           # Çok kullanıcılı işbirliği (CRDT, auth, WebSocket)
-├── export/                  # CityGML / CityJSON / IFC / 3D Tiles dışa aktarım
-├── feature_survey/          # RINEX/GNSS/LiDAR saha ölçüm hattı
-├── persistence/             # Proje kaydetme/yükleme (SQLite / PostgreSQL)
-├── app_shell/                # Web arayüzü ve HTTP/REST sunucusu
-├── extensibility/            # Eklenti sistemi, script API, makrolar
-├── scripts/                  # Sürüm yükseltme, changelog, kalite kontrol betikleri
-├── tests/                    # 175+ test dosyası
-├── docs/                     # API, kullanıcı ve geliştirici dokümantasyonu
-├── Dockerfile                # Çok aşamalı, stdlib-only runtime imajı
-└── pyproject.toml             # Paket metadata ve opsiyonel bağımlılıklar
+├── core_engine/              # Geo core: coordinate systems, GIS, tile engine
+├── building_reconstruction/  # 3D building generation from footprints
+├── ai_reconstruction/        # ML/heuristic prediction layer (height, material, roof)
+├── digital_twin/             # Hierarchy, IoT bridge, real-time data streaming
+├── hazard_data/              # Earthquake, fire, flood/landslide risk models
+├── mobility/                 # Traffic, crowd, and transit simulation
+├── analysis_engine/          # Measurement, visibility, sun/environmental simulation
+├── render_engine/            # Real-time rendering, LOD, streaming
+├── editor/                   # 3D scene editor
+├── collaboration/            # Multi-user collaboration (CRDT, auth, WebSocket)
+├── export/                   # CityGML / CityJSON / IFC / 3D Tiles export
+├── feature_survey/           # RINEX/GNSS/LiDAR field survey pipeline
+├── persistence/              # Project save/load (SQLite / PostgreSQL)
+├── app_shell/                # Web UI and HTTP/REST server
+├── extensibility/            # Plugin system, script API, macros
+├── scripts/                  # Version bumping, changelog, quality-check scripts
+├── tests/                    # 175+ test files
+├── docs/                     # API, user, and developer documentation
+├── Dockerfile                # Multi-stage, stdlib-only runtime image
+└── pyproject.toml            # Package metadata and optional dependencies
 ```
 
-## 🗺️ Dokümantasyon
+## 🗺️ Documentation
 
-| Belge | İçerik |
+| Document | Content |
 |---|---|
-| [`docs/API.md`](docs/API.md) | REST/WebSocket API referansı |
-| [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | Kullanıcı kılavuzu |
-| [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md) | Geliştirici kılavuzu, kod standartları |
-| [`docs/AI_INTEGRATION_MAP.md`](docs/AI_INTEGRATION_MAP.md) | Yapay zekâ entegrasyon noktaları |
+| [`docs/API.md`](docs/API.md) | REST/WebSocket API reference |
+| [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | User guide |
+| [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md) | Developer guide and coding standards |
+| [`docs/AI_INTEGRATION_MAP.md`](docs/AI_INTEGRATION_MAP.md) | AI integration points |
 
-## 🤝 Katkıda Bulunma
+## 🧭 Roadmap Philosophy
 
-Katkılar memnuniyetle karşılanır! Bir issue açmadan önce mevcut issue'lara göz atmanızı, büyük değişiklikler için önce bir issue üzerinden tartışma başlatmanızı öneririz.
+Internal roadmaps, phase-by-phase progress logs, and audit reports are kept in a private working tree and are intentionally not part of this public repository. What you see here is the shipped, tested code plus the documentation needed to use and extend it.
 
-1. Depoyu fork'layın
-2. Bir özellik dalı oluşturun (`git checkout -b feature/harika-ozellik`)
-3. Değişikliklerinizi commit'leyin (`git commit -m 'Add: harika özellik'`)
-4. Dalınıza push'layın (`git push origin feature/harika-ozellik`)
-5. Bir Pull Request açın
+## 🤝 Contributing
 
-Pull request göndermeden önce lütfen `pytest` ve `ruff check .` komutlarının başarıyla geçtiğinden emin olun.
+Contributions are welcome! Please check existing issues before opening a new one, and open an issue to discuss significant changes before submitting a large PR.
 
-## 📄 Lisans
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add: amazing feature'`)
+4. Push to your branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-Bu proje [Apache License 2.0](LICENSE) altında lisanslanmıştır.
+Please make sure `pytest` and `ruff check .` pass before submitting a pull request.
+
+## 📄 License
+
+This project is licensed under the [Apache License 2.0](LICENSE).
 
 ---
 
 <div align="center">
 
-Geliştirici: [**@kaandevs-ops**](https://github.com/kaandevs-ops)
+Built by [**@kaandevs-ops**](https://github.com/kaandevs-ops)
 
-⭐ Projeyi beğendiyseniz yıldız vermeyi unutmayın!
+⭐ If you find this project useful, consider giving it a star!
 
 </div>
