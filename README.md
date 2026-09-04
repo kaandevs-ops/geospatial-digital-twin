@@ -114,39 +114,68 @@ It answers three broad problems:
 
 ## Demo
 
-<table>
-  <tr>
-    <td width="50%">
-      <img src="assets/demo-01.gif" alt="Interactive 3D model viewer" width="100%"/>
-      <p align="center"><sub>Rotating/inspecting a generated building in the 3D viewer with live inspector panels.</sub></p>
-    </td>
-    <td width="50%">
-      <img src="assets/demo-04.gif" alt="Earthquake shake simulation" width="100%"/>
-      <p align="center"><sub>Running a seismic shake simulation against a reconstructed building.</sub></p>
-    </td>
-  </tr>
-</table>
+#### 🏗️ Parametric 3D building generation
+Inspecting a reconstructed building in the interactive 3D viewer — orbit/pan camera, live floor/height inspector, day-night toggle.
+
+<img src="assets/demo-01.gif" alt="Interactive 3D model viewer" width="100%"/>
+
+#### 🧭 Terrain & road editing
+Sculpting terrain and drawing roads directly on the map canvas, with brush radius/amount and road-width controls applied in real time.
+
+<img src="assets/demo-03.gif" alt="Terrain and road editor" width="100%"/>
+
+#### 🌍 Multi-building city layout
+Generating a full block of parametric buildings from a footprint grid instead of a single structure.
+
+<img src="assets/demo-05.gif" alt="Multi-building layout generation" width="100%"/>
+
+#### 🌀 Earthquake shake simulation
+Running a seismic shake simulation against a reconstructed building to visualize structural response.
+
+<img src="assets/demo-04.gif" alt="Earthquake shake simulation" width="100%"/>
+
+#### 📂 Project workflow
+Creating a project, naming it, and picking it back up from the project browser with its layer/building list.
+
+<img src="assets/demo-08.gif" alt="Project creation and browser workflow" width="100%"/>
+
+#### 💬 AI-assisted building editing
+Adding floors and editing a building through natural-language commands routed to the AI assistant.
+
+<img src="assets/demo-11.gif" alt="AI-assisted building editor panel" width="100%"/>
 
 <details>
-<summary><strong>▶ More demos (onboarding, project/editor workflow, terrain & road editing)</strong></summary>
+<summary><strong>▶ More recordings</strong> (onboarding, alternate project/import/hazard runs)</summary>
 
 <br/>
 
 <table>
   <tr>
-    <td width="33%"><img src="assets/demo-02.gif" alt="Onboarding tour" width="100%"/><p align="center"><sub>First-run onboarding tour</sub></p></td>
-    <td width="33%"><img src="assets/demo-03.gif" alt="Terrain and road editor" width="100%"/><p align="center"><sub>Terrain / road editor workflow</sub></p></td>
-    <td width="33%"><img src="assets/demo-05.gif" alt="Multi-building layout" width="100%"/><p align="center"><sub>Multi-building layout generation</sub></p></td>
+    <td width="50%">
+      <img src="assets/demo-02.gif" alt="Onboarding tour" width="100%"/>
+      <p align="center"><sub><strong>First-run onboarding tour</strong></sub></p>
+    </td>
+    <td width="50%">
+      <img src="assets/demo-06.gif" alt="Project creation flow" width="100%"/>
+      <p align="center"><sub><strong>Project creation flow</strong> (alternate run)</sub></p>
+    </td>
   </tr>
   <tr>
-    <td width="33%"><img src="assets/demo-06.gif" alt="Project creation" width="100%"/><p align="center"><sub>Project creation flow</sub></p></td>
-    <td width="33%"><img src="assets/demo-07.gif" alt="Feature survey import" width="100%"/><p align="center"><sub>Feature-survey / GeoJSON import</sub></p></td>
-    <td width="33%"><img src="assets/demo-08.gif" alt="Layer and project browser" width="100%"/><p align="center"><sub>Layer & project browser</sub></p></td>
+    <td width="50%">
+      <img src="assets/demo-07.gif" alt="Feature survey / GeoJSON import" width="100%"/>
+      <p align="center"><sub><strong>Feature-survey / GeoJSON import</strong> workflow</sub></p>
+    </td>
+    <td width="50%">
+      <img src="assets/demo-09.gif" alt="Hazard overlay on a building" width="100%"/>
+      <p align="center"><sub><strong>Hazard simulation</strong> (alternate run)</sub></p>
+    </td>
   </tr>
   <tr>
-    <td width="33%"><img src="assets/demo-09.gif" alt="Tsunami and hazard overlay" width="100%"/><p align="center"><sub>Hazard overlay on a reconstructed building</sub></p></td>
-    <td width="33%"><img src="assets/demo-10.gif" alt="Empty scene / new project" width="100%"/><p align="center"><sub>Starting a new empty scene</sub></p></td>
-    <td width="33%"><img src="assets/demo-11.gif" alt="Building editor panel" width="100%"/><p align="center"><sub>Building editor side panel</sub></p></td>
+    <td width="50%">
+      <img src="assets/demo-10.gif" alt="Starting a new empty scene" width="100%"/>
+      <p align="center"><sub><strong>New/empty scene</strong> starting point</sub></p>
+    </td>
+    <td width="50%"></td>
   </tr>
 </table>
 
