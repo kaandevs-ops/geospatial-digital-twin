@@ -101,11 +101,11 @@ class SklearnHeightModel:
         return self._model is not None and self.n_training_samples > 0
 
     def fit(self, samples: list[dict], targets: list[float]) -> SklearnHeightModel:
-        _require_sklearn()
         if len(samples) != len(targets):
             raise ValueError("samples ve targets ayni uzunlukta olmali")
         if len(samples) < 10:
             raise ValueError(f"en az 10 egitim ornegi gerekli, {len(samples)} verildi")
+        _require_sklearn()
 
         rows = [_feature_vector(s)[1:] for s in samples]  # bias sütununu at
         model = GradientBoostingRegressor(

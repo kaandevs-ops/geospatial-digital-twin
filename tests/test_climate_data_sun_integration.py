@@ -23,6 +23,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from harita.analysis_engine.sun_simulation import RoofIrradiance, SolarPositionCalculator
@@ -77,21 +79,24 @@ def test_cloud_cover_is_monotonic():
 
 
 def test_daily_energy_with_real_climate_raises_cleanly_without_network():
-    """Bu sandbox'ın ağ erişimi yalnızca paket-indirme domain'leriyle sınırlı
-    (`api.open-meteo.com` YOK) - bu yüzden gerçek bir ağ hatası bekleniyor.
-    Roadmap ilkesi: sessizce clear-sky'a düşülmez, hata açıkça yükselir."""
+    """Ağ erişimi kapalı bir ortamda (ör. CI sandbox) gerçek bir ağ hatası
+    bekleniyor: sessizce clear-sky'a düşülmez, hata açıkça yükselir. Ağ
+    erişimi açık ortamlarda (ör. geliştirici makinesi) bu test anlamsız
+    olduğu için atlanır - burada doğrulanan şey hata YÖNETİMİ, ağın kendisi
+    değil."""
     try:
         RoofIrradiance.daily_energy_kwh_per_m2_with_real_climate(
             _ANKARA,
             _NOON_SUMMER,
             climate_client=OpenMeteoClient(timeout_s=3.0),
         )
-        raise AssertionError(
-            "Bu ortamda api.open-meteo.com'a erişim olmamalıydı; eğer bu satıra "
-            "geldiyse ağ erişimi genişletilmiş olabilir - testi gözden geçirin."
-        )
     except ClimateError:
-        pass
+        return
+    else:
+        pytest.skip(
+            "Bu ortamda api.open-meteo.com'a erişim var (ağ kapalı değil); "
+            "ağ-hatası-yönetimi senaryosu bu makinede test edilemiyor."
+        )
 
 
 _ALL_TESTS = [v for k, v in list(globals().items()) if k.startswith("test_")]
