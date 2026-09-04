@@ -99,6 +99,29 @@ harita-app = "harita.app_shell.server:main"
 "harita.app_shell.web" = ["*.html"]
 
 [tool.pytest.ini_options]
+# rootdir=tests: repo kökünde `harita` paketinin KENDİ __init__.py'ı var
+# (bkz. setup.py notu - bu dizin "harita" paketi olarak paketleniyor).
+# pytest>=8, çalıştığı dizinde __init__.py bulursa onu bir "Package" olarak
+# ele alıp session'ın en tepesinde örtük bir ata (ancestor) node'u olarak
+# DOĞRUDAN import etmeye çalışıyor - editable-install'daki gerçek "harita."
+# önekini hiç görmeden. Bu, checkout klasörünün adı ne olursa olsun (yerelde
+# "harita", CI'da "geospatial-digital-twin") oluşan bir
+# "ImportError: attempted relative import with no known parent package"
+# hatasına yol açıyor, çünkü kök __init__.py bir üst paket olmadan tek
+# başına import edilmeye çalışılıyor. rootdir'i tests/ dizinine sabitlemek
+# (ki onun hiç __init__.py'ı yok) pytest'in bu örtük Package ata node'unu
+# hiç oluşturmasını engelliyor; testler yine de gerçek `harita.*` paketini
+# (editable install üzerinden, --import-mode=importlib ile) normal şekilde
+# import ediyor. Bu satır olmadan da testler collect-only'de sorunsuz
+# görünüyor - hata yalnızca gerçek çalıştırma (setup) anında ortaya çıkıyor.
+# NOT: `rootdir`/config-dosyası burada (repo kökünde) KALAMAZ - pytest
+# rootdir'i, config dosyasını bulmak için args'tan YUKARI doğru tarayarak
+# belirliyor, yani `--rootdir` bayrağını addopts içine koymak işe yaramıyor
+# (addopts, rootdir zaten belirlendikten SONRA uygulanıyor - döngüsel
+# bağımlılık). Gerçek çözüm: pytest ayarlarını `tests/pytest.ini`'ye
+# taşımak (bkz. o dosya) - pytest en yakın config dosyasını bulunca orada
+# duruyor, rootdir de otomatik olarak tests/ oluyor, bu dosyadaki
+# [tool.pytest.ini_options] artık pytest tarafından HİÇ okunmuyor.
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-ra -q --import-mode=importlib"
