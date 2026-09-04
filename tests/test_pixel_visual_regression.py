@@ -1,4 +1,5 @@
 import pytest
+
 pytestmark = pytest.mark.skip(reason="temporarily disabled to unblock CI")
 
 """Roadmap V7 — `render_engine.software_rasterizer` + `scripts/pixel_visual_regression.py`

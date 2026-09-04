@@ -1,4 +1,5 @@
 import pytest
+
 pytestmark = pytest.mark.skip(reason="temporarily disabled to unblock CI")
 
 """Faz D2 — Render Engine <-> Performance Köprüsü testleri.

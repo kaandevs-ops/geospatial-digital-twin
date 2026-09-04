@@ -1,4 +1,5 @@
 import pytest
+
 pytestmark = pytest.mark.skip(reason="temporarily disabled to unblock CI")
 
 """`climate_data.OpenMeteoClient` <-> `analysis_engine.sun_simulation.RoofIrradiance`

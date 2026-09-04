@@ -1,4 +1,5 @@
 import pytest
+
 pytestmark = pytest.mark.skip(reason="temporarily disabled to unblock CI")
 
 """Roadmap Faz 5.3 / Faz 1 kabul kriteri — "Görsel regresyon testi".
