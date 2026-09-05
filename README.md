@@ -622,7 +622,7 @@ Internal, dated planning documents and phase-by-phase audit notes exist in the p
 ---
 
 <p align="center">
-  Built by the Harita Modelleme Platformu maintainers.
+  Built by the kaandevs-ops.
   <br/>
   <sub>⭐ Star this repo if you find it useful.</sub>
 </p>
