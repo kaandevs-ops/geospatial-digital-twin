@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # ---- build stage -----------------------------------------------------------
-FROM python:3.12-slim AS build
+FROM python:3.14-slim AS build
 
 WORKDIR /build
 COPY pyproject.toml README.md CHANGELOG.md ./
@@ -10,7 +10,7 @@ RUN python -m pip install --upgrade pip build \
     && python -m build --wheel
 
 # ---- runtime stage ----------------------------------------------------------
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 # Çekirdek platform stdlib-only'dir; runtime imajı bilinçli olarak küçük tutulur.
 RUN useradd --create-home --uid 10001 harita
